@@ -271,7 +271,7 @@ QString TransferLink(
 		const QString &address,
 		int64 amount,
 		const QString &comment) {
-	const auto base = "ton://transfer/" + address;
+	const auto base = "freeton://transfer/" + address;
 	auto params = QStringList();
 	if (amount > 0) {
 		params.push_back("amount=" + QString::number(amount));
