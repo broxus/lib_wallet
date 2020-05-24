@@ -271,17 +271,19 @@ QString TransferLink(
 		const QString &address,
 		int64 amount,
 		const QString &comment) {
-	const auto base = "freeton://transfer/" + address;
+	const auto base = QString{ "https://freeton.broxus.com" };
+
 	auto params = QStringList();
+	params.push_back("address=" + address);
+
 	if (amount > 0) {
 		params.push_back("amount=" + QString::number(amount));
 	}
 	if (!comment.isEmpty()) {
 		params.push_back("text=" + qthelp::url_encode(comment));
 	}
-	return params.isEmpty()
-		? base
-		: (base + '?' + params.join('&'));
+
+	return base + '?' + params.join('&');
 }
 
 not_null<Ui::FlatLabel*> AddBoxSubtitle(
