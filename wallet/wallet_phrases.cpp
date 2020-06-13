@@ -276,7 +276,7 @@ Fn<phrase(QString)> lng_wallet_grams_count = [](QString text) {
 Fn<phrase(QString)> lng_wallet_grams_count_sent = [](QString text) {
 	return text + ((text == "1")
 		? " TON Crystal has been sent."
-		: " Grams have been sent.");
+		: " TON Crystals have been sent.");
 };
 
 } // namespace ph
