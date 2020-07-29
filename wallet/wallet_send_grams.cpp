@@ -163,7 +163,12 @@ void SendGramsBox(
 			if (!fixed.invoice.comment.isEmpty()) {
 				comment->setText(fixed.invoice.comment);
 			}
-			if (fixed.invoice.address.size() == kAddressLength
+
+			const auto colonPosition = fixed.invoice.address.indexOf(':');
+			const auto isRaw = colonPosition > 0;
+
+			if ((isRaw && ((fixed.invoice.address.size() - colonPosition - 1) == kRawAddressLength) ||
+				!isRaw && fixed.invoice.address.size() == kEncodedAddressLength)
 				&& address->hasFocus()) {
 				if (amount->getLastText().isEmpty()) {
 					amount->setFocus();
@@ -205,7 +210,13 @@ void SendGramsBox(
 	};
 
 	Ui::Connect(address, &Ui::InputField::submitted, [=] {
-		if (address->getLastText().size() != kAddressLength) {
+		const auto text = address->getLastText();
+		const auto colonPosition = text.indexOf(':');
+		const auto isRaw = colonPosition > 0;
+
+		if (isRaw && ((text.size() - colonPosition - 1) != kRawAddressLength) ||
+			!isRaw && (text.size() != kEncodedAddressLength))
+		{
 			address->showError();
 		} else {
 			amount->setFocus();

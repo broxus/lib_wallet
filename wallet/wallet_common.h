@@ -27,7 +27,8 @@ struct PreparedInvoice;
 enum class InvoiceField;
 
 inline constexpr auto kMaxCommentLength = 500;
-inline constexpr auto kAddressLength = 48;
+inline constexpr auto kEncodedAddressLength = 48;
+inline constexpr auto kRawAddressLength = 64;
 
 struct FormattedAmount {
 	QString gramsString;

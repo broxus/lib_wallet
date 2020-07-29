@@ -63,7 +63,7 @@ constexpr auto kRefreshWhileSendingDelay = 3 * crl::time(1000);
 [[nodiscard]] bool ValidateTransferLink(const QString &link) {
 	return QRegularExpression(
 		QString("^((freeton://)?transfer/)?[a-z0-9_\\-]{%1}/?($|\\?)"
-		).arg(kAddressLength),
+		).arg(kEncodedAddressLength),
 		QRegularExpression::CaseInsensitiveOption
 	).match(link.trimmed()).hasMatch();
 }

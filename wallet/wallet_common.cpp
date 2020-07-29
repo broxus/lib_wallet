@@ -214,10 +214,26 @@ PreparedInvoice ParseInvoice(QString invoice) {
 		result.amount = params.value("amount").toULongLong();
 		result.comment = params.value("text");
 	}
-	result.address = invoice.mid(0, paramsPosition).replace(
-		QRegularExpression("[^a-zA-Z0-9_\\-]"),
-		QString()
-	).mid(0, kAddressLength);
+
+	const auto colonPosition = invoice.indexOf(':');
+	if (colonPosition > 0) {
+		const auto hasMinus = invoice[0] == '-';
+
+		result.address = (hasMinus ? QString{ "-" } : QString{}) +
+			invoice.mid(hasMinus, colonPosition).replace(
+				QRegularExpression("[^\\d]"),
+				QString()
+			).mid(0, 2) + ":" +
+			invoice.mid(colonPosition, std::max(paramsPosition - colonPosition, -1)).replace(
+				QRegularExpression("[^a-fA-F0-9]"),
+				QString()
+			).mid(0, kRawAddressLength);
+	} else {
+		result.address = invoice.mid(0, paramsPosition).replace(
+			QRegularExpression("[^a-zA-Z0-9_\\-]"),
+			QString()
+		).mid(0, kEncodedAddressLength);
+	}
 	return result;
 }
 
