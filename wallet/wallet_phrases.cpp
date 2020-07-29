@@ -111,6 +111,7 @@ phrase lng_wallet_view_send_to_recipient = "Send TON Crystals to this Recipient"
 phrase lng_wallet_receive_title = "Receive TON Crystals";
 phrase lng_wallet_receive_description = "Share this address with other TON Crystal wallet owners to receive TON Crystals from them.";
 phrase lng_wallet_receive_description_test = "Share this address to receive Test TON Crystals. Note: this link won't work for real TON Crystals.";
+phrase lng_wallet_receive_show_as_packed = "Show as packed";
 phrase lng_wallet_receive_create_invoice = "Create Invoice";
 phrase lng_wallet_receive_share = "Share Wallet Address";
 phrase lng_wallet_receive_copied = "Transfer link copied to clipboard.";

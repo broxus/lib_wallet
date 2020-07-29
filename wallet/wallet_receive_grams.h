@@ -12,7 +12,8 @@ namespace Wallet {
 
 void ReceiveGramsBox(
 	not_null<Ui::GenericBox*> box,
-	const QString &address,
+	const QString &packedAddress,
+	const QString &rawAddress,
 	const QString &link,
 	bool testnet,
 	Fn<void()> createInvoice,

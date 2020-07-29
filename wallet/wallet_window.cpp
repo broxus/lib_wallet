@@ -396,8 +396,9 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
 	_importing = false;
 	_createManager = nullptr;
 
-	_address = _wallet->getUsedAddress(publicKey);
-	_viewer = _wallet->createAccountViewer(publicKey, _address);
+	_packedAddress = _wallet->getUsedAddress(publicKey);
+	_rawAddress = Ton::Wallet::ConvertIntoRaw(_packedAddress);
+	_viewer = _wallet->createAccountViewer(publicKey, _packedAddress);
 	_state = _viewer->state() | rpl::map([](Ton::WalletViewerState &&state) {
 		return std::move(state.wallet);
 	});
@@ -852,7 +853,7 @@ void Window::showSendConfirmation(
 		return;
 	}
 	const auto confirmed = [=] {
-		if (invoice.address == _address) {
+		if (invoice.address == _packedAddress) {
 			_layers->showBox(Box([=](not_null<Ui::GenericBox*> box) {
 				box->setTitle(ph::lng_wallet_same_address_title());
 				box->addRow(object_ptr<Ui::FlatLabel>(
@@ -930,8 +931,9 @@ void Window::showSendingDone(std::optional<Ton::Transaction> result) {
 void Window::receiveGrams() {
 	_layers->showBox(Box(
 		ReceiveGramsBox,
-		_address,
-		TransferLink(_address),
+		_packedAddress,
+		_rawAddress,
+		TransferLink(_packedAddress),
 		_testnet,
 		[=] { createInvoice(); },
 		shareAddressCallback()));
@@ -940,7 +942,7 @@ void Window::receiveGrams() {
 void Window::createInvoice() {
 	_layers->showBox(Box(
 		CreateInvoiceBox,
-		_address,
+		_packedAddress,
 		_testnet,
 		[=](const QString &link) { showInvoiceQr(link); },
 		shareCallback(

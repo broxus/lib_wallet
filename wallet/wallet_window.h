@@ -149,7 +149,8 @@ private:
 	bool _importing = false;
 	bool _testnet = false;
 
-	QString _address;
+	QString _packedAddress;
+	QString _rawAddress;
 	std::unique_ptr<Ton::AccountViewer> _viewer;
 	rpl::variable<Ton::WalletState> _state;
 	rpl::variable<bool> _syncing;
