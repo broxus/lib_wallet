@@ -167,8 +167,8 @@ void SendGramsBox(
 			const auto colonPosition = fixed.invoice.address.indexOf(':');
 			const auto isRaw = colonPosition > 0;
 
-			if ((isRaw && ((fixed.invoice.address.size() - colonPosition - 1) == kRawAddressLength) ||
-				!isRaw && fixed.invoice.address.size() == kEncodedAddressLength)
+			if (((isRaw && ((fixed.invoice.address.size() - colonPosition - 1) == kRawAddressLength)) ||
+				(!isRaw && fixed.invoice.address.size() == kEncodedAddressLength))
 				&& address->hasFocus()) {
 				if (amount->getLastText().isEmpty()) {
 					amount->setFocus();
@@ -214,8 +214,8 @@ void SendGramsBox(
 		const auto colonPosition = text.indexOf(':');
 		const auto isRaw = colonPosition > 0;
 
-		if (isRaw && ((text.size() - colonPosition - 1) != kRawAddressLength) ||
-			!isRaw && (text.size() != kEncodedAddressLength))
+		if ((isRaw && ((text.size() - colonPosition - 1) != kRawAddressLength)) ||
+			(!isRaw && (text.size() != kEncodedAddressLength)))
 		{
 			address->showError();
 		} else {
