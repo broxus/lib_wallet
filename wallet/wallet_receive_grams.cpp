@@ -62,27 +62,36 @@ void ReceiveGramsBox(
 	});
 
 	// Address label
-	const auto packedAddressLabel = box->addRow(
-		object_ptr<Ui::SlideWrap<Ui::RpWidget>>(
-			box,
-			object_ptr<Ui::RpWidget>::fromRaw(Ui::CreateAddressLabel(
-				box,
-				packedAddress,
-				st::walletReceiveAddressLabel,
-				[=] { share(QImage(), packedAddress); })),
-			st::walletReceiveAddressPadding
-	))->setDuration(0);
+	const auto addressWrap = box->addRow(
+		object_ptr<Ui::FixedHeightWidget>(box, 1),
+		st::walletReceiveAddressPadding);
 
-	const auto rawAddressLabel = box->addRow(
-		object_ptr<Ui::SlideWrap<Ui::RpWidget>>(
-			box,
-			object_ptr<Ui::RpWidget>::fromRaw(Ui::CreateAddressLabel(
-				box,
-				rawAddress,
-				st::walletReceiveAddressLabel,
-				[=] { share(QImage(), rawAddress); })),
-			st::walletReceiveAddressPadding
-	));
+	const auto packedAddressLabel = Ui::CreateChild<Ui::SlideWrap<Ui::RpWidget>>(
+		addressWrap,
+		object_ptr<Ui::RpWidget>::fromRaw(Ui::CreateAddressLabel(
+			addressWrap,
+			packedAddress,
+			st::walletReceiveAddressLabel,
+			[=] { share(QImage(), packedAddress); }))
+	)->setDuration(0);
+
+	const auto rawAddressLabel = Ui::CreateChild<Ui::SlideWrap<Ui::RpWidget>>(
+		addressWrap,
+		object_ptr<Ui::RpWidget>::fromRaw(Ui::CreateAddressLabel(
+			addressWrap,
+			rawAddress,
+			st::walletReceiveAddressLabel,
+			[=] { share(QImage(), rawAddress); }))
+	)->setDuration(0);
+
+	addressWrap->setFixedHeight(rawAddressLabel->height());
+
+	addressWrap->widthValue() | rpl::start_with_next([=](int width) {
+		packedAddressLabel->move((width - packedAddressLabel->width()) / 2, 0);
+		rawAddressLabel->move((width - rawAddressLabel->width()) / 2, 0);
+	}, addressWrap->lifetime());
+
+	rawAddressLabel->hide(anim::type::instant);
 
 	// Address present group
 	const auto showAsPacked = box->addRow(
@@ -94,14 +103,8 @@ void ReceiveGramsBox(
 	)->toggleOn(showAsPackedOn->value());
 
 	showAsPacked->toggledValue() | rpl::start_with_next([=](bool toggled) {
-		if (toggled) {
-			packedAddressLabel->show(anim::type::instant);
-			rawAddressLabel->hide(anim::type::instant);
-		}
-		else {
-			packedAddressLabel->hide(anim::type::instant);
-			rawAddressLabel->show(anim::type::instant);
-		}
+		packedAddressLabel->toggle(toggled, anim::type::normal);
+		rawAddressLabel->toggle(!toggled, anim::type::normal);
 	}, showAsPacked->lifetime());
 
 	box->addRow(
