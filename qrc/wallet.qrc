@@ -13,5 +13,9 @@
     <file alias="art/gem@2x.png">../art/gem@2x.png</file>
     <file alias="art/gem@4x.png">../art/gem@4x.png</file>
     <file alias="art/gem@large.png">../art/gem@large.png</file>
+    <file alias="art/pepe.png">../art/pepe.png</file>
+    <file alias="art/pepe@2x.png">../art/pepe@2x.png</file>
+    <file alias="art/pepe@4x.png">../art/pepe@4x.png</file>
+    <file alias="art/pepe@large.png">../art/pepe@large.png</file>
   </qresource>
 </RCC>

@@ -30,7 +30,7 @@ const std::vector<std::pair<int, QString>> &Variants() {
 
 QString ChooseVariant(int desiredSize) {
 	const auto &variants = Variants();
-	for (const auto &[size, name] : Variants()) {
+	for (const auto &[size, name] : variants) {
 		if (size == desiredSize || size >= desiredSize * 2) {
 			return name;
 		}

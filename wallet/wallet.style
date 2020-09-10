@@ -150,6 +150,9 @@ walletMenuPosition: point(2px, 40px);
 walletDiamondSize: 22px;
 walletDiamondAscent: 16px;
 
+walletTokenIconSize: 22px;
+walletTokenIconAscent: 16px;
+
 walletAddressWidthMin: 50px;
 walletAddressLabel: FlatLabel(defaultFlatLabel) {
 	minWidth: walletAddressWidthMin;
@@ -180,6 +183,45 @@ walletTopRefreshButton: IconButton(walletTopMenuButton) {
 }
 walletTopLabel: FlatLabel(defaultFlatLabel) {
 	textFg: walletTopLabelFg;
+}
+
+walletTokensListPadding: margins(20px, 8px, 8px, 20px);
+walletTokensListTitle: FlatLabel(defaultFlatLabel) {
+	textFg: walletBalanceFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(20px semibold);
+	}
+}
+
+walletTokensListRowsTopOffset: 50px;
+walletTokensListRowHeight: 96px;
+walletTokensListRowIconSize: 44px;
+walletTokensListRowTitleStyle: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(16px bold);
+	}
+}
+walletTokensListRowPadding: margins(16px, 16px, 16px, 0px);
+walletTokensListRowContentPadding: margins(8px, 8px, 8px, 8px);
+walletTokensListRow: RoundButton {
+	textFg: windowFg;
+	textFgOver: windowFgOver;
+
+	textBg: windowBg;
+	textBgOver: windowBgOver;
+
+	font: font(20px bold);
+
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgRipple;
+	}
+}
+walletTokensListRowGramsStyle: TextStyle(defaultTextStyle) {
+	font: font(22px semibold);
+}
+walletTokensListRowNanoStyle: TextStyle(defaultTextStyle) {
+	font: font(18px semibold);
 }
 
 walletCoverHeight: 198px;

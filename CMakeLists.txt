@@ -38,6 +38,8 @@ PRIVATE
     ui/amount_label.h
     ui/inline_diamond.cpp
     ui/inline_diamond.h
+    ui/inline_token_icon.cpp
+    ui/inline_token_icon.h
     ui/lottie_widget.cpp
     ui/lottie_widget.h
     ui/ton_word_input.cpp
@@ -98,6 +100,8 @@ PRIVATE
     wallet/wallet_sending_transaction.h
     wallet/wallet_settings.cpp
     wallet/wallet_settings.h
+    wallet/wallet_tokens_list.cpp
+    wallet/wallet_tokens_list.h
     wallet/wallet_top_bar.cpp
     wallet/wallet_top_bar.h
     wallet/wallet_update_info.cpp
