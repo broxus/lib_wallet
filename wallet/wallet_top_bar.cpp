@@ -99,6 +99,15 @@ void TopBar::setupControls(rpl::producer<TopBarState> &&state) {
 	) | rpl::map([](const TopBarState &state) {
 		return state.text;
 	});
+
+	const auto back = Ui::CreateChild<Ui::IconButton>(
+		&_widget,
+		st::walletTopBackButton);
+	back->clicks(
+	) | rpl::map([] {
+		return Action::Back;
+	}) | rpl::start_to_stream(_actionRequests, back->lifetime());
+
 	const auto refresh = Ui::CreateChild<Ui::IconButton>(
 		&_widget,
 		st::walletTopRefreshButton);
@@ -131,7 +140,8 @@ void TopBar::setupControls(rpl::producer<TopBarState> &&state) {
 		std::move(state)
 	) | rpl::start_with_next([=](int width, const TopBarState&) {
 		const auto height = _widget.height();
-		refresh->moveToLeft(0, (height - refresh->height()) / 2, width);
+		back->moveToLeft(0, (height - back->height()) / 2, width);
+		refresh->moveToRight(height, (height - refresh->height()) / 2, width);
 		menu->moveToRight(0, (height - menu->height()) / 2, width);
 		label->moveToLeft(
 			(width - label->width()) / 2,

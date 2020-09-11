@@ -419,6 +419,7 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
 	data.updates = _wallet->updates();
 	data.collectEncrypted = _collectEncryptedRequests.events();
 	data.updateDecrypted = _decrypted.events();
+	data.transitionEvents = _infoTransitions.events();
 	data.share = shareAddressCallback();
 	data.useTestNetwork = _wallet->settings().useTestNetwork;
 	_info = std::make_unique<Info>(_window->body(), std::move(data));
@@ -447,6 +448,7 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
 		case Action::ChangePassword: changePassword(); return;
 		case Action::ShowSettings: showSettings(); return;
 		case Action::LogOut: logoutWithConfirmation(); return;
+		case Action::Back: back(); return;
 		}
 		Unexpected("Action in Info::actionRequests().");
 	}, _info->lifetime());
@@ -1238,6 +1240,10 @@ void Window::logout() {
 		}
 		showCreate();
 	}));
+}
+
+void Window::back() {
+	_infoTransitions.fire_copy(InfoTransition::Back);
 }
 
 } // namespace Wallet

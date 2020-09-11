@@ -41,6 +41,7 @@ class Info;
 struct PreparedInvoice;
 enum class InvoiceField;
 class UpdateInfo;
+enum class InfoTransition;
 
 class Window final : public base::has_weak_ptr {
 public:
@@ -135,6 +136,7 @@ private:
 	[[nodiscard]] Fn<void(QImage, QString)> shareAddressCallback();
 	void logoutWithConfirmation();
 	void logout();
+	void back();
 
 	// Before _layers, because box destructor can set this pointer.
 	std::unique_ptr<DecryptPasswordState> _decryptPasswordState;
@@ -162,6 +164,7 @@ private:
 		not_null<std::vector<Ton::Transaction>*>> _collectEncryptedRequests;
 	rpl::event_stream<
 		not_null<const std::vector<Ton::Transaction>*>> _decrypted;
+	rpl::event_stream<InfoTransition> _infoTransitions;
 
 	QPointer<Ui::GenericBox> _sendBox;
 	QPointer<Ui::GenericBox> _sendConfirmBox;

@@ -161,6 +161,7 @@ walletAddressLabel: FlatLabel(defaultFlatLabel) {
 
 walletTopBarHeight: 62px;
 walletTopMenuIcon: icon {{ "title_menu_dots", walletTopIconFg }};
+walletTopBackIcon: icon {{ "wallet_back", walletTopIconFg }};
 walletTopRefreshIcon: icon {{ "wallet_refresh", walletTopIconFg }};
 walletTopMenuButton: IconButton(menuToggle) {
 	width: 60px;
@@ -175,6 +176,11 @@ walletTopMenuButton: IconButton(menuToggle) {
 	ripple: RippleAnimation(defaultRippleAnimation) {
 		color: walletTopIconRipple;
 	}
+}
+walletTopBackButton: IconButton(walletTopMenuButton) {
+	icon: walletTopBackIcon;
+	iconOver: walletTopBackIcon;
+	iconPosition: point(18px, 18px);
 }
 walletTopRefreshButton: IconButton(walletTopMenuButton) {
 	icon: walletTopRefreshIcon;

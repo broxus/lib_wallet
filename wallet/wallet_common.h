@@ -52,6 +52,11 @@ enum class Action {
 	ChangePassword,
 	ShowSettings,
 	LogOut,
+	Back,
+};
+
+enum class InfoTransition {
+	Back
 };
 
 enum class FormatFlag {

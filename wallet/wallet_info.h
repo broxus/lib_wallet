@@ -17,6 +17,7 @@ class ScrollArea;
 namespace Wallet {
 
 enum class Action;
+enum class InfoTransition;
 
 class Info final {
 public:
@@ -28,6 +29,7 @@ public:
 			not_null<std::vector<Ton::Transaction>*>> collectEncrypted;
 		rpl::producer<
 			not_null<const std::vector<Ton::Transaction>*>> updateDecrypted;
+		rpl::producer<InfoTransition> transitionEvents;
 		Fn<void(QImage, QString)> share;
 		bool justCreated = false;
 		bool useTestNetwork = false;

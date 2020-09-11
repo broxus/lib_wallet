@@ -79,6 +79,18 @@ void Info::setupControls(Data &&data) {
 
 	const auto selectedToken = _widget->lifetime().make_state<rpl::variable<std::optional<int>>>(std::nullopt);
 
+	std::move(
+		data.transitionEvents
+	) | rpl::start_with_next([=](InfoTransition transition) {
+		switch (transition) {
+			case InfoTransition::Back:
+				*selectedToken = std::nullopt;
+				return;
+			default:
+				return;
+		}
+	}, lifetime());
+
 	// create wrappers
 	const auto tokensListWrapper = Ui::CreateChild<Ui::FixedHeightWidget>(_inner.get(), _widget->height());
 	const auto tonHistoryWrapper = Ui::CreateChild<Ui::FixedHeightWidget>(_inner.get(), _widget->height());
