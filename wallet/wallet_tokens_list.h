@@ -37,12 +37,12 @@ public:
 	void setGeometry(QRect geometry);
 
 	[[nodiscard]] rpl::producer<TokenItem> openRequests() const;
+	[[nodiscard]] rpl::producer<int> heightValue() const;
 
 	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:
-	void setupHeader();
-	void setupBody(rpl::producer<TokensListState> &&state);
+	void setupContent(rpl::producer<TokensListState> &&state);
 	void refreshItems();
 	bool mergeListChanged(std::vector<TokenItem> &&data);
 
@@ -54,6 +54,7 @@ private:
 
 	std::vector<std::unique_ptr<TokensListRow>> _rows;
 	std::vector<std::unique_ptr<Ui::RoundButton>> _buttons;
+	rpl::variable<int> _height;
 
 	rpl::event_stream<TokenItem> _openRequests;
 };

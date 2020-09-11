@@ -191,7 +191,7 @@ walletTopLabel: FlatLabel(defaultFlatLabel) {
 	textFg: walletTopLabelFg;
 }
 
-walletTokensListPadding: margins(20px, 8px, 8px, 20px);
+walletTokensListPadding: margins(16px, 16px, 16px, 16px);
 walletTokensListTitle: FlatLabel(defaultFlatLabel) {
 	textFg: walletBalanceFg;
 	style: TextStyle(defaultTextStyle) {
@@ -208,7 +208,7 @@ walletTokensListRowTitleStyle: FlatLabel(defaultFlatLabel) {
 		font: font(16px bold);
 	}
 }
-walletTokensListRowPadding: margins(16px, 16px, 16px, 0px);
+walletTokensListRowSpacing: 16px;
 walletTokensListRowContentPadding: margins(8px, 8px, 8px, 8px);
 walletTokensListRow: RoundButton {
 	textFg: windowFg;

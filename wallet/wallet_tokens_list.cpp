@@ -67,22 +67,12 @@ public:
 	[[nodiscard]] QString name() const;
 
 	void paint(Painter &p, int x, int y) const;
-	[[nodiscard]] bool isUnderCursor(QPoint point) const;
-	[[nodiscard]] ClickHandlerPtr handlerUnderCursor(QPoint point) const;
-
-	[[nodiscard]] int top() const;
-	void setTop(int top);
 
 	void resizeToWidth(int width);
-	[[nodiscard]] int height() const;
-	[[nodiscard]] int bottom() const;
 
 private:
-	[[nodiscard]] QRect computeInnerRect() const;
-
 	TokenItem _tokenItem;
 	TokenItemLayout _layout;
-	int _top = 0;
 	int _width = 0;
 	int _height = 0;
 };
@@ -94,18 +84,15 @@ TokensListRow::TokensListRow(const TokenItem &token)
 
 TokensList::~TokensList() = default;
 
-void TokensListRow::paint(Painter &p, int x, int y) const {
+void TokensListRow::paint(Painter &p, int /*x*/, int /*y*/) const {
 	const auto padding = st::walletTokensListRowContentPadding;
 
 	const auto availableWidth = _width - padding.left() - padding.right();
-	x += padding.left();
-
 	const auto availableHeight = _height - padding.top() - padding.bottom();
-	y += padding.top();
 
 	// draw icon
-	const auto iconTop = y + padding.top();
-	const auto iconLeft = x + padding.left();
+	const auto iconTop = padding.top() * 2;
+	const auto iconLeft = iconTop;
 
 	{
 		PainterHighQualityEnabler hq(p);
@@ -122,20 +109,20 @@ void TokensListRow::paint(Painter &p, int x, int y) const {
 	p.setPen(st::walletTokensListRowTitleStyle.textFg);
 	const auto titleTop = iconTop
 		+ st::walletTokensListRowIconSize;
-	const auto titleLeft = x
-		+ (iconLeft + st::walletTokensListRowIconSize - _layout.title.maxWidth()) / 2;
+	const auto titleLeft = iconLeft
+		+ (st::walletTokensListRowIconSize - _layout.title.maxWidth()) / 2;
 	_layout.title.draw(p, titleLeft, titleTop, availableWidth);
 
 	// draw balance
 	p.setPen(st::walletTokensListRow.textFg);
 
-	const auto nanoTop = y
+	const auto nanoTop = padding.top()
 		+ st::walletTokensListRowGramsStyle.font->ascent
 		- st::walletTokensListRowNanoStyle.font->ascent;
 	const auto nanoLeft = availableWidth - _layout.balanceNano.maxWidth();
 	_layout.balanceNano.draw(p, nanoLeft, nanoTop, availableWidth);
 
-	const auto gramTop = y;
+	const auto gramTop = padding.top();
 	const auto gramLeft = availableWidth
 		- _layout.balanceNano.maxWidth()
 		- _layout.balanceGrams.maxWidth();
@@ -152,14 +139,6 @@ void TokensListRow::paint(Painter &p, int x, int y) const {
 	_layout.address.draw(p, addressLeft, addressTop, _layout.addressWidth, style::al_bottomright);
 }
 
-int TokensListRow::top() const {
-	return _top;
-}
-
-void TokensListRow::setTop(int top) {
-	_top = top;
-}
-
 void TokensListRow::resizeToWidth(int width) {
 	if (_width == width) {
 		return;
@@ -170,44 +149,13 @@ void TokensListRow::resizeToWidth(int width) {
 	// TODO: handle contents resize
 }
 
-int TokensListRow::height() const {
-	return _height;
-}
-
-int TokensListRow::bottom() const {
-	return _top + _height;
-}
-
-QRect TokensListRow::computeInnerRect() const {
-	const auto padding = st::walletTokensListRowPadding;
-	const auto use = std::min(_width, st::walletRowWidthMax);
-	const auto avail = use - padding.left() - padding.right();
-	const auto left = (use < _width)
-		? ((_width - use) / 2 + padding.left() - st::walletRowShadowAdd)
-		: 0;
-	const auto width = (use < _width)
-		? (avail + 2 * st::walletRowShadowAdd)
-		: _width;
-	auto y = top();
-	return QRect(left, y, width, bottom() - y);
-}
-
-bool TokensListRow::isUnderCursor(QPoint point) const {
-	return computeInnerRect().contains(point);
-}
-
-ClickHandlerPtr TokensListRow::handlerUnderCursor(QPoint point) const {
-	return nullptr;
-}
-
 QString TokensListRow::name() const {
 	return _tokenItem.name;
 }
 
 TokensList::TokensList(not_null<Ui::RpWidget *> parent, rpl::producer<TokensListState> state)
 	: _widget(parent) {
-	setupHeader();
-	setupBody(std::move(state));
+	setupContent(std::move(state));
 }
 
 void TokensList::setGeometry(QRect geometry) {
@@ -218,11 +166,16 @@ rpl::producer<TokenItem> TokensList::openRequests() const {
 	return _openRequests.events();
 }
 
+rpl::producer<int> TokensList::heightValue() const {
+	return _height.value();
+}
+
 rpl::lifetime &TokensList::lifetime() {
 	return _widget.lifetime();
 }
 
-void TokensList::setupHeader() {
+void TokensList::setupContent(rpl::producer<TokensListState> &&state) {
+	// title
 	const auto titleLabel = Ui::CreateChild<Ui::FlatLabel>(&_widget, "Wallets", st::walletTokensListTitle);
 
 	_widget.sizeValue() | rpl::start_with_next(
@@ -243,19 +196,23 @@ void TokensList::setupHeader() {
 		{
 			Painter(&_widget).fillRect(clip, st::walletTopBg);
 		}, lifetime());
-}
 
-void TokensList::setupBody(rpl::producer<TokensListState> &&state) {
+	// content
 	const auto layoutWidget = Ui::CreateChild<Ui::FixedHeightWidget>(&_widget, 0);
+	layoutWidget->setContentsMargins(st::walletTokensListPadding);
 	auto *layout = new QVBoxLayout{layoutWidget};
-	const auto &padding = st::walletTokensListRowPadding;
-	layout->setContentsMargins(padding.left(), 0, padding.right(), 0);
-	layout->setSpacing(padding.top());
+	layout->setContentsMargins(0, 0, 0, 0);
+	layout->setSpacing(st::walletTokensListRowSpacing);
 
 	_widget.sizeValue() | rpl::start_with_next([=](QSize size) {
 		const auto use = std::min(size.width(), st::walletRowWidthMax);
 		const auto x = (size.width() - use) / 2;
 		layoutWidget->setGeometry(QRect(x, st::walletTokensListRowsTopOffset, use, layoutWidget->height()));
+	}, lifetime());
+
+	layoutWidget->heightValue(
+	) | rpl::start_with_next([this](int height) {
+		_height = st::walletTokensListRowsTopOffset + height;
 	}, lifetime());
 
 	std::move(
@@ -279,11 +236,13 @@ void TokensList::setupBody(rpl::producer<TokensListState> &&state) {
 					st::walletTokensListRow);
 
 				auto* label = Ui::CreateChild<Ui::FixedHeightWidget>(button.get());
-				button->sizeValue() | rpl::start_with_next([=](QSize size) {
+				button->sizeValue(
+				) | rpl::start_with_next([=](QSize size) {
 					label->setGeometry(QRect(0, 0, size.width(), size.height()));
 				}, button->lifetime());
 
-				label->paintRequest() | rpl::start_with_next([this, label, i](QRect clip) {
+				label->paintRequest(
+				) | rpl::start_with_next([this, label, i](QRect clip) {
 					auto p = Painter(label);
 					_rows[i]->resizeToWidth(label->width());
 					_rows[i]->paint(p, clip.left(), clip.top());
@@ -307,7 +266,11 @@ void TokensList::setupBody(rpl::producer<TokensListState> &&state) {
 				_buttons.pop_back();
 			}
 
-			layoutWidget->setFixedHeight(_buttons.size() * st::walletTokensListRowHeight);
+			layoutWidget->setFixedHeight(
+				_buttons.size() * (st::walletTokensListRowHeight + st::walletTokensListRowSpacing)
+				- (_buttons.empty() ? 0 : st::walletTokensListRowSpacing)
+				+ st::walletTokensListPadding.top()
+				+ st::walletTokensListPadding.bottom());
 		}, lifetime());
 }
 
@@ -391,6 +354,36 @@ rpl::producer<TokensListState> MakeTokensListState(
 						.name = "TON",
 						.address = "0:A921453472366B7FEEEC15323A96B5DCF17197C88DC0D4578DFA52900B8A33CB",
 						.balance = 247'781653888,
+					},
+					TokenItem{
+						.icon = Ui::TokenIconKind::Pepe,
+						.name = "PEPE",
+						.address = "0:A921453472366B7FEEEC15323A96B5DCF17197C88DC0D4578DFA52900B8A33CB",
+						.balance = 9999'123123234,
+					},
+					TokenItem{
+						.icon = Ui::TokenIconKind::Pepe,
+						.name = "PEPE",
+						.address = "0:A921453472366B7FEEEC15323A96B5DCF17197C88DC0D4578DFA52900B8A33CB",
+						.balance = 9999'123123234,
+					},
+					TokenItem{
+						.icon = Ui::TokenIconKind::Pepe,
+						.name = "PEPE",
+						.address = "0:A921453472366B7FEEEC15323A96B5DCF17197C88DC0D4578DFA52900B8A33CB",
+						.balance = 9999'123123234,
+					},
+					TokenItem{
+						.icon = Ui::TokenIconKind::Pepe,
+						.name = "PEPE",
+						.address = "0:A921453472366B7FEEEC15323A96B5DCF17197C88DC0D4578DFA52900B8A33CB",
+						.balance = 9999'123123234,
+					},
+					TokenItem{
+						.icon = Ui::TokenIconKind::Pepe,
+						.name = "PEPE",
+						.address = "0:A921453472366B7FEEEC15323A96B5DCF17197C88DC0D4578DFA52900B8A33CB",
+						.balance = 9999'123123234,
 					},
 					TokenItem{
 						.icon = Ui::TokenIconKind::Pepe,
