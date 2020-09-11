@@ -139,25 +139,15 @@ void Info::setupControls(Data &&data) {
 		tokensListWrapper->setGeometry(QRect(0, 0, size.width(), size.height()));
 		tokensList->setGeometry(QRect(0, 0, size.width(), size.height()));
 
-		tonHistoryWrapper->setGeometry(QRect(0, 0, size.width(), size.height()));
-		cover->setGeometry(QRect(0, 0, size.width(), st::walletCoverHeight));
 		const auto contentGeometry = QRect(
 			0,
 			st::walletCoverHeight,
 			size.width(),
 			size.height() - st::walletCoverHeight);
+		cover->setGeometry(QRect(0, 0, size.width(), st::walletCoverHeight));
 		history->updateGeometry({ 0, st::walletCoverHeight }, size.width());
 		emptyHistory->setGeometry(contentGeometry);
 	}, _scroll->lifetime());
-
-	rpl::combine(
-		_scroll->sizeValue(),
-		selectedToken->value()
-	) | rpl::start_with_next([=](QSize size, std::optional<int> token) {
-		if (!token.has_value()) {
-			_inner->setGeometry(QRect(0, 0, size.width(), size.height()));
-		}
-	}, tokensListWrapper->lifetime());
 
 	rpl::combine(
 		_scroll->sizeValue(),
@@ -170,6 +160,8 @@ void Info::setupControls(Data &&data) {
 				cover->height() + height);
 			_inner->setGeometry({0, 0, size.width(), innerHeight});
 			emptyHistory->setVisible(height == 0);
+			history->updateGeometry({0, st::walletCoverHeight}, size.width());
+			tonHistoryWrapper->setGeometry(QRect(0, 0, size.width(), innerHeight));
 		} else {
 			_inner->setGeometry(QRect(0, 0, size.width(), size.height()));
 		}
