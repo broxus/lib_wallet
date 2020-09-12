@@ -76,7 +76,8 @@ Window::Window(
 : _wallet(wallet)
 , _window(std::make_unique<Ui::Window>())
 , _layers(std::make_unique<Ui::LayerManager>(_window->body()))
-, _updateInfo(updateInfo) {
+, _updateInfo(updateInfo)
+, _selectedToken(std::nullopt) {
 	init();
 	const auto keys = _wallet->publicKeys();
 	if (keys.empty()) {
@@ -423,6 +424,12 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
 	data.share = shareAddressCallback();
 	data.useTestNetwork = _wallet->settings().useTestNetwork;
 	_info = std::make_unique<Info>(_window->body(), std::move(data));
+
+	_info->selectedToken(
+	) | rpl::start_with_next([=](const std::optional<Ton::TokenKind> &selectedToken) {
+		_selectedToken = selectedToken;
+	}, _info->lifetime());
+
 	_layers->raise();
 
 	setupRefreshEach();
@@ -728,14 +735,28 @@ void Window::sendGrams(const QString &invoice) {
 			confirmTransaction(invoice, showError, checking);
 		}
 	};
-	auto unlockedBalance = _state.value(
-	) | rpl::map([](const Ton::WalletState &state) {
-		return state.account.fullBalance - state.account.lockedBalance;
+
+	auto unlockedBalance = rpl::combine(
+		_state.value(),
+		_selectedToken.value()
+	) | rpl::map([](const Ton::WalletState &state, const std::optional<Ton::TokenKind> &selectedToken) {
+		if (!selectedToken.has_value() || !*selectedToken) {
+			return state.account.fullBalance - state.account.lockedBalance;
+		} else {
+			const auto it = state.tokenStates.find(*selectedToken);
+			if (it == state.tokenStates.end()) {
+				return int64_t{};
+			} else {
+				return it->second.fullBalance;
+			}
+		}
 	});
+
 	auto box = Box(
 		SendGramsBox,
 		invoice,
 		std::move(unlockedBalance),
+		_selectedToken.value(),
 		send);
 	_sendBox = box.data();
 	_layers->showBox(std::move(box));

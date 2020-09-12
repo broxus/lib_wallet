@@ -84,8 +84,8 @@ QImage InlineTokenIcon(Ton::TokenKind kind, int size) {
 	return CreateImage(kind, size);
 }
 
-not_null<RpWidget *> CreateInlinePepe(
-	Ton::TokenKind kind,
+not_null<RpWidget *> CreateInlineTokenIcon(
+	rpl::producer<std::optional<Ton::TokenKind>> kind,
 	not_null<QWidget *> parent,
 	int x,
 	int y,
@@ -98,10 +98,12 @@ not_null<RpWidget *> CreateInlinePepe(
 		st::walletDiamondSize,
 		st::walletDiamondSize);
 
-	result->paintRequest(
-	) | rpl::start_with_next([=] {
+	rpl::combine(
+		result->paintRequest(),
+		std::move(kind)
+	) | rpl::start_with_next([=](const QRect&, std::optional<Ton::TokenKind> kind) {
 		auto p = QPainter(result);
-		Paint(kind, p, 0, 0);
+		Paint(kind.value_or(Ton::TokenKind::Ton), p, 0, 0);
 	}, result->lifetime());
 
 	return result;

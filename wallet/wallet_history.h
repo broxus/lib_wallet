@@ -30,11 +30,13 @@ public:
 		rpl::producer<
 			not_null<std::vector<Ton::Transaction>*>> collectEncrypted,
 		rpl::producer<
-			not_null<const std::vector<Ton::Transaction>*>> updateDecrypted);
+			not_null<const std::vector<Ton::Transaction>*>> updateDecrypted,
+		rpl::producer<std::optional<Ton::TokenKind>> _selectedToken);
 	~History();
 
 	void updateGeometry(QPoint position, int width);
 	[[nodiscard]] rpl::producer<int> heightValue() const;
+	void setVisible(bool visible);
 	void setVisibleTopBottom(int top, int bottom);
 
 	[[nodiscard]] rpl::producer<Ton::TransactionId> preloadRequests() const;

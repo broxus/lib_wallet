@@ -14,7 +14,7 @@ void PaintInlineTokenIcon(Ton::TokenKind kind, QPainter &p, int x, int y, const 
 [[nodiscard]] QImage InlineTokenIcon(Ton::TokenKind kind, int size);
 
 not_null<RpWidget*> CreateInlineTokenIcon(
-	Ton::TokenKind kind,
+	rpl::producer<std::optional<Ton::TokenKind>> kind,
 	not_null<QWidget*> parent,
 	int x,
 	int y,

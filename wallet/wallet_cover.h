@@ -10,11 +10,13 @@
 
 namespace Ton {
 struct WalletViewerState;
+enum class TokenKind;
 } // namespace Ton
 
 namespace Wallet {
 
 struct CoverState {
+	Ton::TokenKind kind;
 	int64 unlockedBalance = 0;
 	int64 lockedBalance = 0;
 	bool justCreated = false;
@@ -47,6 +49,7 @@ private:
 
 [[nodiscard]] rpl::producer<CoverState> MakeCoverState(
 	rpl::producer<Ton::WalletViewerState> state,
+	rpl::producer<std::optional<Ton::TokenKind>> selectedToken,
 	bool justCreated,
 	bool useTestNetwork);
 

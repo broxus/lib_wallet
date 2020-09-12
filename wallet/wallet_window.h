@@ -155,6 +155,7 @@ private:
 	QString _rawAddress;
 	std::unique_ptr<Ton::AccountViewer> _viewer;
 	rpl::variable<Ton::WalletState> _state;
+	rpl::variable<std::optional<Ton::TokenKind>> _selectedToken;
 	rpl::variable<bool> _syncing;
 	std::unique_ptr<Info> _info;
 	object_ptr<Ui::FlatButton> _updateButton = { nullptr };

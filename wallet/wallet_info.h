@@ -39,6 +39,8 @@ public:
 
 	void setGeometry(QRect geometry);
 
+	[[nodiscard]] rpl::producer<std::optional<Ton::TokenKind>> selectedToken() const;
+
 	[[nodiscard]] rpl::producer<Action> actionRequests() const;
 	[[nodiscard]] rpl::producer<Ton::TransactionId> preloadRequests() const;
 	[[nodiscard]] rpl::producer<Ton::Transaction> viewRequests() const;
@@ -52,6 +54,8 @@ private:
 	const std::unique_ptr<Ui::RpWidget> _widget;
 	const not_null<Ui::ScrollArea*> _scroll;
 	const not_null<Ui::RpWidget*> _inner;
+
+	rpl::variable<std::optional<Ton::TokenKind>> _selectedToken;
 
 	rpl::event_stream<Action> _actionRequests;
 	rpl::event_stream<Ton::TransactionId> _preloadRequests;

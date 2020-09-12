@@ -11,7 +11,7 @@
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
-#include "ui/inline_diamond.h"
+#include "ui/inline_token_icon.h"
 #include "base/algorithm.h"
 #include "base/qt_signal_producer.h"
 #include "styles/style_wallet.h"
@@ -49,6 +49,7 @@ void SendGramsBox(
 		not_null<Ui::GenericBox*> box,
 		const QString &invoice,
 		rpl::producer<int64> unlockedBalance,
+		rpl::producer<std::optional<Ton::TokenKind>> selectedToken,
 		Fn<void(PreparedInvoice, Fn<void(InvoiceField)> error)> done) {
 	const auto prepared = ParseInvoice(invoice);
 	const auto funds = std::make_shared<int64>();
@@ -67,13 +68,6 @@ void SendGramsBox(
 		prepared.address));
 	address->rawTextEdit()->setWordWrapMode(QTextOption::WrapAnywhere);
 
-	const auto about = box->addRow(
-		object_ptr<Ui::FlatLabel>(
-			box,
-			ph::lng_wallet_send_about(),
-			st::walletSendAbout),
-		st::walletSendAboutPadding);
-
 	const auto subtitle = AddBoxSubtitle(box, ph::lng_wallet_send_amount());
 	const auto amount = box->addRow(
 		object_ptr<Ui::InputField>::fromRaw(CreateAmountInput(
@@ -91,7 +85,8 @@ void SendGramsBox(
 			FormatAmount(std::max(value, 0LL), FormatFlag::Rounded).full);
 	});
 
-	const auto diamondLabel = Ui::CreateInlineDiamond(
+	const auto diamondLabel = Ui::CreateInlineTokenIcon(
+		selectedToken,
 		subtitle->parentWidget(),
 		0,
 		0,

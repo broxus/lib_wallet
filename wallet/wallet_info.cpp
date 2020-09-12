@@ -30,7 +30,8 @@ Info::Info(not_null<QWidget*> parent, Data data)
 : _widget(std::make_unique<Ui::RpWidget>(parent))
 , _scroll(
 	Ui::CreateChild<Ui::ScrollArea>(_widget.get(), st::walletScrollArea))
-, _inner(_scroll->setOwnedWidget(object_ptr<Ui::RpWidget>(_scroll.get()))) {
+, _inner(_scroll->setOwnedWidget(object_ptr<Ui::RpWidget>(_scroll.get())))
+, _selectedToken(std::nullopt) {
 	setupControls(std::move(data));
 	_widget->show();
 }
@@ -39,6 +40,10 @@ Info::~Info() = default;
 
 void Info::setGeometry(QRect geometry) {
 	_widget->setGeometry(geometry);
+}
+
+rpl::producer<std::optional<Ton::TokenKind>> Info::selectedToken() const {
+	return _selectedToken.value();
 }
 
 rpl::producer<Action> Info::actionRequests() const {
@@ -77,14 +82,12 @@ void Info::setupControls(Data &&data) {
 		return std::move(*value);
 	});
 
-	const auto selectedToken = _widget->lifetime().make_state<rpl::variable<std::optional<int>>>(std::nullopt);
-
 	std::move(
 		data.transitionEvents
 	) | rpl::start_with_next([=](InfoTransition transition) {
 		switch (transition) {
 			case InfoTransition::Back:
-				*selectedToken = std::nullopt;
+				_selectedToken = std::nullopt;
 				return;
 			default:
 				return;
@@ -102,7 +105,7 @@ void Info::setupControls(Data &&data) {
 
 	tokensList->openRequests(
 	) | rpl::start_with_next([=](TokenItem token) {
-		*selectedToken = 1;
+		_selectedToken = token.kind;
 	}, tokensList->lifetime());
 
 	// create ton history page
@@ -112,6 +115,7 @@ void Info::setupControls(Data &&data) {
 		tonHistoryWrapper,
 		MakeCoverState(
 			rpl::duplicate(state),
+			_selectedToken.value(),
 			data.justCreated,
 			data.useTestNetwork));
 
@@ -125,9 +129,10 @@ void Info::setupControls(Data &&data) {
 	const auto history = _widget->lifetime().make_state<History>(
 		tonHistoryWrapper,
 		MakeHistoryState(rpl::duplicate(state)),
-		std::move(loaded),
-		std::move(data.collectEncrypted),
-		std::move(data.updateDecrypted));
+			std::move(loaded),
+			std::move(data.collectEncrypted),
+			std::move(data.updateDecrypted),
+			_selectedToken.value());
 
 	const auto emptyHistory = _widget->lifetime().make_state<EmptyHistory>(
 		tonHistoryWrapper,
@@ -150,25 +155,27 @@ void Info::setupControls(Data &&data) {
 		_scroll->sizeValue(),
 		tokensList->heightValue(),
 		history->heightValue(),
-		selectedToken->value()
-	) | rpl::start_with_next([=](QSize size, int tokensListHeight, int historyHeight, std::optional<int> token) {
+		_selectedToken.value()
+	) | rpl::start_with_next([=](QSize size, int tokensListHeight, int historyHeight, std::optional<Ton::TokenKind> token) {
 		if (token.has_value()) {
+			const auto isTon = !*token;
+
 			const auto innerHeight = std::max(
 				size.height(),
-				cover->height() + historyHeight);
+				isTon ? (cover->height() + historyHeight) : 0);
 			_inner->setGeometry({0, 0, size.width(), innerHeight});
 
-			cover->setGeometry(QRect(0, 0, size.width(), st::walletCoverHeight));
-			const auto contentGeometry = QRect(
-				0,
-				st::walletCoverHeight,
-				size.width(),
-				size.height() - st::walletCoverHeight);
+			//TEMP:
+			const auto coverHeight = isTon ? st::walletCoverHeight : size.height();
+
+			cover->setGeometry(QRect(0, 0, size.width(), coverHeight));
+			const auto contentGeometry = QRect(0, coverHeight, size.width(), size.height() - coverHeight);
 			emptyHistory->setGeometry(contentGeometry);
 			emptyHistory->setVisible(historyHeight == 0);
 
 			tonHistoryWrapper->setGeometry(QRect(0, 0, size.width(), innerHeight));
 			history->updateGeometry({0, st::walletCoverHeight}, size.width());
+			history->setVisible(isTon);
 		} else {
 			const auto innerHeight = std::max(size.height(), tokensListHeight);
 			_inner->setGeometry(QRect(0, 0, size.width(), innerHeight));
@@ -181,8 +188,8 @@ void Info::setupControls(Data &&data) {
 	rpl::combine(
 		_scroll->scrollTopValue(),
 		_scroll->heightValue(),
-		selectedToken->value()
-	) | rpl::start_with_next([=](int scrollTop, int scrollHeight, std::optional<int> token) {
+		_selectedToken.value()
+	) | rpl::start_with_next([=](int scrollTop, int scrollHeight, const std::optional<Ton::TokenKind> &token) {
 		if (token.has_value()) {
 			history->setVisibleTopBottom(scrollTop, scrollTop + scrollHeight);
 		}
@@ -198,8 +205,8 @@ void Info::setupControls(Data &&data) {
 	) | rpl::start_to_stream(_decryptRequests, history->lifetime());
 
 	// initialize default layouts
-	selectedToken->value(
-	) | rpl::start_with_next([=](std::optional<int> token) {
+	_selectedToken.value(
+	) | rpl::start_with_next([=](std::optional<Ton::TokenKind> token) {
 		tokensListWrapper->setVisible(!token.has_value());
 		tonHistoryWrapper->setVisible(token.has_value());
 	}, lifetime());

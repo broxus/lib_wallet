@@ -12,10 +12,12 @@
 #include "ui/widgets/buttons.h"
 #include "ui/amount_label.h"
 #include "ui/lottie_widget.h"
-#include "ui/inline_diamond.h"
+#include "ui/inline_token_icon.h"
 #include "ton/ton_state.h"
 #include "styles/style_wallet.h"
 #include "styles/palette.h"
+
+#include <iostream>
 
 namespace Wallet {
 namespace {
@@ -161,12 +163,16 @@ void Cover::setupBalance() {
 	}, locked->lifetime());
 	locked->show();
 
-	locked->paintRequest(
-	) | rpl::start_with_next([=] {
+	rpl::combine(
+		locked->paintRequest(),
+		_state.value()
+	) | rpl::start_with_next([=](const QRect &, const CoverState &state) {
+		std::cout << "PAINTING: " << Ton::toString(state.kind).toStdString() << std::endl;
 		auto p = QPainter(locked);
 		const auto diamondTop = 0;
 		const auto diamondLeft = locked->width() - st::walletDiamondSize;
-		Ui::PaintInlineDiamond(
+		Ui::PaintInlineTokenIcon(
+			state.kind,
 			p,
 			diamondLeft,
 			diamondTop,
@@ -271,18 +277,35 @@ void Cover::setupControls() {
 
 rpl::producer<CoverState> MakeCoverState(
 		rpl::producer<Ton::WalletViewerState> state,
+		rpl::producer<std::optional<Ton::TokenKind>> selectedToken,
 		bool justCreated,
 		bool useTestNetwork) {
-	return std::move(
-		state
-	) | rpl::map([=](const Ton::WalletViewerState &data) {
+	return rpl::combine(
+		std::move(state),
+		std::move(selectedToken)
+	) | rpl::map([=](const Ton::WalletViewerState &data, const std::optional<Ton::TokenKind> &selectedToken) {
 		const auto &account = data.wallet.account;
-		return CoverState{
-			.unlockedBalance = account.fullBalance - account.lockedBalance,
-			.lockedBalance = account.lockedBalance,
+
+		CoverState result{
+			.kind = (selectedToken.has_value() ? *selectedToken : Ton::TokenKind::Ton),
 			.justCreated = justCreated,
-			.useTestNetwork = useTestNetwork
+			.useTestNetwork = useTestNetwork,
 		};
+
+		if (!result.kind) {
+			result.unlockedBalance = account.fullBalance - account.lockedBalance;
+			result.lockedBalance = account.lockedBalance;
+		} else {
+			const auto it = data.wallet.tokenStates.find(*selectedToken);
+			if (it == data.wallet.tokenStates.end()) {
+				result.unlockedBalance = 0;
+			} else {
+				result.unlockedBalance = it->second.fullBalance;
+			}
+			result.lockedBalance = 0;
+		}
+
+		return result;
 	});
 }
 

@@ -21,6 +21,8 @@
 
 #include <QtCore/QDateTime>
 
+#include <iostream>
+
 namespace Wallet {
 namespace {
 
@@ -451,7 +453,8 @@ History::History(
 	rpl::producer<Ton::LoadedSlice> loaded,
 	rpl::producer<not_null<std::vector<Ton::Transaction>*>> collectEncrypted,
 	rpl::producer<
-		not_null<const std::vector<Ton::Transaction>*>> updateDecrypted)
+		not_null<const std::vector<Ton::Transaction>*>> updateDecrypted,
+	rpl::producer<std::optional<Ton::TokenKind>> selectedToken)
 : _widget(parent) {
 	setupContent(std::move(state), std::move(loaded));
 
@@ -491,6 +494,16 @@ History::History(
 			_widget.update();
 		}
 	}, _widget.lifetime());
+
+	std::move(
+		selectedToken
+	) | rpl::start_with_next([=](const std::optional<Ton::TokenKind> &kind) {
+		if (kind.has_value()) {
+			std::cout << "Selected token: " << Ton::toString(*kind).toStdString() << std::endl;
+		} else {
+			std::cout << "Selected token: none" << std::endl;
+		}
+	}, _widget.lifetime());
 }
 
 History::~History() = default;
@@ -520,6 +533,10 @@ void History::resizeToWidth(int width) {
 
 rpl::producer<int> History::heightValue() const {
 	return _widget.heightValue();
+}
+
+void History::setVisible(bool visible) {
+	_widget.setVisible(visible);
 }
 
 void History::setVisibleTopBottom(int top, int bottom) {

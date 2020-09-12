@@ -8,6 +8,10 @@
 
 #include "ui/layers/generic_box.h"
 
+namespace Ton {
+enum class TokenKind;
+} // namespace Ton
+
 namespace Wallet {
 
 struct PreparedInvoice;
@@ -22,6 +26,7 @@ void SendGramsBox(
 	not_null<Ui::GenericBox*> box,
 	const QString &invoice,
 	rpl::producer<int64> unlockedBalance,
+	rpl::producer<std::optional<Ton::TokenKind>> selectedToken,
 	Fn<void(PreparedInvoice, Fn<void(InvoiceField)> error)> done);
 
 } // namespace Wallet
