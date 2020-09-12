@@ -42,8 +42,8 @@ struct TokenItemLayout
 	};
 
 	auto result = TokenItemLayout();
-	result.image = Ui::InlineTokenIcon(data.icon, st::walletTokensListRowIconSize);
-	result.title.setText(st::walletTokensListRowTitleStyle.style, data.name);
+	result.image = Ui::InlineTokenIcon(data.kind, st::walletTokensListRowIconSize);
+	result.title.setText(st::walletTokensListRowTitleStyle.style, Ton::toString(data.kind));
 	result.balanceGrams.setText(st::walletTokensListRowGramsStyle, balance.gramsString);
 	result.balanceNano.setText(st::walletTokensListRowNanoStyle, balance.separator + balance.nanoString);
 	result.address = Ui::Text::String(AddressStyle(), address, _defaultOptions, st::walletAddressWidthMin);
@@ -64,10 +64,11 @@ public:
 	TokensListRow &operator=(const TokensListRow &) = delete;
 	~TokensListRow() = default;
 
-	[[nodiscard]] QString name() const;
+	Ton::TokenKind kind() const;
 
 	void paint(Painter &p, int x, int y) const;
 
+	bool refresh(const TokenItem &token);
 	void resizeToWidth(int width);
 
 private:
@@ -139,6 +140,15 @@ void TokensListRow::paint(Painter &p, int /*x*/, int /*y*/) const {
 	_layout.address.draw(p, addressLeft, addressTop, _layout.addressWidth, style::al_bottomright);
 }
 
+bool TokensListRow::refresh(const TokenItem &item) {
+	if (_tokenItem.kind != item.kind || _tokenItem.balance == item.balance) {
+		return false;
+	}
+	_layout = PrepareLayout(item);
+	_tokenItem = item;
+	return true;
+}
+
 void TokensListRow::resizeToWidth(int width) {
 	if (_width == width) {
 		return;
@@ -149,8 +159,8 @@ void TokensListRow::resizeToWidth(int width) {
 	// TODO: handle contents resize
 }
 
-QString TokensListRow::name() const {
-	return _tokenItem.name;
+Ton::TokenKind TokensListRow::kind() const {
+	return _tokenItem.kind;
 }
 
 TokensList::TokensList(not_null<Ui::RpWidget *> parent, rpl::producer<TokensListState> state)
@@ -175,27 +185,16 @@ rpl::lifetime &TokensList::lifetime() {
 }
 
 void TokensList::setupContent(rpl::producer<TokensListState> &&state) {
-	// title
-	const auto titleLabel = Ui::CreateChild<Ui::FlatLabel>(&_widget, "Wallets", st::walletTokensListTitle);
-
-	_widget.sizeValue() | rpl::start_with_next(
-		[=](QSize size)
-		{
-			const auto width = std::min(st::walletRowWidthMax, size.width());
-			const auto left = (size.width() - width) / 2;
-			titleLabel->move(
-				left + st::walletTokensListPadding.left(),
-				st::walletTokensListPadding.top());
-		}, _widget.lifetime());
-
-	titleLabel->show();
-
 	_widget.paintRequest(
 	) | rpl::start_with_next(
 		[=](QRect clip)
 		{
 			Painter(&_widget).fillRect(clip, st::walletTopBg);
 		}, lifetime());
+
+	// title
+	const auto titleLabel = Ui::CreateChild<Ui::FlatLabel>(&_widget, "Wallets", st::walletTokensListTitle);
+	titleLabel->show();
 
 	// content
 	const auto layoutWidget = Ui::CreateChild<Ui::FixedHeightWidget>(&_widget, 0);
@@ -204,10 +203,17 @@ void TokensList::setupContent(rpl::producer<TokensListState> &&state) {
 	layout->setContentsMargins(0, 0, 0, 0);
 	layout->setSpacing(st::walletTokensListRowSpacing);
 
+	//
 	_widget.sizeValue() | rpl::start_with_next([=](QSize size) {
-		const auto use = std::min(size.width(), st::walletRowWidthMax);
-		const auto x = (size.width() - use) / 2;
-		layoutWidget->setGeometry(QRect(x, st::walletTokensListRowsTopOffset, use, layoutWidget->height()));
+		const auto width = std::min(size.width(), st::walletRowWidthMax);
+
+		const auto left = (size.width() - width) / 2;
+
+		titleLabel->move(
+			left + st::walletTokensListPadding.left(),
+			st::walletTokensListPadding.top());
+
+		layoutWidget->setGeometry(QRect(left, st::walletTokensListRowsTopOffset, width, layoutWidget->height()));
 	}, lifetime());
 
 	layoutWidget->heightValue(
@@ -215,15 +221,15 @@ void TokensList::setupContent(rpl::producer<TokensListState> &&state) {
 		_height = st::walletTokensListRowsTopOffset + height;
 	}, lifetime());
 
+	//
 	std::move(
 		state
 	) | rpl::start_with_next(
 		[this, layoutWidget, layout](TokensListState &&state) {
+			refreshItemValues(state.tokens);
 			if (!mergeListChanged(std::move(state.tokens))) {
 				return;
 			}
-
-			refreshItems();
 
 			for (size_t i = 0; i < _rows.size(); ++i) {
 				if (i < _buttons.size()) {
@@ -274,65 +280,35 @@ void TokensList::setupContent(rpl::producer<TokensListState> &&state) {
 		}, lifetime());
 }
 
-void TokensList::refreshItems() {
-	auto addedFront = std::vector<std::unique_ptr<TokensListRow>>();
-	auto addedBack = std::vector<std::unique_ptr<TokensListRow>>();
-	for (const auto &item : _listData) {
-		if (!_rows.empty() && item.name == _rows.front()->name()) {
-			break;
+void TokensList::refreshItemValues(Ton::TokenMap<TokenItem> &data) {
+	for (size_t i = 0; i < _rows.size(); ++i) {
+		const auto it = data.find(_listData[i].kind);
+		if (it == data.end()) {
+			continue;
 		}
-		addedFront.push_back(makeRow(item));
-	}
-	if (!_rows.empty()) {
-		const auto from = ranges::find(
-			_listData,
-			_rows.back()->name(),
-			&TokenItem::name);
-		if (from != end(_listData)) {
-			addedBack = ranges::make_subrange(
-				from + 1,
-				end(_listData)
-			) | ranges::view::transform(
-				[=](const TokenItem &data)
-				{
-					return makeRow(data);
-				}) | ranges::to_vector;
-		}
-	}
-	if (addedFront.empty() && addedBack.empty()) {
-		return;
-	}
-	else if (!addedFront.empty()) {
-		if (addedFront.size() < _listData.size()) {
-			addedFront.insert(
-				end(addedFront),
-				std::make_move_iterator(begin(_rows)),
-				std::make_move_iterator(end(_rows)));
-		}
-		_rows = std::move(addedFront);
-	}
 
-	if (!addedBack.empty()) {
-		_rows.insert(
-			end(_rows),
-			std::make_move_iterator(begin(addedBack)),
-			std::make_move_iterator(end(addedBack)));
+		if (_rows[i]->refresh(it->second)) {
+			_listData[i] = it->second;
+		}
 	}
 }
 
-bool TokensList::mergeListChanged(std::vector<TokenItem> &&data) {
-	const auto i = _listData.empty()
-		? data.cend()
-		: ranges::find(std::as_const(data), _listData.front());
-	if (i == data.cend()) {
-		_listData = data | ranges::to_vector;
-		return true;
+bool TokensList::mergeListChanged(Ton::TokenMap<TokenItem> &&data) {
+	for (auto & item : _listData) {
+		auto it = data.find(item.kind);
+		if (it != data.end()) {
+			data.erase(it);
+		}
 	}
-	else if (i != data.cbegin()) {
-		_listData.insert(begin(_listData), data.cbegin(), i);
-		return true;
+	if (data.empty()) {
+		return false;
 	}
-	return false;
+
+	for (auto& [kind, state] : data) {
+		_rows.push_back(makeRow(state));
+		_listData.push_back(std::move(state));
+	}
+	return true;
 }
 
 std::unique_ptr<TokensListRow> TokensList::makeRow(const TokenItem &data) {
@@ -347,61 +323,31 @@ rpl::producer<TokensListState> MakeTokensListState(
 		[=](const Ton::WalletViewerState &data)
 		{
 			const auto &account = data.wallet.account;
-			return TokensListState{
-				.tokens = {
-					TokenItem{
-						.icon = Ui::TokenIconKind::Ton,
-						.name = "TON",
-						.address = "0:A921453472366B7FEEEC15323A96B5DCF17197C88DC0D4578DFA52900B8A33CB",
-						.balance = 247'781653888,
-					},
-					TokenItem{
-						.icon = Ui::TokenIconKind::Pepe,
-						.name = "PEPE",
-						.address = "0:A921453472366B7FEEEC15323A96B5DCF17197C88DC0D4578DFA52900B8A33CB",
-						.balance = 9999'123123234,
-					},
-					TokenItem{
-						.icon = Ui::TokenIconKind::Pepe,
-						.name = "PEPE",
-						.address = "0:A921453472366B7FEEEC15323A96B5DCF17197C88DC0D4578DFA52900B8A33CB",
-						.balance = 9999'123123234,
-					},
-					TokenItem{
-						.icon = Ui::TokenIconKind::Pepe,
-						.name = "PEPE",
-						.address = "0:A921453472366B7FEEEC15323A96B5DCF17197C88DC0D4578DFA52900B8A33CB",
-						.balance = 9999'123123234,
-					},
-					TokenItem{
-						.icon = Ui::TokenIconKind::Pepe,
-						.name = "PEPE",
-						.address = "0:A921453472366B7FEEEC15323A96B5DCF17197C88DC0D4578DFA52900B8A33CB",
-						.balance = 9999'123123234,
-					},
-					TokenItem{
-						.icon = Ui::TokenIconKind::Pepe,
-						.name = "PEPE",
-						.address = "0:A921453472366B7FEEEC15323A96B5DCF17197C88DC0D4578DFA52900B8A33CB",
-						.balance = 9999'123123234,
-					},
-					TokenItem{
-						.icon = Ui::TokenIconKind::Pepe,
-						.name = "PEPE",
-						.address = "0:A921453472366B7FEEEC15323A96B5DCF17197C88DC0D4578DFA52900B8A33CB",
-						.balance = 9999'123123234,
-					}
-				}
-			};
+			const auto unlockedTonBalance = account.fullBalance - account.lockedBalance;
+
+			TokensListState result{};
+			result.tokens.insert({Ton::TokenKind::Ton, TokenItem {
+				.kind = Ton::TokenKind::Ton,
+				.address = data.wallet.address,
+				.balance = unlockedTonBalance,
+			}});
+			for (const auto &[kind, state] : data.wallet.tokenStates) {
+				result.tokens.insert({kind, TokenItem {
+					.kind = kind,
+					.address = data.wallet.address,
+					.balance = state.fullBalance,
+				}});
+			}
+			return std::move(result);
 		});
 }
 
 bool operator==(const TokenItem &a, const TokenItem &b) {
-	return a.name == b.name;
+	return a.kind == b.kind;
 }
 
 bool operator!=(const TokenItem &a, const TokenItem &b) {
-	return a.name != b.name;
+	return a.kind != b.kind;
 }
 
 } // namespace Wallet

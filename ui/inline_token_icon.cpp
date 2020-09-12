@@ -10,7 +10,7 @@ namespace Ui
 namespace
 {
 
-const std::vector<std::pair<int, QString>> &Variants(TokenIconKind kind) {
+const std::vector<std::pair<int, QString>> &Variants(Ton::TokenKind kind) {
 	static const auto iconTon = std::vector<std::pair<int, QString>>{
 		{22,  "gem.png"},
 		{44,  "gem@2x.png"},
@@ -26,16 +26,16 @@ const std::vector<std::pair<int, QString>> &Variants(TokenIconKind kind) {
 	};
 
 	switch (kind) {
-		case TokenIconKind::Ton:
+		case Ton::TokenKind::Ton:
 			return iconTon;
-		case TokenIconKind::Pepe:
+		case Ton::TokenKind::Pepe:
 			return iconPepe;
 		default:
 			return iconTon;
 	}
 }
 
-QString ChooseVariant(TokenIconKind kind, int desiredSize) {
+QString ChooseVariant(Ton::TokenKind kind, int desiredSize) {
 	const auto &variants = Variants(kind);
 	for (const auto &[size, name] : variants) {
 		if (size == desiredSize || size >= desiredSize * 2) {
@@ -45,7 +45,7 @@ QString ChooseVariant(TokenIconKind kind, int desiredSize) {
 	return variants.back().second;
 }
 
-QImage CreateImage(TokenIconKind kind, int size) {
+QImage CreateImage(Ton::TokenKind kind, int size) {
 	Expects(size > 0);
 
 	const auto variant = ChooseVariant(kind, size);
@@ -60,15 +60,15 @@ QImage CreateImage(TokenIconKind kind, int size) {
 	return result;
 }
 
-QImage Image(TokenIconKind kind) {
+QImage Image(Ton::TokenKind kind) {
 	static const QImage images[] = {
-		CreateImage(TokenIconKind::Ton, st::walletTokenIconSize * style::DevicePixelRatio()),
-		CreateImage(TokenIconKind::Pepe, st::walletTokenIconSize * style::DevicePixelRatio()),
+		CreateImage(Ton::TokenKind::Ton, st::walletTokenIconSize * style::DevicePixelRatio()),
+		CreateImage(Ton::TokenKind::Pepe, st::walletTokenIconSize * style::DevicePixelRatio()),
 	};
 	return images[static_cast<int>(kind)];
 }
 
-void Paint(TokenIconKind kind, QPainter &p, int x, int y) {
+void Paint(Ton::TokenKind kind, QPainter &p, int x, int y) {
 	p.drawImage(
 		QRect(x, y, st::walletTokenIconSize, st::walletTokenIconSize),
 		Image(kind));
@@ -76,16 +76,16 @@ void Paint(TokenIconKind kind, QPainter &p, int x, int y) {
 
 } // namespace
 
-void Ui::PaintInlineTokenIcon(TokenIconKind kind, QPainter &p, int x, int y, const style::font &font) {
+void Ui::PaintInlineTokenIcon(Ton::TokenKind kind, QPainter &p, int x, int y, const style::font &font) {
 	Paint(kind, p, x, y + font->ascent - st::walletTokenIconSize);
 }
 
-QImage InlineTokenIcon(TokenIconKind kind, int size) {
+QImage InlineTokenIcon(Ton::TokenKind kind, int size) {
 	return CreateImage(kind, size);
 }
 
 not_null<RpWidget *> CreateInlinePepe(
-	TokenIconKind kind,
+	Ton::TokenKind kind,
 	not_null<QWidget *> parent,
 	int x,
 	int y,
