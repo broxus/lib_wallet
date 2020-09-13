@@ -12,6 +12,8 @@ namespace Ton {
 struct Error;
 struct Transaction;
 struct TransactionToSend;
+struct TokenTransactionToSend;
+enum class TokenKind;
 } // namespace Ton
 
 namespace Ui {
@@ -38,6 +40,7 @@ struct FormattedAmount {
 };
 
 struct PreparedInvoice {
+	Ton::TokenKind token{};
 	int64 amount;
 	QString address;
 	QString comment;
@@ -104,6 +107,8 @@ not_null<Ui::FlatLabel*> AddBoxSubtitle(
 [[nodiscard]] std::optional<InvoiceField> ErrorInvoiceField(
 	const Ton::Error &error);
 [[nodiscard]] Ton::TransactionToSend TransactionFromInvoice(
+	const PreparedInvoice &invoice);
+[[nodiscard]] Ton::TokenTransactionToSend TokenTransactionFromInvoice(
 	const PreparedInvoice &invoice);
 
 } // namespace Wallet

@@ -201,6 +201,7 @@ std::optional<int64> ParseAmountString(const QString &amount) {
 PreparedInvoice ParseInvoice(QString invoice) {
 	const auto prefix = qstr("transfer/");
 	auto result = PreparedInvoice();
+	result.token = Ton::TokenKind::Ton;
 
 	const auto position = invoice.indexOf(prefix, 0, Qt::CaseInsensitive);
 	if (position >= 0) {
@@ -427,6 +428,16 @@ Ton::TransactionToSend TransactionFromInvoice(
 	result.comment = invoice.comment;
 	result.allowSendToUninited = true;
 	result.sendUnencryptedText = invoice.sendUnencryptedText;
+	return result;
+}
+
+Ton::TokenTransactionToSend TokenTransactionFromInvoice(
+		const PreparedInvoice &invoice) {
+	auto result = Ton::TokenTransactionToSend();
+	result.token = invoice.token;
+	result.amount = invoice.amount;
+	result.recipient = invoice.address;
+	result.allowSendToUninited = true;
 	return result;
 }
 

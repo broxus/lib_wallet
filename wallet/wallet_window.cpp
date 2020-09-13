@@ -723,9 +723,11 @@ void Window::sendGrams(const QString &invoice) {
 	}
 	const auto checking = std::make_shared<bool>();
 	const auto send = [=](
-			const PreparedInvoice &invoice,
+			PreparedInvoice invoice,
 			Fn<void(InvoiceField)> showError) {
+		invoice.token = _selectedToken.current().value_or(Ton::TokenKind::Ton);
 		const auto account = _state.current().account;
+
 		const auto available = account.fullBalance - account.lockedBalance;
 		if (!Ton::Wallet::CheckAddress(invoice.address)) {
 			showError(InvoiceField::Address);
@@ -790,10 +792,18 @@ void Window::confirmTransaction(
 			*result,
 			showInvoiceError);
 	};
-	_wallet->checkSendGrams(
-		_wallet->publicKeys().front(),
-		TransactionFromInvoice(invoice),
-		crl::guard(_sendBox.data(), done));
+
+	if (!invoice.token) {
+		_wallet->checkSendGrams(
+			_wallet->publicKeys().front(),
+			TransactionFromInvoice(invoice),
+			crl::guard(_sendBox.data(), done));
+	} else {
+		_wallet->checkSendTokens(
+			_wallet->publicKeys().front(),
+			TokenTransactionFromInvoice(invoice),
+			crl::guard(_sendBox.data(), done));
+	}
 }
 
 void Window::askSendPassword(
@@ -810,7 +820,7 @@ void Window::askSendPassword(
 		}
 		const auto confirmations = std::make_shared<rpl::event_stream<>>();
 		*sending = true;
-		auto ready = [=](Ton::Result<Ton::PendingTransaction> result) {
+		auto ready = [=, showError = std::move(showError)](Ton::Result<Ton::PendingTransaction> result) {
 			if (!result && IsIncorrectPasswordError(result.error())) {
 				*sending = false;
 				showError(ph::lng_wallet_passcode_incorrect(ph::now));
@@ -838,12 +848,22 @@ void Window::askSendPassword(
 			}
 			confirmations->fire({});
 		};
-		_wallet->sendGrams(
-			publicKey,
-			passcode,
-			TransactionFromInvoice(invoice),
-			crl::guard(this, ready),
-			crl::guard(this, sent));
+
+		if (!invoice.token) {
+			_wallet->sendGrams(
+				publicKey,
+				passcode,
+				TransactionFromInvoice(invoice),
+				crl::guard(this, ready),
+				crl::guard(this, sent));
+		} else {
+			_wallet->sendTokens(
+				publicKey,
+				passcode,
+				TokenTransactionFromInvoice(invoice),
+				crl::guard(this, ready),
+				crl::guard(this, sent));
+		}
 	};
 	if (_sendConfirmBox) {
 		_sendConfirmBox->closeBox();
@@ -851,7 +871,7 @@ void Window::askSendPassword(
 	auto box = Box(EnterPasscodeBox, [=](
 			const QByteArray &passcode,
 			Fn<void(QString)> showError) {
-		ready(passcode, invoice, showError);
+		ready(passcode, invoice, std::move(showError));
 	});
 	_sendConfirmBox = box.data();
 	_layers->showBox(std::move(box));
