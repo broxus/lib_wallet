@@ -436,6 +436,7 @@ Ton::TokenTransactionToSend TokenTransactionFromInvoice(
 	auto result = Ton::TokenTransactionToSend();
 	result.token = invoice.token;
 	result.amount = invoice.amount;
+	result.realAmount = invoice.realAmount;
 	result.recipient = invoice.address;
 	result.allowSendToUninited = true;
 	return result;

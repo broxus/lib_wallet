@@ -450,7 +450,7 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
 		switch (action) {
 		case Action::Refresh: refreshNow(); return;
 		case Action::Export: askExportPassword(); return;
-		case Action::Send: sendGrams(); return;
+		case Action::Send: sendMoney(); return;
 		case Action::Receive: receiveGrams(); return;
 		case Action::ChangePassword: changePassword(); return;
 		case Action::ShowSettings: showSettings(); return;
@@ -468,7 +468,7 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
 	_info->viewRequests(
 	) | rpl::start_with_next([=](Ton::Transaction &&data) {
 		const auto send = [=](const QString &address) {
-			sendGrams(address);
+			sendMoney(address);
 		};
 		_layers->showBox(Box(
 			ViewTransactionBox,
@@ -675,7 +675,7 @@ not_null<Ui::RpWidget*> Window::widget() const {
 
 bool Window::handleLinkOpen(const QString &link) {
 	if (_viewer && ValidateTransferLink(link)) {
-		sendGrams(link);
+		sendMoney(link);
 	}
 	return true;
 }
@@ -701,7 +701,7 @@ void Window::showConfigUpgrade(Ton::ConfigUpgrade upgrade) {
 	}
 }
 
-void Window::sendGrams(const QString &invoice) {
+void Window::sendMoney(const QString &invoice) {
 	if (_sendConfirmBox) {
 		_sendConfirmBox->closeBox();
 	}
@@ -724,11 +724,23 @@ void Window::sendGrams(const QString &invoice) {
 	const auto checking = std::make_shared<bool>();
 	const auto send = [=](
 			PreparedInvoice invoice,
-			Fn<void(InvoiceField)> showError) {
+			const Fn<void(InvoiceField)> &showError) {
 		invoice.token = _selectedToken.current().value_or(Ton::TokenKind::Ton);
-		const auto account = _state.current().account;
+		const auto currentState = _state.current();
+		const auto account = currentState.account;
 
-		const auto available = account.fullBalance - account.lockedBalance;
+		int64_t available;
+		if (!invoice.token) {
+			available = account.fullBalance - account.lockedBalance;
+		} else {
+			auto it = currentState.tokenStates.find(invoice.token);
+			if (it != currentState.tokenStates.end()) {
+				available = it->second.fullBalance;
+			} else {
+				available = 0;
+			}
+		}
+
 		if (!Ton::Wallet::CheckAddress(invoice.address)) {
 			showError(InvoiceField::Address);
 		} else if (invoice.amount > available || invoice.amount <= 0) {
@@ -746,10 +758,10 @@ void Window::sendGrams(const QString &invoice) {
 			return state.account.fullBalance - state.account.lockedBalance;
 		} else {
 			const auto it = state.tokenStates.find(*selectedToken);
-			if (it == state.tokenStates.end()) {
-				return int64_t{};
-			} else {
+			if (it != state.tokenStates.end()) {
 				return it->second.fullBalance;
+			} else {
+				return int64_t{};
 			}
 		}
 	});
@@ -765,14 +777,14 @@ void Window::sendGrams(const QString &invoice) {
 }
 
 void Window::confirmTransaction(
-		const PreparedInvoice &invoice,
-		Fn<void(InvoiceField)> showInvoiceError,
-		std::shared_ptr<bool> guard) {
+		PreparedInvoice invoice,
+		const Fn<void(InvoiceField)> &showInvoiceError,
+		const std::shared_ptr<bool> &guard) {
 	if (*guard || !_sendBox) {
 		return;
 	}
 	*guard = true;
-	auto done = [=](Ton::Result<Ton::TransactionCheckResult> result) {
+	auto done = [=](Ton::Result<Ton::TransactionCheckResult> result) mutable {
 		*guard = false;
 		if (!result) {
 			if (const auto field = ErrorInvoiceField(result.error())) {
@@ -787,6 +799,13 @@ void Window::confirmTransaction(
 			}
 			return;
 		}
+
+		if (!invoice.token) {
+			invoice.realAmount = invoice.amount;
+		} else {
+			invoice.realAmount = invoice.amount + result.value().sourceFees.sum();
+		}
+
 		showSendConfirmation(
 			invoice,
 			*result,
@@ -808,7 +827,7 @@ void Window::confirmTransaction(
 
 void Window::askSendPassword(
 		const PreparedInvoice &invoice,
-		Fn<void(InvoiceField)> showInvoiceError) {
+		const Fn<void(InvoiceField)> &showInvoiceError) {
 	const auto publicKey = _wallet->publicKeys().front();
 	const auto sending = std::make_shared<bool>();
 	const auto ready = [=](
@@ -880,21 +899,20 @@ void Window::askSendPassword(
 void Window::showSendConfirmation(
 		const PreparedInvoice &invoice,
 		const Ton::TransactionCheckResult &checkResult,
-		Fn<void(InvoiceField)> showInvoiceError) {
-	const auto account = _state.current().account;
-	const auto available = account.fullBalance - account.lockedBalance;
-	// This may be enabled in the future, but right now it is not safe.
-	// You could think that you transfer specific amount, but really
-	// you're transferring all the remaining funds, even if they change
-	// while the transfer request is already being sent.
-	//
+		const Fn<void(InvoiceField)> &showInvoiceError) {
+	const auto currentState = _state.current();
+	const auto account = currentState.account;
+	const auto gramsAvailable = account.fullBalance - account.lockedBalance;
+
 	//if (invoice.amount == available && account.lockedBalance == 0) {
 	//	// Special case transaction where we transfer all that is left.
 	//} else
-	if (invoice.amount + checkResult.sourceFees.sum() > available) {
+
+	if (invoice.realAmount + checkResult.sourceFees.sum() > gramsAvailable) {
 		showInvoiceError(InvoiceField::Amount);
 		return;
 	}
+
 	const auto confirmed = [=] {
 		if (invoice.address == _packedAddress) {
 			_layers->showBox(Box([=](not_null<Ui::GenericBox*> box) {
@@ -958,7 +976,7 @@ void Window::showSendingTransaction(
 
 void Window::showSendingDone(std::optional<Ton::Transaction> result) {
 	if (result) {
-		_layers->showBox(Box(SendingDoneBox, *result));
+		_layers->showBox(Box(SendingDoneBox, *result, [this]() { refreshNow(); }));
 	} else {
 		showSimpleError(
 			ph::lng_wallet_send_failed_title(),

@@ -79,7 +79,8 @@ void SendingTransactionBox(
 
 void SendingDoneBox(
 		not_null<Ui::GenericBox*> box,
-		const Ton::Transaction &result) {
+		const Ton::Transaction &result,
+		const Fn<void()> &onClose) {
 	const auto inner = box->addRow(object_ptr<Ui::FixedHeightWidget>(
 		box,
 		AskPasswordBoxHeight()));
@@ -118,7 +119,7 @@ void SendingDoneBox(
 			width);
 	}, inner->lifetime());
 
-	box->addButton(ph::lng_wallet_sent_close(), [=] { box->closeBox(); });
+	box->addButton(ph::lng_wallet_sent_close(), [=] { box->closeBox(); onClose(); });
 }
 
 } // namespace Wallet

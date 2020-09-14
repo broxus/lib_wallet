@@ -20,6 +20,7 @@ void SendingTransactionBox(
 
 void SendingDoneBox(
 	not_null<Ui::GenericBox*> box,
-	const Ton::Transaction &result);
+	const Ton::Transaction &result,
+	const Fn<void()> &onClose);
 
 } // namespace Wallet

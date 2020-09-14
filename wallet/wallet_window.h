@@ -96,18 +96,18 @@ private:
 	void showAccount(const QByteArray &publicKey, bool justCreated = false);
 	void setupUpdateWithInfo();
 	void setupRefreshEach();
-	void sendGrams(const QString &invoice = QString());
+	void sendMoney(const QString &invoice = QString());
 	void confirmTransaction(
-		const PreparedInvoice &invoice,
-		Fn<void(InvoiceField)> showInvoiceError,
-		std::shared_ptr<bool> guard);
+		PreparedInvoice invoice,
+		const Fn<void(InvoiceField)> &showInvoiceError,
+		const std::shared_ptr<bool> &guard);
 	void showSendConfirmation(
 		const PreparedInvoice &invoice,
 		const Ton::TransactionCheckResult &checkResult,
-		Fn<void(InvoiceField)> showInvoiceError);
+		const Fn<void(InvoiceField)> &showInvoiceError);
 	void askSendPassword(
 		const PreparedInvoice &invoice,
-		Fn<void(InvoiceField)> showInvoiceError);
+		const Fn<void(InvoiceField)> &showInvoiceError);
 	void showSendingTransaction(
 		const Ton::PendingTransaction &transaction,
 		rpl::producer<> confirmed);

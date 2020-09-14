@@ -42,6 +42,7 @@ struct FormattedAmount {
 struct PreparedInvoice {
 	Ton::TokenKind token{};
 	int64 amount;
+	int64 realAmount; // used only for token transactions
 	QString address;
 	QString comment;
 	bool sendUnencryptedText = false;
