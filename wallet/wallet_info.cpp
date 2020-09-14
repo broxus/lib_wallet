@@ -108,6 +108,11 @@ void Info::setupControls(Data &&data) {
 		_selectedToken = token.kind;
 	}, tokensList->lifetime());
 
+	tokensList->gateOpenRequets(
+	) | rpl::start_with_next([openGate = std::move(data.openGate)]() {
+		openGate();
+	}, tokensList->lifetime());
+
 	// create ton history page
 
 	// top cover

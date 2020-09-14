@@ -31,6 +31,7 @@ public:
 			not_null<const std::vector<Ton::Transaction>*>> updateDecrypted;
 		rpl::producer<InfoTransition> transitionEvents;
 		Fn<void(QImage, QString)> share;
+		Fn<void()> openGate;
 		bool justCreated = false;
 		bool useTestNetwork = false;
 	};

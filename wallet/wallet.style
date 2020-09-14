@@ -229,6 +229,7 @@ walletTokensListRowGramsStyle: TextStyle(defaultTextStyle) {
 walletTokensListRowNanoStyle: TextStyle(defaultTextStyle) {
 	font: font(18px semibold);
 }
+walletTokensListGateButtonOffset: 25px;
 
 walletCoverHeight: 198px;
 walletCoverInner: 100px;

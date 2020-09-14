@@ -176,6 +176,10 @@ rpl::producer<TokenItem> TokensList::openRequests() const {
 	return _openRequests.events();
 }
 
+rpl::producer<> TokensList::gateOpenRequets() const {
+	return _gateOpenRequests.events();
+}
+
 rpl::producer<int> TokensList::heightValue() const {
 	return _height.value();
 }
@@ -203,22 +207,45 @@ void TokensList::setupContent(rpl::producer<TokensListState> &&state) {
 	layout->setContentsMargins(0, 0, 0, 0);
 	layout->setSpacing(st::walletTokensListRowSpacing);
 
-	//
-	_widget.sizeValue() | rpl::start_with_next([=](QSize size) {
-		const auto width = std::min(size.width(), st::walletRowWidthMax);
+	// open gate button
+	const auto gateButton = Ui::CreateChild<Ui::RoundButton>(
+		&_widget,
+		rpl::single(QString("Buy")),
+		st::walletCoverButton);
 
+	gateButton->clicks(
+	) | rpl::start_with_next([=]() {
+		_gateOpenRequests.fire({});
+	}, gateButton->lifetime());
+
+	//
+	rpl::combine(
+		_widget.sizeValue(),
+		layoutWidget->heightValue()
+	) | rpl::start_with_next([=](QSize size, int contentHeight) {
+		const auto width = std::min(size.width(), st::walletRowWidthMax);
 		const auto left = (size.width() - width) / 2;
+
+		const auto topSectionHeight = st::walletTokensListRowsTopOffset;
+		const auto bottomSectionHeight = gateButton->height() + 2 * st::walletTokensListGateButtonOffset;
+
+		const auto gateButtonWidth = width / 2;
+		const auto gateButtonTop = std::max(
+			(topSectionHeight + contentHeight + (bottomSectionHeight - gateButton->height()) / 2),
+			(size.height() - (bottomSectionHeight + gateButton->height()) / 2)
+		);
+
+		_height = st::walletTokensListRowsTopOffset + contentHeight + bottomSectionHeight;
 
 		titleLabel->move(
 			left + st::walletTokensListPadding.left(),
 			st::walletTokensListPadding.top());
-
-		layoutWidget->setGeometry(QRect(left, st::walletTokensListRowsTopOffset, width, layoutWidget->height()));
-	}, lifetime());
-
-	layoutWidget->heightValue(
-	) | rpl::start_with_next([this](int height) {
-		_height = st::walletTokensListRowsTopOffset + height;
+		layoutWidget->setGeometry(QRect(left, topSectionHeight, width, contentHeight));
+		gateButton->setGeometry(QRect(
+			(size.width() - gateButtonWidth) / 2,
+			gateButtonTop,
+			gateButtonWidth,
+			gateButton->height()));
 	}, lifetime());
 
 	//
