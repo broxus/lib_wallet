@@ -18,18 +18,18 @@ const std::vector<std::pair<int, QString>> &Variants(Ton::TokenKind kind) {
 		{192, "gem@large.png"},
 	};
 
-	static const auto iconPepe = std::vector<std::pair<int, QString>>{
-		{22,  "pepe.png"},
-		{44,  "pepe@2x.png"},
-		{88,  "pepe@4x.png"},
-		{192, "pepe@large.png"},
+	static const auto iconUsdt = std::vector<std::pair<int, QString>>{
+		{24,  "usdt.png"},
+		{48,  "usdt@2x.png"},
+		{92,  "usdt@4x.png"},
+		{192, "usdt@large.png"},
 	};
 
 	switch (kind) {
 		case Ton::TokenKind::Ton:
 			return iconTon;
-		case Ton::TokenKind::Pepe:
-			return iconPepe;
+		case Ton::TokenKind::USDT:
+			return iconUsdt;
 		default:
 			return iconTon;
 	}
@@ -63,7 +63,7 @@ QImage CreateImage(Ton::TokenKind kind, int size) {
 QImage Image(Ton::TokenKind kind) {
 	static const QImage images[] = {
 		CreateImage(Ton::TokenKind::Ton, st::walletTokenIconSize * style::DevicePixelRatio()),
-		CreateImage(Ton::TokenKind::Pepe, st::walletTokenIconSize * style::DevicePixelRatio()),
+		CreateImage(Ton::TokenKind::USDT, st::walletTokenIconSize * style::DevicePixelRatio()),
 	};
 	return images[static_cast<int>(kind)];
 }

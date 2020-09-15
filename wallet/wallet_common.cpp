@@ -16,6 +16,8 @@
 
 #include <QtCore/QLocale>
 
+#include <iostream>
+
 namespace Wallet {
 namespace {
 
@@ -199,6 +201,8 @@ std::optional<int64> ParseAmountString(const QString &amount) {
 }
 
 PreparedInvoice ParseInvoice(QString invoice) {
+	std::cout << "Invoice: " << invoice.toStdString() << std::endl;
+
 	const auto prefix = qstr("transfer/");
 	auto result = PreparedInvoice();
 	result.token = Ton::TokenKind::Ton;
@@ -216,7 +220,10 @@ PreparedInvoice ParseInvoice(QString invoice) {
 		result.comment = params.value("text");
 	}
 
+	std::cout << "Invoice: " << invoice.toStdString() << std::endl;
+
 	const auto colonPosition = invoice.indexOf(':');
+	const auto hexPrefixPosition = invoice.indexOf("0x");
 	if (colonPosition > 0) {
 		const auto hasMinus = invoice[0] == '-';
 
@@ -229,6 +236,14 @@ PreparedInvoice ParseInvoice(QString invoice) {
 				QRegularExpression("[^a-fA-F0-9]"),
 				QString()
 			).mid(0, kRawAddressLength);
+	} else if (hexPrefixPosition == 0) {
+		std::cout << "Before " << invoice.toStdString() << std::endl;
+		result.address = QString{"0x"} +
+			invoice.mid(2, std::max(paramsPosition - hexPrefixPosition, -1)).replace(
+				QRegularExpression("[^a-fA-F0-9]"),
+				QString()
+			).mid(0, kEtheriumAddressLength);
+		std::cout << "After " << result.address.toStdString() << std::endl;
 	} else {
 		result.address = invoice.mid(0, paramsPosition).replace(
 			QRegularExpression("[^a-zA-Z0-9_\\-]"),
@@ -438,6 +453,7 @@ Ton::TokenTransactionToSend TokenTransactionFromInvoice(
 	result.amount = invoice.amount;
 	result.realAmount = invoice.realAmount;
 	result.recipient = invoice.address;
+	result.swapBack = invoice.swapBack;
 	result.allowSendToUninited = true;
 	return result;
 }

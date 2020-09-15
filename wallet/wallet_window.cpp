@@ -742,7 +742,7 @@ void Window::sendMoney(const QString &invoice) {
 			}
 		}
 
-		if (!Ton::Wallet::CheckAddress(invoice.address)) {
+		if (!invoice.swapBack && !Ton::Wallet::CheckAddress(invoice.address)) {
 			showError(InvoiceField::Address);
 		} else if (invoice.amount > available || invoice.amount <= 0) {
 			showError(InvoiceField::Amount);
@@ -804,7 +804,7 @@ void Window::confirmTransaction(
 		if (!invoice.token) {
 			invoice.realAmount = invoice.amount;
 		} else {
-			invoice.realAmount = invoice.amount + result.value().sourceFees.sum();
+			invoice.realAmount = result.value().sourceFees.sum();
 		}
 
 		showSendConfirmation(

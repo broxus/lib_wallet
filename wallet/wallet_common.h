@@ -31,6 +31,7 @@ enum class InvoiceField;
 inline constexpr auto kMaxCommentLength = 500;
 inline constexpr auto kEncodedAddressLength = 48;
 inline constexpr auto kRawAddressLength = 64;
+inline constexpr auto kEtheriumAddressLength = 40;
 
 struct FormattedAmount {
 	QString gramsString;
@@ -45,6 +46,7 @@ struct PreparedInvoice {
 	int64 realAmount; // used only for token transactions
 	QString address;
 	QString comment;
+	bool swapBack = false;
 	bool sendUnencryptedText = false;
 };
 

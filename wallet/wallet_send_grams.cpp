@@ -18,6 +18,8 @@
 #include "styles/style_layers.h"
 #include "styles/palette.h"
 
+#include <iostream>
+
 namespace Wallet {
 namespace {
 
@@ -38,7 +40,7 @@ struct FixedAddress {
 		const auto removed = std::max(
 			int(text.size()) - int(result.invoice.address.size()),
 			0);
-		position = std::max(position - removed, 0);
+		result.position = std::max(position - removed, 0);
 	}
 	return result;
 }
@@ -161,10 +163,21 @@ void SendGramsBox(
 
 			const auto colonPosition = fixed.invoice.address.indexOf(':');
 			const auto isRaw = colonPosition > 0;
+			const auto hexPrefixPosition = fixed.invoice.address.indexOf("0x");
+			const auto isEtheriumAddress = hexPrefixPosition == 0;
 
-			if (((isRaw && ((fixed.invoice.address.size() - colonPosition - 1) == kRawAddressLength)) ||
-				(!isRaw && fixed.invoice.address.size() == kEncodedAddressLength))
-				&& address->hasFocus()) {
+			std::cout << isEtheriumAddress<< " " << hexPrefixPosition << std::endl;
+
+			bool shouldShiftFocus = false;
+			if (isRaw && ((fixed.invoice.address.size() - colonPosition - 1) == kRawAddressLength)) {
+				shouldShiftFocus = true;
+			} else if (isEtheriumAddress && (fixed.invoice.address.size() - 2) == kEtheriumAddressLength) {
+				shouldShiftFocus = true;
+			} else if (!(isRaw || isEtheriumAddress) && fixed.invoice.address.size() == kEncodedAddressLength) {
+				shouldShiftFocus = true;
+			}
+
+			if (shouldShiftFocus && address->hasFocus()) {
 				if (amount->getLastText().isEmpty()) {
 					amount->setFocus();
 				} else {
@@ -194,6 +207,7 @@ void SendGramsBox(
 	const auto submit = [=] {
 		auto collected = PreparedInvoice();
 		const auto parsed = ParseAmountString(amount->getLastText());
+		std::cout << "Submit" << std::endl;
 		if (!parsed) {
 			amount->showError();
 			return;
@@ -201,6 +215,7 @@ void SendGramsBox(
 		collected.amount = *parsed;
 		collected.address = address->getLastText();
 		collected.comment = comment->getLastText();
+		collected.swapBack = collected.address.startsWith("0x");
 		done(collected, showError);
 	};
 
@@ -208,10 +223,23 @@ void SendGramsBox(
 		const auto text = address->getLastText();
 		const auto colonPosition = text.indexOf(':');
 		const auto isRaw = colonPosition > 0;
+		const auto hexPrefixPosition = text.indexOf("0x");
+		const auto isEtheriumAddress = hexPrefixPosition == 0;
 
-		if ((isRaw && ((text.size() - colonPosition - 1) != kRawAddressLength)) ||
-			(!isRaw && (text.size() != kEncodedAddressLength)))
-		{
+		bool showAddressError = false;
+		if (isRaw && ((text.size() - colonPosition - 1) != kRawAddressLength)) {
+			std::cout << "is invalid raw" << std::endl;
+			showAddressError = true;
+		} else if (isEtheriumAddress && (text.size() - 2) != kEtheriumAddressLength) {
+			std::cout << "is invalid etheriumn" << std::endl;
+			showAddressError = true;
+		} else if (!(isRaw || isEtheriumAddress) && (text.size() != kEncodedAddressLength)) {
+			std::cout << "is invalid packed" << std::endl;
+			showAddressError = true;
+		}
+
+		if (showAddressError) {
+			std::cout << "Show address error" << std::endl;
 			address->showError();
 		} else {
 			amount->setFocus();
@@ -219,6 +247,7 @@ void SendGramsBox(
 	});
 	Ui::Connect(amount, &Ui::InputField::submitted, [=] {
 		if (ParseAmountString(amount->getLastText()).value_or(0) <= 0) {
+			std::cout << "Show amount error" << std::endl;
 			amount->showError();
 		} else {
 			comment->setFocus();

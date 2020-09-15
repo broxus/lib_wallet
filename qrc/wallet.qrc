@@ -17,5 +17,9 @@
     <file alias="art/pepe@2x.png">../art/pepe@2x.png</file>
     <file alias="art/pepe@4x.png">../art/pepe@4x.png</file>
     <file alias="art/pepe@large.png">../art/pepe@large.png</file>
+    <file alias="art/usdt.png">../art/usdt.png</file>
+    <file alias="art/usdt@2x.png">../art/usdt@2x.png</file>
+    <file alias="art/usdt@4x.png">../art/usdt@4x.png</file>
+    <file alias="art/usdt@large.png">../art/usdt@large.png</file>
   </qresource>
 </RCC>
