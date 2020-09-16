@@ -106,7 +106,7 @@ void Info::setupControls(Data &&data) {
 
 	tokensList->openRequests(
 	) | rpl::start_with_next([=](TokenItem token) {
-		_selectedToken = token.kind;
+		_selectedToken = token.token;
 	}, tokensList->lifetime());
 
 	tokensList->gateOpenRequets(

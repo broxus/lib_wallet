@@ -16,31 +16,33 @@
 
 #include <QtCore/QLocale>
 
-#include <iostream>
+constexpr auto kMaxAmountInt = 9;
 
 namespace Wallet {
 namespace {
 
-constexpr auto kOneGram = 1'000'000'000;
-constexpr auto kNanoDigits = 9;
+constexpr auto ipow(int64_t base, size_t power, int64_t result = 1) -> int64_t {
+	return power < 1 ? result : ipow(base * base, power >> 1u, (power & 0x1u) ? (result * base) : result);
+}
 
 struct FixedAmount {
 	QString text;
 	int position = 0;
 };
 
-std::optional<int64> ParseAmountGrams(const QString &trimmed) {
+std::optional<int64> ParseAmountInt(const QString &trimmed, size_t decimals) {
+	const auto one = ipow(10, decimals);
 	auto ok = false;
-	const auto grams = int64(trimmed.toLongLong(&ok));
+	const auto amount = int64(trimmed.toLongLong(&ok));
 	return (ok
-		&& (grams <= std::numeric_limits<int64>::max() / kOneGram)
-		&& (grams >= std::numeric_limits<int64>::min() / kOneGram))
-		? std::make_optional(grams * kOneGram)
+		&& (amount <= std::numeric_limits<int64>::max() / one)
+		&& (amount >= std::numeric_limits<int64>::min() / one))
+		? std::make_optional(amount * one)
 		: std::nullopt;
 }
 
-std::optional<int64> ParseAmountNano(QString trimmed) {
-	while (trimmed.size() < kNanoDigits) {
+std::optional<int64> ParseAmountFraction(QString trimmed, size_t decimals) {
+	while (trimmed.size() < decimals) {
 		trimmed.append('0');
 	}
 	auto zeros = 0;
@@ -53,12 +55,12 @@ std::optional<int64> ParseAmountNano(QString trimmed) {
 	}
 	if (zeros == trimmed.size()) {
 		return 0;
-	} else if (trimmed.size() > kNanoDigits) {
+	} else if (trimmed.size() > decimals) {
 		return std::nullopt;
 	}
 	auto ok = false;
 	const auto value = trimmed.mid(zeros).toLongLong(&ok);
-	return (ok && value > 0 && value < kOneGram)
+	return (ok && value > 0 && value < ipow(10, decimals))
 		? std::make_optional(value)
 		: std::nullopt;
 }
@@ -66,9 +68,9 @@ std::optional<int64> ParseAmountNano(QString trimmed) {
 [[nodiscard]] FixedAmount FixAmountInput(
 		const QString &was,
 		const QString &text,
-		int position) {
-	constexpr auto kMaxDigitsCount = 9;
-	const auto separator = FormatAmount(1).separator;
+		int position,
+		size_t decimals) {
+	const auto separator = FormatAmount(1, Ton::TokenKind::Ton).separator;
 
 	auto result = FixedAmount{ text, position };
 	if (text.isEmpty()) {
@@ -84,7 +86,10 @@ std::optional<int64> ParseAmountNano(QString trimmed) {
 	for (auto i = 0; i != result.text.size();) {
 		const auto ch = result.text[i];
 		const auto atSeparator = result.text.midRef(i).startsWith(separator);
-		if (ch >= '0' && ch <= '9' && digitsCount < kMaxDigitsCount) {
+		if (ch >= '0' && ch <= '9' &&
+				(!separatorFound && digitsCount < kMaxAmountInt ||
+				 separatorFound && digitsCount < decimals))
+		{
 			++i;
 			++digitsCount;
 			continue;
@@ -117,54 +122,58 @@ std::optional<int64> ParseAmountNano(QString trimmed) {
 
 } // namespace
 
-FormattedAmount FormatAmount(int64 amount, FormatFlags flags) {
+FormattedAmount FormatAmount(int64 amount, Ton::TokenKind token, FormatFlags flags) {
+	const auto decimals = Ton::countDecimals(token);
+	const auto one = ipow(10, decimals);
+
 	auto result = FormattedAmount();
-	const auto grams = amount / kOneGram;
-	const auto preciseNanos = std::abs(amount) % kOneGram;
-	auto roundedNanos = preciseNanos;
+	result.token = token;
+	const auto amountInt = amount / one;
+	const auto amountFraction = std::abs(amount) % one;
+	auto roundedFraction = amountFraction;
 	if (flags & FormatFlag::Rounded) {
-		if (std::abs(grams) >= 1'000'000 && (roundedNanos % 1'000'000)) {
-			roundedNanos -= (roundedNanos % 1'000'000);
-		} else if (std::abs(grams) >= 1'000 && (roundedNanos % 1'000)) {
-			roundedNanos -= (roundedNanos % 1'000);
+		if (std::abs(amountInt) >= 1'000'000 && (roundedFraction % 1'000'000)) {
+			roundedFraction -= (roundedFraction % 1'000'000);
+		} else if (std::abs(amountInt) >= 1'000 && (roundedFraction % 1'000)) {
+			roundedFraction -= (roundedFraction % 1'000);
 		}
 	}
-	const auto precise = (roundedNanos == preciseNanos);
-	auto nanos = preciseNanos;
-	auto zeros = 0;
-	while (zeros < kNanoDigits && nanos % 10 == 0) {
-		nanos /= 10;
+	const auto precise = (roundedFraction == amountFraction);
+	auto fraction = amountFraction;
+	auto zeros = 0u;
+	while (zeros < decimals && fraction % 10u == 0) {
+		fraction /= 10u;
 		++zeros;
 	}
 	const auto system = QLocale::system();
 	const auto locale = (flags & FormatFlag::Simple) ? QLocale::c() : system;
 	const auto separator = system.decimalPoint();
 
-	result.gramsString = locale.toString(grams);
+	result.gramsString = locale.toString(amountInt);
 	if ((flags & FormatFlag::Signed) && amount > 0) {
 		result.gramsString = locale.positiveSign() + result.gramsString;
-	} else if (amount < 0 && grams == 0) {
+	} else if (amount < 0 && amountInt == 0) {
 		result.gramsString = locale.negativeSign() + result.gramsString;
 	}
 	result.full = result.gramsString;
-	if (zeros < kNanoDigits) {
+	if (zeros < decimals) {
 		result.separator = separator;
 		result.nanoString = QString("%1"
-		).arg(nanos, kNanoDigits - zeros, 10, QChar('0'));
+		).arg(fraction, decimals - zeros, 10, QChar('0'));
 		if (!precise) {
-			const auto nanoLength = (std::abs(grams) >= 1'000'000)
+			const auto fractionLength = (std::abs(amountInt) >= 1'000'000)
 				? 3
-				: (std::abs(grams) >= 1'000)
+				: (std::abs(amountInt) >= 1'000)
 				? 6
-				: 9;
-			result.nanoString = result.nanoString.mid(0, nanoLength);
+				: decimals;
+			result.nanoString = result.nanoString.mid(0, fractionLength);
 		}
 		result.full += separator + result.nanoString;
 	}
 	return result;
 }
 
-std::optional<int64> ParseAmountString(const QString &amount) {
+std::optional<int64> ParseAmountString(const QString &amount, size_t decimals) {
 	const auto trimmed = amount.trimmed();
 	const auto separator = QString(QLocale::system().decimalPoint());
 	const auto index1 = trimmed.indexOf('.');
@@ -188,21 +197,19 @@ std::optional<int64> ParseAmountString(const QString &amount) {
 		: (index2 >= 0)
 		? ","
 		: separator;
-	const auto grams = ParseAmountGrams(trimmed.mid(0, index));
-	const auto nano = ParseAmountNano(trimmed.mid(index + used.size()));
+	const auto amountInt = ParseAmountInt(trimmed.mid(0, index), decimals);
+	const auto amountFraction = ParseAmountFraction(trimmed.mid(index + used.size()), decimals);
 	if (index < 0 || index == trimmed.size() - used.size()) {
-		return grams;
+		return amountInt;
 	} else if (index == 0) {
-		return nano;
-	} else if (!nano || !grams) {
+		return amountFraction;
+	} else if (!amountFraction || !amountInt) {
 		return std::nullopt;
 	}
-	return *grams + (*grams < 0 ? (-*nano) : (*nano));
+	return *amountInt + (*amountInt < 0 ? (-*amountFraction) : (*amountFraction));
 }
 
 PreparedInvoice ParseInvoice(QString invoice) {
-	std::cout << "Invoice: " << invoice.toStdString() << std::endl;
-
 	const auto prefix = qstr("transfer/");
 	auto result = PreparedInvoice();
 	result.token = Ton::TokenKind::Ton;
@@ -220,8 +227,6 @@ PreparedInvoice ParseInvoice(QString invoice) {
 		result.comment = params.value("text");
 	}
 
-	std::cout << "Invoice: " << invoice.toStdString() << std::endl;
-
 	const auto colonPosition = invoice.indexOf(':');
 	const auto hexPrefixPosition = invoice.indexOf("0x");
 	if (colonPosition > 0) {
@@ -237,13 +242,11 @@ PreparedInvoice ParseInvoice(QString invoice) {
 				QString()
 			).mid(0, kRawAddressLength);
 	} else if (hexPrefixPosition == 0) {
-		std::cout << "Before " << invoice.toStdString() << std::endl;
 		result.address = QString{"0x"} +
 			invoice.mid(2, std::max(paramsPosition - hexPrefixPosition, -1)).replace(
 				QRegularExpression("[^a-fA-F0-9]"),
 				QString()
 			).mid(0, kEtheriumAddressLength);
-		std::cout << "After " << result.address.toStdString() << std::endl;
 	} else {
 		result.address = invoice.mid(0, paramsPosition).replace(
 			QRegularExpression("[^a-zA-Z0-9_\\-]"),
@@ -338,15 +341,24 @@ not_null<Ui::FlatLabel*> AddBoxSubtitle(
 not_null<Ui::InputField*> CreateAmountInput(
 		not_null<QWidget*> parent,
 		rpl::producer<QString> placeholder,
-		int64 amount) {
+		int64 amount,
+		rpl::producer<Ton::TokenKind> token) {
 	const auto result = Ui::CreateChild<Ui::InputField>(
 		parent.get(),
 		st::walletInput,
 		Ui::InputField::Mode::SingleLine,
 		std::move(placeholder),
 		(amount > 0
-			? FormatAmount(amount, FormatFlag::Simple).full
+			? FormatAmount(amount, Ton::TokenKind::Ton, FormatFlag::Simple).full
 			: QString()));
+
+	auto tokenState = result->lifetime().make_state<Ton::TokenKind>(Ton::TokenKind::Ton);
+	std::move(
+		token
+	) | rpl::start_with_next([=](Ton::TokenKind value) {
+		*tokenState = value;
+	}, result->lifetime());
+
 	const auto lastAmountValue = std::make_shared<QString>();
 	Ui::Connect(result, &Ui::InputField::changed, [=] {
 		Ui::PostponeCall(result, [=] {
@@ -355,7 +367,8 @@ not_null<Ui::InputField*> CreateAmountInput(
 			const auto fixed = FixAmountInput(
 				*lastAmountValue,
 				now,
-				position);
+				position,
+				Ton::countDecimals(*tokenState));
 			*lastAmountValue = fixed.text;
 			if (fixed.text == now) {
 				return;

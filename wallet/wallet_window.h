@@ -110,6 +110,7 @@ private:
 		const Fn<void(InvoiceField)> &showInvoiceError);
 	void showSendingTransaction(
 		const Ton::PendingTransaction &transaction,
+		const PreparedInvoice &invoice,
 		rpl::producer<> confirmed);
 	void showSendingDone(std::optional<Ton::Transaction> result);
 	void refreshNow();

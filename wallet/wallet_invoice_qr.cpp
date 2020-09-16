@@ -18,7 +18,7 @@ namespace Wallet {
 void InvoiceQrBox(
 		not_null<Ui::GenericBox*> box,
 		const QString &link,
-		Fn<void(QImage, QString)> share) {
+		const Fn<void(QImage, QString)> &share) {
 	box->setTitle(ph::lng_wallet_invoice_qr_title());
 	box->setStyle(st::walletBox);
 
@@ -54,7 +54,7 @@ void InvoiceQrBox(
 	box->addRow(
 		object_ptr<Ui::FlatLabel>(
 			box,
-			FormatAmount(prepared.amount).full,
+			FormatAmount(prepared.amount, prepared.token).full,
 			st::walletLabel),
 		st::walletInvoiceQrValuePadding);
 

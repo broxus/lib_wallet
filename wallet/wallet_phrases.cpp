@@ -6,6 +6,8 @@
 //
 #include "wallet/wallet_phrases.h"
 
+#include "ton/ton_state.h"
+
 #include <QtCore/QDate>
 #include <QtCore/QTime>
 
@@ -78,7 +80,7 @@ phrase lng_wallet_refreshed_just_now = "updated just now";
 phrase lng_wallet_cover_balance = "Your balance";
 phrase lng_wallet_cover_balance_test = "Your test balance";
 phrase lng_wallet_cover_locked = "locked";
-phrase lng_wallet_cover_receive_full = "Receive TON Crystals";
+phrase lng_wallet_cover_receive_full = "Receive TON";
 phrase lng_wallet_cover_receive = "Receive";
 phrase lng_wallet_cover_send = "Send";
 
@@ -105,12 +107,12 @@ phrase lng_wallet_view_sender = "Sender";
 phrase lng_wallet_view_recipient = "Recipient";
 phrase lng_wallet_view_date = "Date";
 phrase lng_wallet_view_comment = "Comment";
-phrase lng_wallet_view_send_to_address = "Send TON Crystals to this address";
-phrase lng_wallet_view_send_to_recipient = "Send TON Crystals to this Recipient";
+phrase lng_wallet_view_send_to_address = "Send TON to this address";
+phrase lng_wallet_view_send_to_recipient = "Send TON to this Recipient";
 
-phrase lng_wallet_receive_title = "Receive TON Crystals";
-phrase lng_wallet_receive_description = "Share this address with other TON Crystal wallet owners to receive TON Crystals from them.";
-phrase lng_wallet_receive_description_test = "Share this address to receive Test TON Crystals. Note: this link won't work for real TON Crystals.";
+phrase lng_wallet_receive_title = "Receive TON";
+phrase lng_wallet_receive_description = "Share this address with other TON Crystal wallet owners to receive TON from them.";
+phrase lng_wallet_receive_description_test = "Share this address to receive Ruby. Note: this link won't work for real TON.";
 phrase lng_wallet_receive_show_as_packed = "Show as packed";
 phrase lng_wallet_receive_create_invoice = "Create Invoice";
 phrase lng_wallet_receive_share = "Share Wallet Address";
@@ -120,13 +122,13 @@ phrase lng_wallet_receive_copied_qr = "QR Code copied to clipboard.";
 
 phrase lng_wallet_invoice_title = "Create Invoice";
 phrase lng_wallet_invoice_amount = "Amount";
-phrase lng_wallet_invoice_number = "Amount in TON Crystals you expect to receive";
+phrase lng_wallet_invoice_number = "Amount in TON you expect to receive";
 phrase lng_wallet_invoice_comment = "Comment (optional)";
 phrase lng_wallet_invoice_comment_about = "You can specify the amount and purpose of the payment to save the sender some time.";
 phrase lng_wallet_invoice_url = "Invoice URL";
 phrase lng_wallet_invoice_copy_url = "Copy Invoice URL";
-phrase lng_wallet_invoice_url_about = "Share this address with other TON Crystal wallet owners to receive TON Crystals from them.";
-phrase lng_wallet_invoice_url_about_test = "Share this address to receive Test TON Crystals. Note: this link won't work for real TON Crystals.";
+phrase lng_wallet_invoice_url_about = "Share this address with other TON Crystal wallet owners to receive TON from them.";
+phrase lng_wallet_invoice_url_about_test = "Share this address to receive Ruby. Note: this link won't work for real TON.";
 phrase lng_wallet_invoice_generate_qr = "Generate QR Code";
 phrase lng_wallet_invoice_share = "Share Invoice URL";
 phrase lng_wallet_invoice_qr_title = "Invoice QR";
@@ -144,14 +146,14 @@ phrase lng_wallet_delete_title = "Log Out";
 phrase lng_wallet_delete_about = "This will disconnect the wallet from this app. You will be able to restore your wallet using **24 secret words** \xe2\x80\x93 or import another wallet.\n\nWallets are located in the decentralized TON Blockchain. If you want the wallet to be deleted simply transfer all the TON Crystals from it and leave it empty.";
 phrase lng_wallet_delete_disconnect = "Disconnect";
 
-phrase lng_wallet_send_title = "Send TON Crystals";
+phrase lng_wallet_send_title = "Send {ticker}";
 phrase lng_wallet_send_recipient = "Recipient wallet address";
 phrase lng_wallet_send_address = "Enter wallet address";
 phrase lng_wallet_send_about = "Copy the wallet address of the recipient here or ask them to send you a freeton:// link.";
 phrase lng_wallet_send_amount = "Amount";
 phrase lng_wallet_send_balance = "Balance: {amount}";
 phrase lng_wallet_send_comment = "Comment (optional)";
-phrase lng_wallet_send_button = "Send TON Crystals";
+phrase lng_wallet_send_button = "Send {ticker}";
 phrase lng_wallet_send_button_amount = "Send {grams}";
 
 phrase lng_wallet_send_failed_title = "Sending failed";
@@ -160,11 +162,11 @@ phrase lng_wallet_send_failed_text = "Could not perform the transaction. Please 
 phrase lng_wallet_confirm_title = "Confirmation";
 phrase lng_wallet_confirm_text = "Do you want to send **{grams}** to:";
 phrase lng_wallet_confirm_fee = "Fee: ~{grams}";
-phrase lng_wallet_confirm_send = "Send TON Crystals";
+phrase lng_wallet_confirm_send = "Send {ticker}";
 phrase lng_wallet_confirm_warning = "**Note:** your comment \xC2\xAB{comment}\xC2\xBB **will not be encrypted**.";
 
 phrase lng_wallet_same_address_title = "Warning";
-phrase lng_wallet_same_address_text = "Sending TON Crystals from a wallet to the same wallet doesn't make sense, you will simply waste a portion of the value on blockchain fees.";
+phrase lng_wallet_same_address_text = "Sending TON from a wallet to the same wallet doesn't make sense, you will simply waste a portion of the value on blockchain fees.";
 phrase lng_wallet_same_address_proceed = "Proceed";
 
 phrase lng_wallet_passcode_title = "Password";
@@ -172,7 +174,7 @@ phrase lng_wallet_passcode_enter = "Enter your password";
 phrase lng_wallet_passcode_next = "Next";
 phrase lng_wallet_passcode_incorrect = "Incorrect password.";
 
-phrase lng_wallet_sending_title = "Sending TON Crystals";
+phrase lng_wallet_sending_title = "Sending {ticker}";
 phrase lng_wallet_sending_text = "Please wait a few seconds for your\ntransaction to be processed...";
 
 phrase lng_wallet_sent_title = "Done!";
@@ -200,7 +202,7 @@ phrase lng_wallet_settings_blockchain_name = "Blockchain ID";
 phrase lng_wallet_warning_reconnect = "If you proceed, you will need to reconnect your wallet using 24 secret words.";
 phrase lng_wallet_warning_blockchain_name = "Are you sure you want to change the blockchain ID? You don't need this unless you're testing your own TON network.";
 phrase lng_wallet_warning_to_testnet = "Are you sure you want to switch to the Test Free TON network? It exists only for testing purposes.";
-phrase lng_wallet_warning_to_mainnet = "Are you sure you want to switch to the Main Free TON network? TON Crystals will have real value there.";
+phrase lng_wallet_warning_to_mainnet = "Are you sure you want to switch to the Main Free TON network? TON will have real value there.";
 phrase lng_wallet_bad_config = "Sorry, this config is invalid.";
 phrase lng_wallet_bad_config_url = "Could not load config from URL.";
 phrase lng_wallet_wait_pending = "Please wait until the current transaction is completed.";
@@ -270,14 +272,14 @@ Fn<phrase(QTime)> lng_wallet_short_time = [](QTime time) {
 	return time.toString(Qt::SystemLocaleShortDate);
 };
 
-Fn<phrase(QString)> lng_wallet_grams_count = [](QString text) {
-	return text + ((text == "1") ? " TON Crystal" : " TON Crystals");
+Fn<phrase(QString, Ton::TokenKind)> lng_wallet_grams_count = [](QString text, Ton::TokenKind token) {
+	return text + " " + Ton::toString(token);
 };
 
-Fn<phrase(QString)> lng_wallet_grams_count_sent = [](QString text) {
-	return text + ((text == "1")
-		? " TON Crystal has been sent."
-		: " TON Crystals have been sent.");
+Fn<phrase(QString, Ton::TokenKind)> lng_wallet_grams_count_sent = [](QString text, Ton::TokenKind token) {
+	return text + " " + Ton::toString(token) + ((text == "1")
+		? " has been sent."
+		: " have been sent.");
 };
 
 } // namespace ph
@@ -289,7 +291,7 @@ void SetPhrases(
 		Fn<rpl::producer<QString>(int)> wallet_refreshed_minutes_ago,
 		Fn<rpl::producer<QString>(QDate)> wallet_short_date,
 		Fn<rpl::producer<QString>(QTime)> wallet_short_time,
-		Fn<rpl::producer<QString>(QString)> wallet_grams_count) {
+		Fn<rpl::producer<QString>(QString, Ton::TokenKind)> wallet_grams_count) {
 	ph::details::set_values(std::move(data));
 	ph::lng_wallet_refreshed_minutes_ago = [=](int minutes) {
 		return ph::phrase{ wallet_refreshed_minutes_ago(minutes) };
@@ -300,8 +302,8 @@ void SetPhrases(
 	ph::lng_wallet_short_time = [=](QTime date) {
 		return ph::phrase{ wallet_short_time(date) };
 	};
-	ph::lng_wallet_grams_count = [=](QString text) {
-		return ph::phrase{ wallet_grams_count(text) };
+	ph::lng_wallet_grams_count = [=](QString text, Ton::TokenKind token) {
+		return ph::phrase{ wallet_grams_count(text, token) };
 	};
 }
 

@@ -48,7 +48,7 @@ object_ptr<Ui::RpWidget> CreateSummary(
 	const auto balance = !service
 		? result->lifetime().make_state<Ui::AmountLabel>(
 			result.data(),
-			rpl::single(FormatAmount(value, FormatFlag::Signed)),
+			rpl::single(FormatAmount(value, Ton::TokenKind::Ton, FormatFlag::Signed)),
 			(useSmallStyle
 				? st::walletTransactionValueSmall
 				: st::walletTransactionValue))
@@ -58,7 +58,7 @@ object_ptr<Ui::RpWidget> CreateSummary(
 			result.data(),
 			ph::lng_wallet_view_transaction_fee(ph::now).replace(
 				"{amount}",
-				FormatAmount(data.otherFee).full),
+				FormatAmount(data.otherFee, Ton::TokenKind::Ton).full),
 			st::walletTransactionFee)
 		: nullptr;
 	const auto storageFee = data.storageFee
@@ -66,7 +66,7 @@ object_ptr<Ui::RpWidget> CreateSummary(
 			result.data(),
 			ph::lng_wallet_view_storage_fee(ph::now).replace(
 				"{amount}",
-				FormatAmount(data.storageFee).full),
+				FormatAmount(data.storageFee, Ton::TokenKind::Ton).full),
 			st::walletTransactionFee)
 		: nullptr;
 	rpl::combine(

@@ -857,7 +857,7 @@ void Window::askSendPassword(
 				}
 				return;
 			}
-			showSendingTransaction(*result, confirmations->events());
+			showSendingTransaction(*result, invoice, confirmations->events());
 			_wallet->updateViewersPassword(publicKey, passcode);
 			decryptEverything(publicKey);
 		};
@@ -948,11 +948,12 @@ void Window::showSendConfirmation(
 
 void Window::showSendingTransaction(
 		const Ton::PendingTransaction &transaction,
+		const PreparedInvoice &invoice,
 		rpl::producer<> confirmed) {
 	if (_sendBox) {
 		_sendBox->closeBox();
 	}
-	auto box = Box(SendingTransactionBox, std::move(confirmed));
+	auto box = Box(SendingTransactionBox, invoice.token, std::move(confirmed));
 	_sendBox = box.data();
 	_state.value(
 	) | rpl::filter([=](const Ton::WalletState &state) {

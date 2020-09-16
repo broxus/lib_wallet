@@ -34,7 +34,7 @@ struct TokenItemLayout
 }
 
 [[nodiscard]] TokenItemLayout PrepareLayout(const TokenItem &data) {
-	const auto balance = FormatAmount(static_cast<int64_t>(data.balance));
+	const auto balance = FormatAmount(static_cast<int64_t>(data.balance), data.token);
 	const auto address = data.address;
 	const auto addressPartWidth = [&](int from, int length = -1)
 	{
@@ -42,8 +42,8 @@ struct TokenItemLayout
 	};
 
 	auto result = TokenItemLayout();
-	result.image = Ui::InlineTokenIcon(data.kind, st::walletTokensListRowIconSize);
-	result.title.setText(st::walletTokensListRowTitleStyle.style, Ton::toString(data.kind));
+	result.image = Ui::InlineTokenIcon(data.token, st::walletTokensListRowIconSize);
+	result.title.setText(st::walletTokensListRowTitleStyle.style, Ton::toString(data.token));
 	result.balanceGrams.setText(st::walletTokensListRowGramsStyle, balance.gramsString);
 	result.balanceNano.setText(st::walletTokensListRowNanoStyle, balance.separator + balance.nanoString);
 	result.address = Ui::Text::String(AddressStyle(), address, _defaultOptions, st::walletAddressWidthMin);
@@ -141,7 +141,7 @@ void TokensListRow::paint(Painter &p, int /*x*/, int /*y*/) const {
 }
 
 bool TokensListRow::refresh(const TokenItem &item) {
-	if (_tokenItem.kind != item.kind || _tokenItem.balance == item.balance) {
+	if (_tokenItem.token != item.token || _tokenItem.balance == item.balance) {
 		return false;
 	}
 	_layout = PrepareLayout(item);
@@ -160,7 +160,7 @@ void TokensListRow::resizeToWidth(int width) {
 }
 
 Ton::TokenKind TokensListRow::kind() const {
-	return _tokenItem.kind;
+	return _tokenItem.token;
 }
 
 TokensList::TokensList(not_null<Ui::RpWidget *> parent, rpl::producer<TokensListState> state)
@@ -310,7 +310,7 @@ void TokensList::setupContent(rpl::producer<TokensListState> &&state) {
 
 void TokensList::refreshItemValues(Ton::TokenMap<TokenItem> &data) {
 	for (size_t i = 0; i < _rows.size(); ++i) {
-		const auto it = data.find(_listData[i].kind);
+		const auto it = data.find(_listData[i].token);
 		if (it == data.end()) {
 			continue;
 		}
@@ -323,7 +323,7 @@ void TokensList::refreshItemValues(Ton::TokenMap<TokenItem> &data) {
 
 bool TokensList::mergeListChanged(Ton::TokenMap<TokenItem> &&data) {
 	for (auto & item : _listData) {
-		auto it = data.find(item.kind);
+		auto it = data.find(item.token);
 		if (it != data.end()) {
 			data.erase(it);
 		}
@@ -355,13 +355,13 @@ rpl::producer<TokensListState> MakeTokensListState(
 
 			TokensListState result{};
 			result.tokens.insert({Ton::TokenKind::Ton, TokenItem {
-				.kind = Ton::TokenKind::Ton,
+				.token = Ton::TokenKind::Ton,
 				.address = data.wallet.address,
 				.balance = unlockedTonBalance,
 			}});
-			for (const auto &[kind, state] : data.wallet.tokenStates) {
-				result.tokens.insert({kind, TokenItem {
-					.kind = kind,
+			for (const auto &[token, state] : data.wallet.tokenStates) {
+				result.tokens.insert({token, TokenItem {
+					.token = token,
 					.address = data.wallet.address,
 					.balance = state.fullBalance,
 				}});
@@ -371,11 +371,11 @@ rpl::producer<TokensListState> MakeTokensListState(
 }
 
 bool operator==(const TokenItem &a, const TokenItem &b) {
-	return a.kind == b.kind;
+	return a.token == b.token;
 }
 
 bool operator!=(const TokenItem &a, const TokenItem &b) {
-	return a.kind != b.kind;
+	return a.token != b.token;
 }
 
 } // namespace Wallet

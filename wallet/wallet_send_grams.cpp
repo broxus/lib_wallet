@@ -29,7 +29,7 @@ struct FixedAddress {
 };
 
 [[nodiscard]] QString AmountSeparator() {
-	return FormatAmount(1).separator;
+	return FormatAmount(1, Ton::TokenKind::Ton).separator;
 }
 
 [[nodiscard]] FixedAddress FixAddressInput(
@@ -52,11 +52,39 @@ void SendGramsBox(
 		const QString &invoice,
 		rpl::producer<int64> unlockedBalance,
 		rpl::producer<std::optional<Ton::TokenKind>> selectedToken,
-		Fn<void(PreparedInvoice, Fn<void(InvoiceField)> error)> done) {
+		const Fn<void(PreparedInvoice, Fn<void(InvoiceField)> error)> &done) {
+	constexpr auto defaultToken = Ton::TokenKind::Ton;
+	const auto token = rpl::duplicate(selectedToken) | rpl::map([=](std::optional<Ton::TokenKind> token) {
+		return token.value_or(defaultToken);
+	});
+
+	const auto currentToken = box->lifetime().make_state<Ton::TokenKind>(defaultToken);
+	rpl::duplicate(token) | rpl::start_with_next([=](Ton::TokenKind value) {
+		*currentToken = value;
+	}, box->lifetime());
+
 	const auto prepared = ParseInvoice(invoice);
+
 	const auto funds = std::make_shared<int64>();
 
-	box->setTitle(ph::lng_wallet_send_title());
+	const auto replaceTickerTag = [] {
+		return rpl::map([=](QString &&text, const std::optional<Ton::TokenKind> &selectedToken) {
+			return text.replace("{ticker}", Ton::toString(selectedToken.value_or(Ton::TokenKind::Ton)));
+		});
+	};
+
+	const auto replaceGramsTag = [] {
+		return rpl::map([=](QString &&text, const QString &grams) {
+			return text.replace("{grams}", grams);
+		});
+	};
+
+	const auto titleText = rpl::combine(
+		ph::lng_wallet_send_title(),
+		rpl::duplicate(selectedToken)
+	) | replaceTickerTag();
+
+	box->setTitle(titleText);
 	box->setStyle(st::walletBox);
 
 	box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
@@ -71,20 +99,22 @@ void SendGramsBox(
 	address->rawTextEdit()->setWordWrapMode(QTextOption::WrapAnywhere);
 
 	const auto subtitle = AddBoxSubtitle(box, ph::lng_wallet_send_amount());
+
 	const auto amount = box->addRow(
 		object_ptr<Ui::InputField>::fromRaw(CreateAmountInput(
 			box,
 			rpl::single("0" + AmountSeparator() + "0"),
-			prepared.amount)),
+			prepared.amount,
+			token)),
 		st::walletSendAmountPadding);
 
 	auto balanceText = rpl::combine(
 		ph::lng_wallet_send_balance(),
 		rpl::duplicate(unlockedBalance)
-	) | rpl::map([](QString &&phrase, int64 value) {
+	) | rpl::map([=](QString &&phrase, int64 value) {
 		return phrase.replace(
 			"{amount}",
-			FormatAmount(std::max(value, 0LL), FormatFlag::Rounded).full);
+			FormatAmount(std::max(value, 0LL), *currentToken, FormatFlag::Rounded).full);
 	});
 
 	const auto diamondLabel = Ui::CreateInlineTokenIcon(
@@ -122,24 +152,33 @@ void SendGramsBox(
 			prepared.comment)),
 		st::walletSendCommentPadding);
 
-	const auto checkFunds = [=](const QString &amount) {
-		if (const auto value = ParseAmountString(amount)) {
+	rpl::duplicate(
+		selectedToken
+	) | rpl::start_with_next([=](const std::optional<Ton::TokenKind> &selectedToken) {
+		const auto showComment = (selectedToken.has_value() && !*selectedToken);
+		comment->setMinHeight(showComment ? st::walletInput.heightMin : 0);
+		comment->setMaxHeight(showComment ? st::walletInput.heightMax : 0);
+	}, comment->lifetime());
+
+	const auto checkFunds = [=](const QString &amount, Ton::TokenKind token) {
+		if (const auto value = ParseAmountString(amount, Ton::countDecimals(token))) {
 			const auto insufficient = (*value > std::max(*funds, 0LL));
 			balanceLabel->setTextColorOverride(insufficient
 				? std::make_optional(st::boxTextFgError->c)
 				: std::nullopt);
 		}
 	};
-	std::move(
-		unlockedBalance
-	) | rpl::start_with_next([=](int64 value) {
+	rpl::combine(
+		std::move(unlockedBalance),
+		rpl::duplicate(token)
+	) | rpl::start_with_next([=](int64 value, Ton::TokenKind token) {
 		*funds = value;
-		checkFunds(amount->getLastText());
+		checkFunds(amount->getLastText(), token);
 	}, amount->lifetime());
 
 	Ui::Connect(amount, &Ui::InputField::changed, [=] {
 		Ui::PostponeCall(amount, [=] {
-			checkFunds(amount->getLastText());
+			checkFunds(amount->getLastText(), *currentToken);
 		});
 	});
 	Ui::Connect(address, &Ui::InputField::changed, [=] {
@@ -155,6 +194,7 @@ void SendGramsBox(
 			if (fixed.invoice.amount > 0) {
 				amount->setText(FormatAmount(
 					fixed.invoice.amount,
+					*currentToken,
 					FormatFlag::Simple).full);
 			}
 			if (!fixed.invoice.comment.isEmpty()) {
@@ -206,8 +246,7 @@ void SendGramsBox(
 	});
 	const auto submit = [=] {
 		auto collected = PreparedInvoice();
-		const auto parsed = ParseAmountString(amount->getLastText());
-		std::cout << "Submit" << std::endl;
+		const auto parsed = ParseAmountString(amount->getLastText(), Ton::countDecimals(*currentToken));
 		if (!parsed) {
 			amount->showError();
 			return;
@@ -228,38 +267,27 @@ void SendGramsBox(
 
 		bool showAddressError = false;
 		if (isRaw && ((text.size() - colonPosition - 1) != kRawAddressLength)) {
-			std::cout << "is invalid raw" << std::endl;
 			showAddressError = true;
 		} else if (isEtheriumAddress && (text.size() - 2) != kEtheriumAddressLength) {
-			std::cout << "is invalid etheriumn" << std::endl;
 			showAddressError = true;
 		} else if (!(isRaw || isEtheriumAddress) && (text.size() != kEncodedAddressLength)) {
-			std::cout << "is invalid packed" << std::endl;
 			showAddressError = true;
 		}
 
 		if (showAddressError) {
-			std::cout << "Show address error" << std::endl;
 			address->showError();
 		} else {
 			amount->setFocus();
 		}
 	});
 	Ui::Connect(amount, &Ui::InputField::submitted, [=] {
-		if (ParseAmountString(amount->getLastText()).value_or(0) <= 0) {
-			std::cout << "Show amount error" << std::endl;
+		if (ParseAmountString(amount->getLastText(), Ton::countDecimals(*currentToken)).value_or(0) <= 0) {
 			amount->showError();
 		} else {
 			comment->setFocus();
 		}
 	});
 	Ui::Connect(comment, &Ui::InputField::submitted, submit);
-
-	const auto replaceGramsTag = [] {
-		return rpl::map([=](QString &&text, const QString &grams) {
-			return text.replace("{grams}", grams);
-		});
-	};
 
 	auto text = rpl::single(
 		rpl::empty_value()
@@ -268,13 +296,16 @@ void SendGramsBox(
 		&Ui::InputField::changed
 	)) | rpl::map([=]() -> rpl::producer<QString> {
 		const auto text = amount->getLastText();
-		const auto value = ParseAmountString(text).value_or(0);
+		const auto value = ParseAmountString(text, Ton::countDecimals(*currentToken)).value_or(0);
 		return (value > 0)
 			? rpl::combine(
 				ph::lng_wallet_send_button_amount(),
-				ph::lng_wallet_grams_count(FormatAmount(value).full)()
+				ph::lng_wallet_grams_count(FormatAmount(value, *currentToken).full, *currentToken)()
 			) | replaceGramsTag()
-			: ph::lng_wallet_send_button();
+			: rpl::combine(
+				ph::lng_wallet_send_button(),
+				rpl::duplicate(selectedToken)
+			) | replaceTickerTag();
 	}) | rpl::flatten_latest();
 
 	box->addButton(

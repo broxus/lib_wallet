@@ -88,6 +88,7 @@ void RefreshTimeTexts(
 	const auto encrypted = IsEncryptedMessage(data) && decrypt;
 	const auto amount = FormatAmount(
 		service ? (-data.fee) : CalculateValue(data),
+		Ton::TokenKind::Ton,
 		FormatFlag::Signed | FormatFlag::Rounded);
 	const auto incoming = !data.incoming.source.isEmpty();
 	const auto pending = (data.id.lt == 0);
@@ -117,7 +118,7 @@ void RefreshTimeTexts(
 		(encrypted ? QString() : ExtractMessage(data)),
 		_textPlainOptions);
 	if (data.fee) {
-		const auto fee = FormatAmount(data.fee).full;
+		const auto fee = FormatAmount(data.fee, Ton::TokenKind::Ton).full;
 		result.fees.setText(
 			st::defaultTextStyle,
 			ph::lng_wallet_row_fees(ph::now).replace("{amount}", fee));

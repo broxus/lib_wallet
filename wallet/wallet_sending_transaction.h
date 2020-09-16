@@ -10,12 +10,14 @@
 
 namespace Ton {
 struct Transaction;
+enum class TokenKind;
 } // namespace Ton
 
 namespace Wallet {
 
 void SendingTransactionBox(
 	not_null<Ui::GenericBox*> box,
+	Ton::TokenKind token,
 	rpl::producer<> confirmed);
 
 void SendingDoneBox(

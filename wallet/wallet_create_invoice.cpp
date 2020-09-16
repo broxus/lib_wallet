@@ -39,6 +39,9 @@ void CreateInvoiceBox(
 		bool testnet,
 		Fn<void(QString)> generateQr,
 		Fn<void(QImage, QString)> share) {
+	const auto token = Ton::TokenKind::Ton;
+	const auto tokenDecimals = Ton::countDecimals(token);
+
 	box->setTitle(ph::lng_wallet_invoice_title());
 	box->setStyle(st::walletInvoiceBox);
 
@@ -47,7 +50,7 @@ void CreateInvoiceBox(
 	AddBoxSubtitle(box, ph::lng_wallet_invoice_amount());
 	const auto amount = box->addRow(
 		object_ptr<Ui::InputField>::fromRaw(
-			CreateAmountInput(box, ph::lng_wallet_invoice_number())),
+			CreateAmountInput(box, ph::lng_wallet_invoice_number(), 0, rpl::single(token))),
 		st::walletSendAmountPadding);
 
 	const auto comment = box->addRow(
@@ -62,7 +65,7 @@ void CreateInvoiceBox(
 		st::walletInvoiceAboutCommentPadding);
 
 	const auto collectLink = [=]() -> std::optional<QString> {
-		const auto parsed = ParseAmountString(amount->getLastText());
+		const auto parsed = ParseAmountString(amount->getLastText(), tokenDecimals);
 		const auto text = comment->getLastText();
 		if (parsed.value_or(0) <= 0) {
 			amount->showError();
@@ -87,7 +90,7 @@ void CreateInvoiceBox(
 		amount,
 		&Ui::InputField::changed
 	)) | rpl::map([=] {
-		return ParseAmountString(amount->getLastText()).value_or(0);
+		return ParseAmountString(amount->getLastText(), tokenDecimals).value_or(0);
 	});
 	auto commentValue = rpl::single(
 		rpl::empty_value()
@@ -140,7 +143,7 @@ void CreateInvoiceBox(
 	});
 
 	Ui::Connect(amount, &Ui::InputField::submitted, [=] {
-		if (ParseAmountString(amount->getLastText()).value_or(0) <= 0) {
+		if (ParseAmountString(amount->getLastText(), tokenDecimals).value_or(0) <= 0) {
 			amount->showError();
 		} else {
 			comment->setFocus();

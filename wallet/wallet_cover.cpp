@@ -82,6 +82,7 @@ void Cover::setupBalance() {
 	) | rpl::map([](const CoverState &state) {
 		return FormatAmount(
 			std::max(state.unlockedBalance, 0LL),
+			state.token,
 			FormatFlag::Rounded);
 	});
 
@@ -103,7 +104,7 @@ void Cover::setupBalance() {
 	auto lockedAmount = _state.value(
 	) | rpl::map([](const CoverState &state) {
 		return (state.lockedBalance > 0)
-			? FormatAmount(state.lockedBalance, FormatFlag::Rounded).full
+			? FormatAmount(state.lockedBalance, state.token, FormatFlag::Rounded).full
 			: QString();
 	});
 
@@ -167,12 +168,11 @@ void Cover::setupBalance() {
 		locked->paintRequest(),
 		_state.value()
 	) | rpl::start_with_next([=](const QRect &, const CoverState &state) {
-		std::cout << "PAINTING: " << Ton::toString(state.kind).toStdString() << std::endl;
 		auto p = QPainter(locked);
 		const auto diamondTop = 0;
 		const auto diamondLeft = locked->width() - st::walletDiamondSize;
 		Ui::PaintInlineTokenIcon(
-			state.kind,
+			state.token,
 			p,
 			diamondLeft,
 			diamondTop,
@@ -287,12 +287,12 @@ rpl::producer<CoverState> MakeCoverState(
 		const auto &account = data.wallet.account;
 
 		CoverState result{
-			.kind = (selectedToken.has_value() ? *selectedToken : Ton::TokenKind::Ton),
+			.token = (selectedToken.has_value() ? *selectedToken : Ton::TokenKind::Ton),
 			.justCreated = justCreated,
 			.useTestNetwork = useTestNetwork,
 		};
 
-		if (!result.kind) {
+		if (!result.token) {
 			result.unlockedBalance = account.fullBalance - account.lockedBalance;
 			result.lockedBalance = account.lockedBalance;
 		} else {

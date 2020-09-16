@@ -27,6 +27,6 @@ void SendGramsBox(
 	const QString &invoice,
 	rpl::producer<int64> unlockedBalance,
 	rpl::producer<std::optional<Ton::TokenKind>> selectedToken,
-	Fn<void(PreparedInvoice, Fn<void(InvoiceField)> error)> done);
+	const Fn<void(PreparedInvoice, Fn<void(InvoiceField)> error)> &done);
 
 } // namespace Wallet

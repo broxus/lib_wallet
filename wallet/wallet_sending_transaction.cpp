@@ -30,6 +30,7 @@ constexpr auto kShowCloseDelay = 10 * crl::time(1000);
 
 void SendingTransactionBox(
 		not_null<Ui::GenericBox*> box,
+		Ton::TokenKind token,
 		rpl::producer<> confirmed) {
 	const auto inner = box->addRow(object_ptr<Ui::FixedHeightWidget>(
 		box,
@@ -52,7 +53,9 @@ void SendingTransactionBox(
 
 	const auto title = Ui::CreateChild<Ui::FlatLabel>(
 		inner,
-		ph::lng_wallet_sending_title(),
+		ph::lng_wallet_sending_title() | rpl::map([=](QString &&title) {
+			return title.replace("{ticker}", Ton::toString(token));
+		}),
 		st::walletSendingTitle);
 	const auto text = Ui::CreateChild<Ui::FlatLabel>(
 		inner,
@@ -91,14 +94,14 @@ void SendingDoneBox(
 	lottie->start();
 	lottie->stopOnLoop(1);
 
-	const auto amount = FormatAmount(-CalculateValue(result)).full;
+	const auto amount = FormatAmount(-CalculateValue(result), Ton::TokenKind::Ton).full;
 	const auto title = Ui::CreateChild<Ui::FlatLabel>(
 		inner,
 		ph::lng_wallet_sent_title(),
 		st::walletSendingTitle);
 	const auto text = Ui::CreateChild<Ui::FlatLabel>(
 		inner,
-		ph::lng_wallet_grams_count_sent(amount)(),
+		ph::lng_wallet_grams_count_sent(amount, Ton::TokenKind::Ton)(),
 		st::walletSendingText);
 
 	inner->widthValue(

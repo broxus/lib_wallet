@@ -8,12 +8,10 @@
 
 #include "base/flags.h"
 
+#include "ton/ton_state.h"
+
 namespace Ton {
 struct Error;
-struct Transaction;
-struct TransactionToSend;
-struct TokenTransactionToSend;
-enum class TokenKind;
 } // namespace Ton
 
 namespace Ui {
@@ -34,6 +32,7 @@ inline constexpr auto kRawAddressLength = 64;
 inline constexpr auto kEtheriumAddressLength = 40;
 
 struct FormattedAmount {
+	Ton::TokenKind token;
 	QString gramsString;
 	QString separator;
 	QString nanoString;
@@ -75,8 +74,9 @@ using FormatFlags = base::flags<FormatFlag>;
 
 [[nodiscard]] FormattedAmount FormatAmount(
 	int64 amount,
+	Ton::TokenKind token,
 	FormatFlags flags = FormatFlags());
-[[nodiscard]] std::optional<int64> ParseAmountString(const QString &amount);
+[[nodiscard]] std::optional<int64> ParseAmountString(const QString &amount, size_t decimals);
 [[nodiscard]] PreparedInvoice ParseInvoice(QString invoice);
 [[nodiscard]] int64 CalculateValue(const Ton::Transaction &data);
 [[nodiscard]] QString ExtractAddress(const Ton::Transaction &data);
@@ -99,7 +99,8 @@ not_null<Ui::FlatLabel*> AddBoxSubtitle(
 [[nodiscard]] not_null<Ui::InputField*> CreateAmountInput(
 	not_null<QWidget*> parent,
 	rpl::producer<QString> placeholder,
-	int64 amount = 0);
+	int64 amount,
+	rpl::producer<Ton::TokenKind> token);
 [[nodiscard]] not_null<Ui::InputField*> CreateCommentInput(
 	not_null<QWidget*> parent,
 	rpl::producer<QString> placeholder,

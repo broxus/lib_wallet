@@ -73,16 +73,16 @@ void ConfirmTransactionBox(
 		not_null<Ui::GenericBox*> box,
 		const PreparedInvoice &invoice,
 		int64 fee,
-		Fn<void()> confirmed) {
+		const Fn<void()> &confirmed) {
 	box->setTitle(ph::lng_wallet_confirm_title());
 
 	box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
 	box->setCloseByOutsideClick(false);
 
-	const auto amount = FormatAmount(invoice.amount).full;
+	const auto amount = FormatAmount(invoice.amount, invoice.token).full;
 	auto text = rpl::combine(
 		ph::lng_wallet_confirm_text(),
-		ph::lng_wallet_grams_count(amount)()
+		ph::lng_wallet_grams_count(amount, invoice.token)()
 	) | rpl::map([=](QString &&text, const QString &grams) {
 		return Ui::Text::RichLangValue(text.replace("{grams}", grams));
 	});
@@ -102,10 +102,10 @@ void ConfirmTransactionBox(
 			st::windowBgOver->c)),
 		st::walletConfirmationAddressPadding);
 
-	const auto feeParsed = FormatAmount(fee).full;
+	const auto feeParsed = FormatAmount(fee, Ton::TokenKind::Ton).full;
 	auto feeText = rpl::combine(
 		ph::lng_wallet_confirm_fee(),
-		ph::lng_wallet_grams_count(feeParsed)()
+		ph::lng_wallet_grams_count(feeParsed, Ton::TokenKind::Ton)()
 	) | rpl::map([=](QString &&text, const QString &grams) {
 		return text.replace("{grams}", grams);
 	});
@@ -144,7 +144,13 @@ void ConfirmTransactionBox(
 		}
 	}, box->lifetime());
 
-	box->addButton(ph::lng_wallet_confirm_send(), confirmed);
+	const auto replaceTickerTag = [](const Ton::TokenKind &selectedToken) {
+		return rpl::map([selectedToken](QString &&text) {
+			return text.replace("{ticker}", Ton::toString(selectedToken));
+		});
+	};
+
+	box->addButton(ph::lng_wallet_confirm_send() | replaceTickerTag(invoice.token), confirmed);
 	box->addButton(ph::lng_wallet_cancel(), [=] { box->closeBox(); });
 }
 

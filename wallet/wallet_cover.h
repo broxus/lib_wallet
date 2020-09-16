@@ -16,7 +16,7 @@ enum class TokenKind;
 namespace Wallet {
 
 struct CoverState {
-	Ton::TokenKind kind;
+	Ton::TokenKind token;
 	int64 unlockedBalance = 0;
 	int64 lockedBalance = 0;
 	bool justCreated = false;

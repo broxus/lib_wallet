@@ -4,7 +4,7 @@
 // For license and copyright information please follow this link:
 // https://github.com/desktop-app/legal/blob/master/LEGAL
 //
-#include "ui/inline_diamond.h"
+#include "ui/inline_token_icon.h"
 
 #include "ui/rp_widget.h"
 #include "qr/qr_generate.h"

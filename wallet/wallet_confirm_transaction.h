@@ -16,6 +16,6 @@ void ConfirmTransactionBox(
 	not_null<Ui::GenericBox*> box,
 	const PreparedInvoice &invoice,
 	int64 fee,
-	Fn<void()> confirmed);
+	const Fn<void()> &confirmed);
 
 } // namespace Wallet

@@ -8,11 +8,15 @@
 
 #include "ui/layers/generic_box.h"
 
+namespace Ton {
+enum class TokenKind;
+}
+
 namespace Wallet {
 
 void InvoiceQrBox(
 	not_null<Ui::GenericBox*> box,
 	const QString &link,
-	Fn<void(QImage, QString)> share);
+	const Fn<void(QImage, QString)> &share);
 
 } // namespace Wallet
