@@ -69,6 +69,7 @@ void Info::setupControls(Data &&data) {
 		MakeTopBarState(
 			rpl::duplicate(state),
 			rpl::duplicate(data.updates),
+			rpl::duplicate(_selectedToken.value()),
 			_widget->lifetime()));
 	topBar->actionRequests(
 	) | rpl::start_to_stream(_actionRequests, topBar->lifetime());

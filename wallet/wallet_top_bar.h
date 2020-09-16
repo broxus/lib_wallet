@@ -16,6 +16,7 @@ class DropdownMenu;
 namespace Ton {
 struct WalletViewerState;
 struct Update;
+enum class TokenKind;
 } // namespace Ton
 
 namespace Wallet {
@@ -25,6 +26,7 @@ enum class Action;
 struct TopBarState {
 	QString text;
 	bool refreshing = false;
+	std::optional<Ton::TokenKind> selectedToken = std::nullopt;
 };
 
 class TopBar final {
@@ -49,6 +51,7 @@ private:
 [[nodiscard]] rpl::producer<TopBarState> MakeTopBarState(
 	rpl::producer<Ton::WalletViewerState> &&state,
 	rpl::producer<Ton::Update> &&updates,
+	rpl::producer<std::optional<Ton::TokenKind>> &&selectedToken,
 	rpl::lifetime &alive);
 
 } // namespace Wallet

@@ -210,8 +210,9 @@ void TokensList::setupContent(rpl::producer<TokensListState> &&state) {
 	// open gate button
 	const auto gateButton = Ui::CreateChild<Ui::RoundButton>(
 		&_widget,
-		rpl::single(QString("Buy")),
+		rpl::single(QString("Swap")),
 		st::walletCoverButton);
+	gateButton->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 
 	gateButton->clicks(
 	) | rpl::start_with_next([=]() {

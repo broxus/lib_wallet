@@ -22,14 +22,15 @@ namespace {
 
 constexpr auto kMsInMinute = 60 * crl::time(1000);
 
-[[nodiscard]] auto ToTopBarState(bool refreshing = false) {
+[[nodiscard]] auto ToTopBarState(const std::optional<Ton::TokenKind> &selectedToken, bool refreshing = false) {
 	return rpl::map([=](QString &&text) {
-		return TopBarState{ std::move(text), refreshing };
+		return TopBarState{ std::move(text), refreshing, selectedToken };
 	});
 }
 
-[[nodiscard]] rpl::producer<TopBarState> MakeTopBarStateRefreshing() {
-	return ph::lng_wallet_refreshing() | ToTopBarState(true);
+[[nodiscard]] rpl::producer<TopBarState> MakeTopBarStateRefreshing(
+		const std::optional<Ton::TokenKind> &selectedToken) {
+	return ph::lng_wallet_refreshing() | ToTopBarState(selectedToken, true);
 }
 
 [[nodiscard]] rpl::producer<int> MakeRefreshedMinutesAgo(crl::time when) {
@@ -51,6 +52,7 @@ constexpr auto kMsInMinute = 60 * crl::time(1000);
 }
 
 [[nodiscard]] rpl::producer<TopBarState> MakeTopBarStateRefreshed(
+		const std::optional<Ton::TokenKind> &selectedToken,
 		crl::time when) {
 	return MakeRefreshedMinutesAgo(
 		when
@@ -59,15 +61,16 @@ constexpr auto kMsInMinute = 60 * crl::time(1000);
 			? ph::lng_wallet_refreshed_minutes_ago(minutes)()
 			: ph::lng_wallet_refreshed_just_now();
 	}) | rpl::flatten_latest(
-	) | ToTopBarState();
+	) | ToTopBarState(selectedToken);
 }
 
 [[nodiscard]] rpl::producer<TopBarState> MakeNonSyncTopBarState(
-		const Ton::WalletViewerState &state) {
+		const Ton::WalletViewerState &state,
+		const std::optional<Ton::TokenKind> &selectedToken) {
 	if (state.refreshing || !state.lastRefresh) {
-		return MakeTopBarStateRefreshing();
+		return MakeTopBarStateRefreshing(selectedToken);
 	}
-	return MakeTopBarStateRefreshed(state.lastRefresh);
+	return MakeTopBarStateRefreshed(selectedToken, state.lastRefresh);
 }
 
 } // namespace
@@ -99,6 +102,11 @@ void TopBar::setupControls(rpl::producer<TopBarState> &&state) {
 	) | rpl::map([](const TopBarState &state) {
 		return state.text;
 	});
+
+	const auto broxus = Ui::CreateChild<Ui::IconButton>(
+		&_widget,
+		st::walletTopBroxusButton);
+	broxus->setEnabled(false);
 
 	const auto back = Ui::CreateChild<Ui::IconButton>(
 		&_widget,
@@ -138,9 +146,18 @@ void TopBar::setupControls(rpl::producer<TopBarState> &&state) {
 	rpl::combine(
 		_widget.widthValue(),
 		std::move(state)
-	) | rpl::start_with_next([=](int width, const TopBarState&) {
+	) | rpl::start_with_next([=](int width, const TopBarState& state) {
 		const auto height = _widget.height();
-		back->moveToLeft(0, (height - back->height()) / 2, width);
+
+		const auto isTokenSelected = state.selectedToken.has_value();
+		back->setVisible(isTokenSelected);
+		broxus->setVisible(!isTokenSelected);
+		if (isTokenSelected) {
+			back->moveToLeft(0, (height - back->height()) / 2, width);
+		} else {
+			broxus->moveToLeft(0, (height - back->height()) / 2, width);
+		}
+
 		refresh->moveToRight(height, (height - refresh->height()) / 2, width);
 		menu->moveToRight(0, (height - menu->height()) / 2, width);
 		label->moveToLeft(
@@ -205,6 +222,7 @@ void TopBar::showMenu(not_null<Ui::IconButton*> toggle) {
 rpl::producer<TopBarState> MakeTopBarState(
 		rpl::producer<Ton::WalletViewerState> &&state,
 		rpl::producer<Ton::Update> &&updates,
+		rpl::producer<std::optional<Ton::TokenKind>> &&selectedToken,
 		rpl::lifetime &alive) {
 	auto syncs = rpl::single(
 		Ton::SyncState()
@@ -217,14 +235,16 @@ rpl::producer<TopBarState> MakeTopBarState(
 	}));
 	return rpl::combine(
 		std::move(state),
-		std::move(syncs)
+		std::move(syncs),
+		std::move(selectedToken)
 	) | rpl::map([=](
 			const Ton::WalletViewerState &state,
-			const Ton::SyncState &sync) -> rpl::producer<TopBarState> {
+			const Ton::SyncState &sync,
+			const std::optional<Ton::TokenKind> &selectedToken) -> rpl::producer<TopBarState> {
 		if (!sync.valid() || sync.current == sync.to) {
-			return MakeNonSyncTopBarState(state);
+			return MakeNonSyncTopBarState(state, selectedToken);
 		} else if (sync.current == sync.from) {
-			return ph::lng_wallet_sync() | ToTopBarState();
+			return ph::lng_wallet_sync() | ToTopBarState(selectedToken);
 		} else {
 			const auto percent = QString::number(
 				(100 * (sync.current - sync.from)
@@ -232,8 +252,9 @@ rpl::producer<TopBarState> MakeTopBarState(
 			return ph::lng_wallet_sync_percent(
 			) | rpl::map([=](QString &&text) {
 				return TopBarState{
-					text.replace("{percent}", percent),
-					false
+					.text = text.replace("{percent}", percent),
+					.refreshing = false,
+					.selectedToken = selectedToken,
 				};
 			});
 		}

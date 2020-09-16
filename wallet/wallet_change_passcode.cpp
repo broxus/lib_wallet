@@ -18,11 +18,11 @@
 namespace Wallet {
 
 void ChangePasscodeBox(
-		not_null<Ui::GenericBox*> box,
-		Fn<void(
-			QByteArray old,
-			QByteArray now,
-			Fn<void(QString)> error)> submit) {
+	not_null<Ui::GenericBox *> box,
+	const Fn<void(
+		QByteArray &&old,
+		QByteArray &&now,
+		const Fn<void(QString)> &error)> &submit) {
 	box->setTitle(ph::lng_wallet_change_passcode_title());
 
 	const auto inner = box->addRow(object_ptr<Ui::FixedHeightWidget>(
@@ -58,11 +58,11 @@ void ChangePasscodeBox(
 
 	inner->widthValue(
 	) | rpl::start_with_next([=](int width) {
-		lottie->setGeometry({
+		lottie->setGeometry(QRect(
 			(width - st::walletPasscodeLottieSize) / 2,
 			st::walletPasscodeLottieTop,
 			st::walletPasscodeLottieSize,
-			st::walletPasscodeLottieSize });
+			st::walletPasscodeLottieSize));
 		old->move(
 			(width - old->width()) / 2,
 			st::walletChangePasscodeOldTop);
@@ -81,8 +81,8 @@ void ChangePasscodeBox(
 	error->hide(anim::type::instant);
 
 	const auto save = [=] {
-		const auto oldPassword = old->getLastText().toUtf8();
-		const auto nowPassword = now->getLastText().toUtf8();
+		auto oldPassword = old->getLastText().toUtf8();
+		auto nowPassword = now->getLastText().toUtf8();
 		if (oldPassword.isEmpty()) {
 			old->showError();
 			return;
@@ -94,7 +94,7 @@ void ChangePasscodeBox(
 			return;
 		}
 
-		submit(oldPassword, nowPassword, crl::guard(box, [=](QString text) {
+		submit(std::move(oldPassword), std::move(nowPassword), crl::guard(box, [=](QString text) {
 			old->showError();
 			old->setSelection(0, old->getLastText().size());
 			error->entity()->setText(text);

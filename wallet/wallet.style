@@ -162,6 +162,7 @@ walletAddressLabel: FlatLabel(defaultFlatLabel) {
 walletTopBarHeight: 62px;
 walletTopMenuIcon: icon {{ "title_menu_dots", walletTopIconFg }};
 walletTopBackIcon: icon {{ "wallet_back", walletTopIconFg }};
+walletTopBroxusIcon: icon {{ "wallet_broxus", walletTopIconFg }};
 walletTopRefreshIcon: icon {{ "wallet_refresh", walletTopIconFg }};
 walletTopMenuButton: IconButton(menuToggle) {
 	width: 60px;
@@ -176,6 +177,11 @@ walletTopMenuButton: IconButton(menuToggle) {
 	ripple: RippleAnimation(defaultRippleAnimation) {
 		color: walletTopIconRipple;
 	}
+}
+walletTopBroxusButton: IconButton(walletTopMenuButton) {
+	icon: walletTopBroxusIcon;
+	iconOver: walletTopBroxusIcon;
+	iconPosition: point(18px, 18px);
 }
 walletTopBackButton: IconButton(walletTopMenuButton) {
 	icon: walletTopBackIcon;
