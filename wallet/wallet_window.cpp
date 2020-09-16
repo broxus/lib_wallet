@@ -762,7 +762,7 @@ void Window::sendMoney(const QString &invoice) {
 			if (it != state.tokenStates.end()) {
 				return it->second.fullBalance;
 			} else {
-				return int64_t{};
+				return int64{};
 			}
 		}
 	});
