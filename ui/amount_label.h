@@ -16,6 +16,10 @@ namespace Wallet {
 struct FormattedAmount;
 } // namespace Wallet
 
+namespace Ton {
+enum class TokenKind;
+} // namespace Ton
+
 namespace Ui {
 
 class LottieAnimation;
@@ -38,6 +42,7 @@ private:
 	const style::WalletAmountLabel &_st;
 	Ui::FlatLabel _large;
 	Ui::FlatLabel _small;
+	rpl::producer<Ton::TokenKind> _token;
 	const std::unique_ptr<Ui::LottieAnimation> _diamond;
 
 	rpl::lifetime _lifetime;

@@ -20,6 +20,7 @@ public:
 	LottieAnimation(not_null<QWidget*> parent, const QByteArray &content);
 	~LottieAnimation();
 
+	void setVisible(bool visible);
 	void setGeometry(QRect geometry);
 	void setOpacity(float64 opacity);
 

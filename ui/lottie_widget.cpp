@@ -41,6 +41,10 @@ LottieAnimation::LottieAnimation(
 
 LottieAnimation::~LottieAnimation() = default;
 
+void LottieAnimation::setVisible(bool visible) {
+	_widget->setVisible(visible);
+}
+
 void LottieAnimation::setGeometry(QRect geometry) {
 	_widget->setGeometry(geometry);
 	_widget->update();

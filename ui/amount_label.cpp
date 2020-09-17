@@ -10,6 +10,8 @@
 #include "ui/lottie_widget.h"
 #include "styles/style_wallet.h"
 
+#include <iostream>
+
 namespace Ui {
 namespace {
 
@@ -31,6 +33,14 @@ rpl::producer<QString> SmallText(rpl::producer<FormattedAmount> amount) {
 	});
 }
 
+rpl::producer<Ton::TokenKind> Token(rpl::producer<FormattedAmount> amount) {
+	return std::move(
+		amount
+	) | rpl::map([](const FormattedAmount &amount) {
+		return amount.token;
+	});
+}
+
 } // namespace
 
 AmountLabel::AmountLabel(
@@ -40,6 +50,7 @@ AmountLabel::AmountLabel(
 : _st(st)
 , _large(parent, LargeText(rpl::duplicate(amount)), st.large)
 , _small(parent, SmallText(rpl::duplicate(amount)), st.small)
+, _token(Token(amount))
 , _diamond(!st.diamond
 	? nullptr
 	: std::make_unique<LottieAnimation>(
@@ -47,6 +58,11 @@ AmountLabel::AmountLabel(
 		LottieFromResource("diamond"))) {
 	if (_diamond) {
 		_diamond->start();
+		rpl::duplicate(
+			_token
+		) | rpl::start_with_next([=](Ton::TokenKind token) {
+			_diamond->setVisible(!token);
+		}, _large.lifetime());
 	}
 	_large.show();
 	_small.show();
@@ -59,7 +75,10 @@ rpl::producer<int> AmountLabel::widthValue() const {
 	return rpl::combine(
 		_large.widthValue(),
 		_small.widthValue(),
-		_1 + _2 + (_diamond ? (_st.diamond + _st.diamondPosition.x()) : 0));
+		rpl::duplicate(_token)
+	) | rpl::map([this](int largeWidth, int smallWidth, Ton::TokenKind token) {
+		return largeWidth + smallWidth + (_diamond && !token ? (_st.diamond + _st.diamondPosition.x()) : 0);
+	});
 }
 
 int AmountLabel::height() const {
