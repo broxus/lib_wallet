@@ -422,7 +422,7 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
 	data.updateDecrypted = _decrypted.events();
 	data.transitionEvents = _infoTransitions.events();
 	data.share = shareAddressCallback();
-	data.openGate = [this]() { _wallet->openGate(); };
+	data.openGate = [this]() { _wallet->openGate(_rawAddress); };
 	data.useTestNetwork = _wallet->settings().useTestNetwork;
 	_info = std::make_unique<Info>(_window->body(), std::move(data));
 
