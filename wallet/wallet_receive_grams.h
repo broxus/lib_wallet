@@ -8,6 +8,10 @@
 
 #include "ui/layers/generic_box.h"
 
+namespace Ton {
+    enum class TokenKind;
+} // namespace Ton
+
 namespace Wallet {
 
 void ReceiveGramsBox(
@@ -15,7 +19,7 @@ void ReceiveGramsBox(
 	const QString &packedAddress,
 	const QString &rawAddress,
 	const QString &link,
-	bool testnet,
+    rpl::producer<std::optional<Ton::TokenKind>> selectedToken,
 	Fn<void()> createInvoice,
 	Fn<void(QImage, QString)> share);
 

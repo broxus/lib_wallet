@@ -53,12 +53,11 @@ void SendGramsBox(
 		rpl::producer<int64> unlockedBalance,
 		rpl::producer<std::optional<Ton::TokenKind>> selectedToken,
 		const Fn<void(PreparedInvoice, Fn<void(InvoiceField)> error)> &done) {
-	constexpr auto defaultToken = Ton::TokenKind::Ton;
 	const auto token = rpl::duplicate(selectedToken) | rpl::map([=](std::optional<Ton::TokenKind> token) {
-		return token.value_or(defaultToken);
+		return token.value_or(Ton::TokenKind::DefaultToken);
 	});
 
-	const auto currentToken = box->lifetime().make_state<Ton::TokenKind>(defaultToken);
+	const auto currentToken = box->lifetime().make_state<Ton::TokenKind>(Ton::TokenKind::DefaultToken);
 	rpl::duplicate(token) | rpl::start_with_next([=](Ton::TokenKind value) {
 		*currentToken = value;
 	}, box->lifetime());

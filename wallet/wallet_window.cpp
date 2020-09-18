@@ -997,27 +997,28 @@ void Window::receiveGrams() {
 		_packedAddress,
 		_rawAddress,
 		TransferLink(_packedAddress),
-		_testnet,
-		[=] { createInvoice(); },
+        _selectedToken.value(),
+		[=] { createInvoice(_selectedToken.value()); },
 		shareAddressCallback()));
 }
 
-void Window::createInvoice() {
+void Window::createInvoice(rpl::producer<std::optional<Ton::TokenKind>> selectedToken) {
 	_layers->showBox(Box(
 		CreateInvoiceBox,
 		_packedAddress,
 		_testnet,
-		[=](const QString &link) { showInvoiceQr(link); },
+		[=](const QString &link) { showInvoiceQr(selectedToken, link); },
 		shareCallback(
 			ph::lng_wallet_invoice_copied(ph::now),
 			ph::lng_wallet_invoice_copied(ph::now),
 			ph::lng_wallet_receive_copied_qr(ph::now))));
 }
 
-void Window::showInvoiceQr(const QString &link) {
+void Window::showInvoiceQr(rpl::producer<std::optional<Ton::TokenKind>> selectedToken, const QString &link) {
 	_layers->showBox(Box(
 		InvoiceQrBox,
 		link,
+        selectedToken,
 		shareCallback(
 			ph::lng_wallet_invoice_copied(ph::now),
 			ph::lng_wallet_invoice_copied(ph::now),

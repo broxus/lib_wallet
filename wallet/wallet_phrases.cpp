@@ -110,7 +110,7 @@ phrase lng_wallet_view_comment = "Comment";
 phrase lng_wallet_view_send_to_address = "Send TON to this address";
 phrase lng_wallet_view_send_to_recipient = "Send TON to this Recipient";
 
-phrase lng_wallet_receive_title = "Receive TON";
+phrase lng_wallet_receive_title = "Receive {ticker}";
 phrase lng_wallet_receive_description = "Share this address with other TON Crystal wallet owners to receive TON from them.";
 phrase lng_wallet_receive_description_test = "Share this address to receive Ruby. Note: this link won't work for real TON.";
 phrase lng_wallet_receive_show_as_packed = "Show as packed";

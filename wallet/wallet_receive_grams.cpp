@@ -4,11 +4,12 @@
 // For license and copyright information please follow this link:
 // https://github.com/desktop-app/legal/blob/master/LEGAL
 //
+#include <ton/ton_state.h>
 #include "wallet/wallet_receive_grams.h"
 
 #include "wallet/wallet_phrases.h"
 #include "ui/address_label.h"
-#include "ui/inline_diamond.h"
+#include "ui/inline_token_icon.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
@@ -24,42 +25,59 @@ void ReceiveGramsBox(
 		const QString &packedAddress,
 		const QString &rawAddress,
 		const QString &link,
-		bool testnet,
+        rpl::producer<std::optional<Ton::TokenKind>> selectedToken,
 		Fn<void()> createInvoice,
-		Fn<void(QImage, QString)> share) 
-{
+		Fn<void(QImage, QString)> share) {
+
+//    constexpr auto defaultToken = Ton::TokenKind::Ton;
 	const auto showAsPackedOn = box->lifetime().make_state<rpl::variable<bool>>(true);
 
-	box->setTitle(ph::lng_wallet_receive_title());
+    const auto token = rpl::duplicate(selectedToken) | rpl::map([=](std::optional<Ton::TokenKind> token) {
+        return token.value_or(Ton::TokenKind::DefaultToken);
+    });
+
+    const auto replaceTickerTag = [] {
+        return rpl::map([=](QString &&text, const std::optional<Ton::TokenKind> &selectedToken) {
+            return text.replace("{ticker}", Ton::toString(selectedToken.value_or(Ton::TokenKind::Ton)));
+        });
+    };
+
+	box->setTitle(
+        rpl::combine(
+                ph::lng_wallet_receive_title(),
+                rpl::duplicate(selectedToken)
+        ) | replaceTickerTag()
+    );
+
 	box->setStyle(st::walletBox);
 
 	box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
 
-	// box->addRow(
-	//	object_ptr<Ui::FlatLabel>(
-	//		box,
-	//		(testnet
-	//			? ph::lng_wallet_receive_description_test()
-	//			: ph::lng_wallet_receive_description()),
-	//		st::walletLabel),
-	//	st::walletReceiveLabelPadding);
-
-	// Qr code image
-	const auto qr = Ui::DiamondQr(link, st::walletReceiveQrPixel);
-	const auto size = qr.width() / style::DevicePixelRatio();
 	const auto container = box->addRow(object_ptr<Ui::AbstractButton>(box));
+    auto currentToken = container->lifetime().make_state<Ton::TokenKind>();
 
-	container->resize(size, size);
+    container->setClickedCallback([=] {
+        share(Ui::TokenQrForShare(*currentToken, link), QString());
+    });
 
-	container->paintRequest() | rpl::start_with_next([=] {
-		QPainter(container).drawImage(
-			QRect((container->width() - size) / 2, 0, size, size),
-			qr);
-	}, container->lifetime());
+    auto qr = container->lifetime().make_state<QImage>();
 
-	container->setClickedCallback([=] {
-		share(Ui::DiamondQrForShare(link), QString());
-	});
+    rpl::duplicate(token) | rpl::start_with_next([=]( std::optional<Ton::TokenKind> token){
+        *currentToken = token.value_or(Ton::TokenKind::DefaultToken);
+
+        *qr = Ui::TokenQr(token.value_or(Ton::TokenKind::Ton), link, st::walletReceiveQrPixel);
+        const auto size = qr->width() / style::DevicePixelRatio();
+        container->resize(size, size);
+    }, container->lifetime());
+
+    container->paintRequest() | rpl::start_with_next([=] {
+        const auto size = qr->width() / style::DevicePixelRatio();
+        QPainter(container).drawImage(
+            QRect((container->width() - size) / 2, 0, size, size),
+            *qr);
+    }, container->lifetime());
+
+
 
 	// Address label
 	const auto addressWrap = box->addRow(

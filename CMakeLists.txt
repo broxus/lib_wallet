@@ -36,8 +36,6 @@ PRIVATE
     ui/address_label.h
     ui/amount_label.cpp
     ui/amount_label.h
-    ui/inline_diamond.cpp
-    ui/inline_diamond.h
     ui/inline_token_icon.cpp
     ui/inline_token_icon.h
     ui/lottie_widget.cpp
