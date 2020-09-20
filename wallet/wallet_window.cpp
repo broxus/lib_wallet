@@ -346,7 +346,7 @@ void Window::createSavePasscode(
 	) | rpl::then(
 		_wallet->updates()
 	) | rpl::map([](const Ton::Update &update) {
-		return update.data.match([&](const Ton::SyncState &data) {
+		return v::match(update.data, [&](const Ton::SyncState &data) {
 			if (!data.valid()
 				|| data.current == data.to
 				|| data.current == data.from) {
@@ -405,7 +405,7 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
 	});
 	_syncing = false;
 	_syncing = _wallet->updates() | rpl::map([](const Ton::Update &update) {
-		return update.data.match([&](const Ton::SyncState &data) {
+		return v::match(update.data, [&](const Ton::SyncState &data) {
 			return data.valid() && (data.current != data.to);
 		}, [&](auto&&) {
 			return false;
@@ -488,16 +488,16 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
 
 	_wallet->updates(
 	) | rpl::filter([](const Ton::Update &update) {
-		return update.data.is<Ton::DecryptPasswordNeeded>();
+		return v::is<Ton::DecryptPasswordNeeded>(update.data);
 	}) | rpl::start_with_next([=](const Ton::Update &update) {
-		askDecryptPassword(update.data.get<Ton::DecryptPasswordNeeded>());
+		askDecryptPassword(v::get<Ton::DecryptPasswordNeeded>(update.data));
 	}, _info->lifetime());
 
 	_wallet->updates(
 	) | rpl::filter([](const Ton::Update &update) {
-		return update.data.is<Ton::DecryptPasswordGood>();
+		return v::is<Ton::DecryptPasswordGood>(update.data);
 	}) | rpl::start_with_next([=](const Ton::Update &update) {
-		doneDecryptPassword(update.data.get<Ton::DecryptPasswordGood>());
+		doneDecryptPassword(v::get<Ton::DecryptPasswordGood>(update.data));
 	}, _info->lifetime());
 }
 

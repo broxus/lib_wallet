@@ -461,7 +461,7 @@ History::History(
 
 	base::unixtime::updates(
 	) | rpl::start_with_next([=] {
-		for (const auto &row : ranges::view::concat(_pendingRows, _rows)) {
+		for (const auto &row : ranges::views::concat(_pendingRows, _rows)) {
 			row->refreshDate();
 		}
 		refreshShowDates();
@@ -472,9 +472,9 @@ History::History(
 		collectEncrypted
 	) | rpl::start_with_next([=](
 			not_null<std::vector<Ton::Transaction>*> list) {
-		auto &&encrypted = ranges::view::all(
+		auto &&encrypted = ranges::views::all(
 			_listData
-		) | ranges::view::filter(IsEncryptedMessage);
+		) | ranges::views::filter(IsEncryptedMessage);
 		list->insert(list->end(), encrypted.begin(), encrypted.end());
 	}, _widget.lifetime());
 
@@ -521,7 +521,7 @@ void History::resizeToWidth(int width) {
 	auto height = (_pendingRows.empty() && _rows.empty())
 		? 0
 		: st::walletRowsSkip;
-	for (const auto &row : ranges::view::concat(_pendingRows, _rows)) {
+	for (const auto &row : ranges::views::concat(_pendingRows, _rows)) {
 		row->setTop(height);
 		row->resizeToWidth(width);
 		height += row->height();
@@ -712,7 +712,7 @@ void History::paint(Painter &p, QRect clip) {
 		}
 		auto lastDateTop = rows.back()->bottom();
 		const auto dates = ranges::make_subrange(begin(rows), till);
-		for (const auto &row : dates | ranges::view::reverse) {
+		for (const auto &row : dates | ranges::views::reverse) {
 			if (!row->showDate()) {
 				continue;
 			}
@@ -828,7 +828,7 @@ std::unique_ptr<HistoryRow> History::makeRow(const Ton::Transaction &data) {
 void History::computeInitTransactionId() {
 	const auto was = _initTransactionId;
 	auto found = static_cast<Ton::Transaction*>(nullptr);
-	for (auto &row : ranges::view::reverse(_listData)) {
+	for (auto &row : ranges::views::reverse(_listData)) {
 		if (IsServiceTransaction(row)) {
 			found = &row;
 			break;
@@ -870,9 +870,9 @@ void History::refreshShowDates() {
 }
 
 void History::refreshPending() {
-	_pendingRows = ranges::view::all(
+	_pendingRows = ranges::views::all(
 		_pendingData
-	) | ranges::view::transform([&](const Ton::PendingTransaction &data) {
+	) | ranges::views::transform([&](const Ton::PendingTransaction &data) {
 		return makeRow(data.fake);
 	}) | ranges::to_vector;
 
@@ -900,7 +900,7 @@ void History::refreshRows() {
 			addedBack = ranges::make_subrange(
 				from + 1,
 				end(_listData)
-			) | ranges::view::transform([=](const Ton::Transaction &data) {
+			) | ranges::views::transform([=](const Ton::Transaction &data) {
 				return makeRow(data);
 			}) | ranges::to_vector;
 		}

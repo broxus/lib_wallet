@@ -167,7 +167,7 @@ void Check::initControls(
 	showNextButton(ph::lng_wallet_continue());
 
 	_words = [=] {
-		return (*inputs) | ranges::view::transform(
+		return (*inputs) | ranges::views::transform(
 			[](const std::unique_ptr<TonWordInput> &p) { return p->word(); }
 		) | ranges::to_vector;
 	};

@@ -277,14 +277,15 @@ bool IsEncryptedMessage(const Ton::Transaction &data) {
 	const auto &message = data.outgoing.empty()
 		? data.incoming.message
 		: data.outgoing.front().message;
-	return !message.encrypted.isEmpty() && !message.decrypted;
+	return !message.data.isEmpty()
+		&& message.type == Ton::MessageDataType::EncryptedText;
 }
 
 bool IsServiceTransaction(const Ton::Transaction &data) {
 	return data.outgoing.empty()
 		&& data.incoming.source.isEmpty()
 		&& data.incoming.message.text.isEmpty()
-		&& data.incoming.message.encrypted.isEmpty()
+		&& data.incoming.message.data.isEmpty()
 		&& !data.incoming.value;
 }
 
@@ -294,7 +295,7 @@ QString ExtractMessage(const Ton::Transaction &data) {
 		: data.outgoing.front().message;
 	if (IsEncryptedMessage(data)) {
 		return QString();
-	} else if (message.decrypted) {
+	} else if (message.type == Ton::MessageDataType::DecryptedText) {
 		return message.text;
 	} else if (!message.text.isEmpty()) {
 		return message.text;
