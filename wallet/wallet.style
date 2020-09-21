@@ -383,7 +383,7 @@ walletLabel: FlatLabel(defaultFlatLabel) {
 	align: align(topleft);
 }
 walletReceiveLabelPadding: margins(22px, 0px, 22px, 24px);
-walletReceiveQrPixel: 5px;
+walletReceiveQrPixel: 4px;
 walletReceiveAddressPadding: margins(0px, 15px, 0px, 16px);
 walletReceiveAddressLabel: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(defaultTextStyle) {
