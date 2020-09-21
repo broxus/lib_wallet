@@ -305,12 +305,14 @@ QString ExtractMessage(const Ton::Transaction &data) {
 
 QString TransferLink(
 		const QString &address,
+		Ton::TokenKind token,
 		int64 amount,
 		const QString &comment) {
 	const auto base = QString{ "https://freeton.broxus.com" };
 
 	auto params = QStringList();
 	params.push_back("address=" + address);
+    params.push_back("token=" + toString(token));
 
 	if (amount > 0) {
 		params.push_back("amount=" + QString::number(amount));

@@ -18,7 +18,6 @@ void ReceiveGramsBox(
 	not_null<Ui::GenericBox*> box,
 	const QString &packedAddress,
 	const QString &rawAddress,
-	const QString &link,
     rpl::producer<std::optional<Ton::TokenKind>> selectedToken,
 	Fn<void()> createInvoice,
 	Fn<void(QImage, QString)> share);

@@ -17,6 +17,7 @@
 #include "qr/qr_generate.h"
 #include "styles/style_layers.h"
 #include "styles/style_wallet.h"
+#include "wallet_common.h"
 
 namespace Wallet {
 
@@ -24,12 +25,10 @@ void ReceiveGramsBox(
 		not_null<Ui::GenericBox*> box,
 		const QString &packedAddress,
 		const QString &rawAddress,
-		const QString &link,
         rpl::producer<std::optional<Ton::TokenKind>> selectedToken,
 		Fn<void()> createInvoice,
 		Fn<void(QImage, QString)> share) {
 
-//    constexpr auto defaultToken = Ton::TokenKind::Ton;
 	const auto showAsPackedOn = box->lifetime().make_state<rpl::variable<bool>>(true);
 
     const auto token = rpl::duplicate(selectedToken) | rpl::map([=](std::optional<Ton::TokenKind> token) {
@@ -57,7 +56,7 @@ void ReceiveGramsBox(
     auto currentToken = container->lifetime().make_state<Ton::TokenKind>();
 
     container->setClickedCallback([=] {
-        share(Ui::TokenQrForShare(*currentToken, link), QString());
+        share(Ui::TokenQrForShare(*currentToken, TransferLink(packedAddress, *currentToken)), QString());
     });
 
     auto qr = container->lifetime().make_state<QImage>();
@@ -65,7 +64,8 @@ void ReceiveGramsBox(
     rpl::duplicate(token) | rpl::start_with_next([=]( std::optional<Ton::TokenKind> token){
         *currentToken = token.value_or(Ton::TokenKind::DefaultToken);
 
-        *qr = Ui::TokenQr(token.value_or(Ton::TokenKind::Ton), link, st::walletReceiveQrPixel);
+        const auto link = TransferLink(packedAddress, *currentToken);
+        *qr = Ui::TokenQr(*currentToken, link, st::walletReceiveQrPixel);
         const auto size = qr->width() / style::DevicePixelRatio();
         container->resize(size, size);
     }, container->lifetime());
@@ -153,7 +153,7 @@ void ReceiveGramsBox(
 	// Submit button
 	box->addButton(
 		ph::lng_wallet_receive_share(),
-		[=] { share(QImage(), link); },
+		[=] { share(QImage(), TransferLink(packedAddress, *currentToken)); },
 		st::walletBottomButton
 	)->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 }

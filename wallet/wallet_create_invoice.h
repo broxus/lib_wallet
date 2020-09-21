@@ -8,12 +8,15 @@
 
 #include "ui/layers/generic_box.h"
 
+#include "ton/ton_state.h"
+
 namespace Wallet {
 
 void CreateInvoiceBox(
 	not_null<Ui::GenericBox*> box,
 	const QString &address,
 	bool testnet,
+    rpl::producer<std::optional<Ton::TokenKind>> selectedToken,
 	Fn<void(QString)> generateQr,
 	Fn<void(QImage, QString)> share);
 

@@ -12,6 +12,7 @@
 
 namespace Ton {
 struct Error;
+enum class TokenKind;
 } // namespace Ton
 
 namespace Ui {
@@ -86,6 +87,7 @@ using FormatFlags = base::flags<FormatFlag>;
 
 [[nodiscard]] QString TransferLink(
 	const QString &address,
+    Ton::TokenKind token,
 	int64 amount = 0,
 	const QString &comment = QString());
 

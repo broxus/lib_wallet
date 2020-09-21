@@ -37,10 +37,16 @@ void CreateInvoiceBox(
 		not_null<Ui::GenericBox*> box,
 		const QString &address,
 		bool testnet,
+        rpl::producer<std::optional<Ton::TokenKind>> selectedToken,
 		Fn<void(QString)> generateQr,
 		Fn<void(QImage, QString)> share) {
-	const auto token = Ton::TokenKind::Ton;
-	const auto tokenDecimals = Ton::countDecimals(token);
+
+    const auto token = rpl::duplicate(selectedToken) | rpl::map([=](std::optional<Ton::TokenKind> token) {
+        return token.value_or(Ton::TokenKind::DefaultToken);
+    });
+
+    const auto currentToken = box->lifetime().make_state<Ton::TokenKind>(Ton::TokenKind::DefaultToken);
+	const auto tokenDecimals = Ton::countDecimals(*currentToken);
 
 	box->setTitle(ph::lng_wallet_invoice_title());
 	box->setStyle(st::walletInvoiceBox);
@@ -50,7 +56,7 @@ void CreateInvoiceBox(
 	AddBoxSubtitle(box, ph::lng_wallet_invoice_amount());
 	const auto amount = box->addRow(
 		object_ptr<Ui::InputField>::fromRaw(
-			CreateAmountInput(box, ph::lng_wallet_invoice_number(), 0, rpl::single(token))),
+			CreateAmountInput(box, ph::lng_wallet_invoice_number(), 0, rpl::single(*currentToken))),
 		st::walletSendAmountPadding);
 
 	const auto comment = box->addRow(
@@ -74,7 +80,7 @@ void CreateInvoiceBox(
 			comment->showError();
 			return std::nullopt;
 		}
-		return TransferLink(address, *parsed, text);
+		return TransferLink(address, *currentToken, *parsed, text);
 	};
 	const auto submit = [=] {
 		if (const auto link = collectLink()) {
@@ -116,11 +122,15 @@ void CreateInvoiceBox(
 	});
 	url->setMinimumHeight(st::walletInvoiceLinkLabel.maxHeight);
 
+    rpl::duplicate(token) | rpl::start_with_next([=]( std::optional<Ton::TokenKind> token){
+        *currentToken = token.value_or(Ton::TokenKind::DefaultToken);
+    }, url->lifetime());
+
 	rpl::combine(
 		std::move(amountValue),
 		std::move(commentValue)
 	) | rpl::map([=](int64 amount, const QString &comment) {
-		const auto link = TransferLink(address, amount, comment);
+		const auto link = TransferLink(address, *currentToken, amount, comment);
 		return (amount > 0)
 			? Ui::Text::Link(link)
 			: TextWithEntities{ link };

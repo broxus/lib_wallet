@@ -996,7 +996,6 @@ void Window::receiveGrams() {
 		ReceiveGramsBox,
 		_packedAddress,
 		_rawAddress,
-		TransferLink(_packedAddress),
         _selectedToken.value(),
 		[=] { createInvoice(_selectedToken.value()); },
 		shareAddressCallback()));
@@ -1007,6 +1006,7 @@ void Window::createInvoice(rpl::producer<std::optional<Ton::TokenKind>> selected
 		CreateInvoiceBox,
 		_packedAddress,
 		_testnet,
+        selectedToken,
 		[=](const QString &link) { showInvoiceQr(selectedToken, link); },
 		shareCallback(
 			ph::lng_wallet_invoice_copied(ph::now),
