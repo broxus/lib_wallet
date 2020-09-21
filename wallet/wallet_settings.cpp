@@ -353,18 +353,13 @@ void SettingsBox(
 
 	AddBoxSubtitle(box, ph::lng_wallet_settings_tokens_contract_address());
 
-	const auto tokenContractAddress = box->addRow(
-		object_ptr<Ui::SlideWrap<Ui::InputField>>(
-			box,
-			object_ptr<Ui::InputField>(
-				box,
-				st::walletInput,
-				ph::lng_wallet_settings_tokens_contract_address(),
-				was.tokenContractAddress)),
-		(st::boxRowPadding
-		 + QMargins(0, 0, 0, st::walletSettingsBlockchainNameSkip)));
-
-	tokenContractAddress->entity()->setText(was.tokenContractAddress);
+	const auto tokenContractAddress = box->addRow(object_ptr<Ui::InputField>(
+		box,
+		st::walletSendInput,
+		Ui::InputField::Mode::NoNewlines,
+		ph::lng_wallet_settings_tokens_contract_address_field(),
+		was.tokenContractAddress));
+	tokenContractAddress->rawTextEdit()->setWordWrapMode(QTextOption::WrapAnywhere);
 
 	const auto collectSettings = [=] {
 		auto result = settings;
@@ -378,7 +373,7 @@ void SettingsBox(
 		} else {
 			change.configUrl = url->entity()->getLastText().trimmed();
 		}
-		change.tokenContractAddress = tokenContractAddress->entity()->getLastText().trimmed();
+		change.tokenContractAddress = Ton::Wallet::ConvertIntoRaw(tokenContractAddress->getLastText().trimmed());
 		return result;
 	};
 
@@ -393,8 +388,8 @@ void SettingsBox(
 			&& url->entity()->getLastText().trimmed().isEmpty()) {
 			url->entity()->showError();
 			return false;
-		} else if (!Ton::Wallet::CheckAddress(tokenContractAddress->entity()->getLastText().trimmed())) {
-			tokenContractAddress->entity()->showError();
+		} else if (!Ton::Wallet::CheckAddress(tokenContractAddress->getLastText().trimmed())) {
+			tokenContractAddress->showError();
 			return false;
 		}
 		return true;

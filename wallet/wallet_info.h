@@ -30,6 +30,7 @@ public:
 		rpl::producer<
 			not_null<const std::vector<Ton::Transaction>*>> updateDecrypted;
 		rpl::producer<InfoTransition> transitionEvents;
+		rpl::producer<QString> tokenContractAddress;
 		Fn<void(QImage, QString)> share;
 		Fn<void()> openGate;
 		bool justCreated = false;

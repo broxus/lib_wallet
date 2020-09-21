@@ -109,6 +109,16 @@ void Window::init() {
 
 void Window::startWallet() {
 	const auto &was = _wallet->settings().net();
+
+	_tokenContractAddress = _wallet->settings().net().tokenContractAddress;
+
+	_wallet->updates() | rpl::start_with_next([this](const Ton::Update &update) {
+		if (v::is<Ton::TokenContractAddressChanged>(update.data)) {
+			auto& event = v::get<Ton::TokenContractAddressChanged>(update.data);
+			_tokenContractAddress = event.newTokenContractAddress;
+		}
+	}, _window->lifetime());
+
 	if (was.useCustomConfig) {
 		return;
 	}
@@ -413,18 +423,20 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
 	});
 
 	_window->setTitleStyle(st::walletWindowTitle);
-	auto data = Info::Data();
-	data.justCreated = justCreated;
-	data.state = _viewer->state();
-	data.loaded = _viewer->loaded();
-	data.updates = _wallet->updates();
-	data.collectEncrypted = _collectEncryptedRequests.events();
-	data.updateDecrypted = _decrypted.events();
-	data.transitionEvents = _infoTransitions.events();
-	data.share = shareAddressCallback();
-	data.openGate = [this]() { _wallet->openGate(_rawAddress); };
-	data.useTestNetwork = _wallet->settings().useTestNetwork;
-	_info = std::make_unique<Info>(_window->body(), std::move(data));
+	Info::Data data{
+		.state = _viewer->state(),
+		.loaded = _viewer->loaded(),
+		.updates = _wallet->updates(),
+		.collectEncrypted = _collectEncryptedRequests.events(),
+		.updateDecrypted = _decrypted.events(),
+		.transitionEvents = _infoTransitions.events(),
+		.tokenContractAddress = _tokenContractAddress.value(),
+		.share = shareAddressCallback(),
+		.openGate = [this]() { _wallet->openGate(_rawAddress); },
+		.justCreated = justCreated,
+		.useTestNetwork = _wallet->settings().useTestNetwork,
+	};
+	_info = std::make_unique<Info>(_window->body(), data);
 
 	_info->selectedToken(
 	) | rpl::start_with_next([=](const std::optional<Ton::TokenKind> &selectedToken) {

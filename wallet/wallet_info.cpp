@@ -134,7 +134,7 @@ void Info::setupControls(Data &&data) {
 	// create transactions lists
 	const auto history = _widget->lifetime().make_state<History>(
 		tonHistoryWrapper,
-		MakeHistoryState(rpl::duplicate(state)),
+		MakeHistoryState(std::move(data.tokenContractAddress), rpl::duplicate(state)),
 			std::move(loaded),
 			std::move(data.collectEncrypted),
 			std::move(data.updateDecrypted),
@@ -164,15 +164,12 @@ void Info::setupControls(Data &&data) {
 		_selectedToken.value()
 	) | rpl::start_with_next([=](QSize size, int tokensListHeight, int historyHeight, std::optional<Ton::TokenKind> token) {
 		if (token.has_value()) {
-			const auto isTon = !*token;
-
 			const auto innerHeight = std::max(
 				size.height(),
-				isTon ? (cover->height() + historyHeight) : 0);
+				cover->height() + historyHeight);
 			_inner->setGeometry({0, 0, size.width(), innerHeight});
 
-			//TEMP:
-			const auto coverHeight = isTon ? st::walletCoverHeight : size.height();
+			const auto coverHeight = st::walletCoverHeight;
 
 			cover->setGeometry(QRect(0, 0, size.width(), coverHeight));
 			const auto contentGeometry = QRect(0, coverHeight, size.width(), size.height() - coverHeight);
@@ -181,7 +178,6 @@ void Info::setupControls(Data &&data) {
 
 			tonHistoryWrapper->setGeometry(QRect(0, 0, size.width(), innerHeight));
 			history->updateGeometry({0, st::walletCoverHeight}, size.width());
-			history->setVisible(isTon);
 		} else {
 			const auto innerHeight = std::max(size.height(), tokensListHeight);
 			_inner->setGeometry(QRect(0, 0, size.width(), innerHeight));

@@ -81,7 +81,7 @@ void Paint(Ton::TokenKind kind, QPainter &p, int x, int y) {
 } // namespace
 
 void PaintInlineTokenIcon(Ton::TokenKind kind, QPainter &p, int x, int y, const style::font &font) {
-	Paint(kind, p, x, y + font->ascent - st::walletTokenIconSize);
+	Paint(kind, p, x, y + font->ascent - st::walletTokenIconAscent);
 }
 
 QImage InlineTokenIcon(Ton::TokenKind kind, int size) {

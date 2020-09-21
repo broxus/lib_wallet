@@ -158,6 +158,7 @@ private:
 	rpl::variable<Ton::WalletState> _state;
 	rpl::variable<std::optional<Ton::TokenKind>> _selectedToken;
 	rpl::variable<bool> _syncing;
+	rpl::variable<QString> _tokenContractAddress;
 	std::unique_ptr<Info> _info;
 	object_ptr<Ui::FlatButton> _updateButton = { nullptr };
 	rpl::event_stream<rpl::producer<int>> _updateButtonHeight;

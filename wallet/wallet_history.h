@@ -15,6 +15,7 @@ class Painter;
 namespace Wallet {
 
 struct HistoryState {
+	QString tokenContractAddress;
 	Ton::TransactionsSlice lastTransactions;
 	std::vector<Ton::PendingTransaction> pendingTransactions;
 };
@@ -31,7 +32,7 @@ public:
 			not_null<std::vector<Ton::Transaction>*>> collectEncrypted,
 		rpl::producer<
 			not_null<const std::vector<Ton::Transaction>*>> updateDecrypted,
-		rpl::producer<std::optional<Ton::TokenKind>> _selectedToken);
+		rpl::producer<std::optional<Ton::TokenKind>> selectedToken);
 	~History();
 
 	void updateGeometry(QPoint position, int width);
@@ -53,7 +54,8 @@ private:
 
 	void setupContent(
 		rpl::producer<HistoryState> &&state,
-		rpl::producer<Ton::LoadedSlice> &&loaded);
+		rpl::producer<Ton::LoadedSlice> &&loaded,
+		rpl::producer<std::optional<Ton::TokenKind>> &&selectedToken);
 	void resizeToWidth(int width);
 	void mergeState(HistoryState &&state);
 	bool mergePendingChanged(std::vector<Ton::PendingTransaction> &&list);
@@ -89,6 +91,8 @@ private:
 	Ton::TransactionId _previousId;
 	Ton::TransactionId _initTransactionId;
 
+	rpl::variable<Ton::TokenKind> _selectedToken;
+	rpl::variable<QString> _tokenContractAddress;
 	std::vector<std::unique_ptr<HistoryRow>> _pendingRows;
 	std::vector<std::unique_ptr<HistoryRow>> _rows;
 	int _visibleTop = 0;
@@ -99,10 +103,10 @@ private:
 	rpl::event_stream<Ton::TransactionId> _preloadRequests;
 	rpl::event_stream<Ton::Transaction> _viewRequests;
 	rpl::event_stream<Ton::Transaction> _decryptRequests;
-
 };
 
 [[nodiscard]] rpl::producer<HistoryState> MakeHistoryState(
+	rpl::producer<QString> tokenContractAddress,
 	rpl::producer<Ton::WalletViewerState> state);
 
 } // namespace Wallet

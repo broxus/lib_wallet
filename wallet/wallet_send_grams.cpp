@@ -205,8 +205,6 @@ void SendGramsBox(
 			const auto hexPrefixPosition = fixed.invoice.address.indexOf("0x");
 			const auto isEtheriumAddress = hexPrefixPosition == 0;
 
-			std::cout << isEtheriumAddress<< " " << hexPrefixPosition << std::endl;
-
 			bool shouldShiftFocus = false;
 			if (isRaw && ((fixed.invoice.address.size() - colonPosition - 1) == kRawAddressLength)) {
 				shouldShiftFocus = true;
