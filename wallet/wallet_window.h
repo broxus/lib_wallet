@@ -115,8 +115,8 @@ private:
 	void showSendingDone(std::optional<Ton::Transaction> result);
 	void refreshNow();
 	void receiveGrams();
-	void createInvoice();
-	void showInvoiceQr(const QString &link);
+	void createInvoice(rpl::producer<std::optional<Ton::TokenKind>> selectedToken);
+	void showInvoiceQr(rpl::producer<std::optional<Ton::TokenKind>> selectedToken, const QString &link);
 	void changePassword();
 	void askExportPassword();
 	void showExported(const std::vector<QString> &words);

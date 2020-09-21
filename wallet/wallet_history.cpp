@@ -11,7 +11,7 @@
 #include "base/unixtime.h"
 #include "base/flags.h"
 #include "ui/address_label.h"
-#include "ui/inline_diamond.h"
+#include "ui/inline_token_icon.h"
 #include "ui/painter.h"
 #include "ui/text/text.h"
 #include "ui/text/text_utilities.h"
@@ -318,7 +318,8 @@ void HistoryRow::paint(Painter &p, int x, int y) {
 		const auto diamondLeft = nanoLeft
 			+ _layout.amountNano.maxWidth()
 			+ st::normalFont->spacew;
-		Ui::PaintInlineDiamond(p, diamondLeft, diamondTop, st::normalFont);
+        //  TODO: remove Ton::TokenKind::Ton
+		Ui::PaintInlineTokenIcon(Ton::TokenKind::DefaultToken, p, diamondLeft, diamondTop, st::normalFont);
 
 		const auto labelTop = diamondTop;
 		const auto labelLeft = diamondLeft

@@ -53,12 +53,11 @@ void SendGramsBox(
 		rpl::producer<int64> unlockedBalance,
 		rpl::producer<std::optional<Ton::TokenKind>> selectedToken,
 		const Fn<void(PreparedInvoice, Fn<void(InvoiceField)> error)> &done) {
-	constexpr auto defaultToken = Ton::TokenKind::Ton;
 	const auto token = rpl::duplicate(selectedToken) | rpl::map([=](std::optional<Ton::TokenKind> token) {
-		return token.value_or(defaultToken);
+		return token.value_or(Ton::TokenKind::DefaultToken);
 	});
 
-	const auto currentToken = box->lifetime().make_state<Ton::TokenKind>(defaultToken);
+	const auto currentToken = box->lifetime().make_state<Ton::TokenKind>(Ton::TokenKind::DefaultToken);
 	rpl::duplicate(token) | rpl::start_with_next([=](Ton::TokenKind value) {
 		*currentToken = value;
 	}, box->lifetime());
@@ -298,16 +297,16 @@ void SendGramsBox(
 		const auto text = amount->getLastText();
 		const auto value = ParseAmountString(text, Ton::countDecimals(*currentToken)).value_or(0);
 		if (value > 0) {
-			return rpl::combine(
-				ph::lng_wallet_send_button_amount(),
-				ph::lng_wallet_grams_count(FormatAmount(value, *currentToken).full, *currentToken)()
-			) | replaceGramsTag();
-		} else {
-			return rpl::combine(
-				ph::lng_wallet_send_button(),
-				rpl::duplicate(selectedToken)
-			) | replaceTickerTag();
-		}
+            return rpl::combine(
+                    ph::lng_wallet_send_button_amount(),
+                    ph::lng_wallet_grams_count(FormatAmount(value, *currentToken).full, *currentToken)()
+            ) | replaceGramsTag();
+        } else {
+            return rpl::combine(
+                    ph::lng_wallet_send_button(),
+                    rpl::duplicate(selectedToken)
+            ) | replaceTickerTag();
+        }
 	}) | rpl::flatten_latest();
 
 	box->addButton(

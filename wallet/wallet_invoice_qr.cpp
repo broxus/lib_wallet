@@ -9,7 +9,7 @@
 #include "wallet/wallet_common.h"
 #include "wallet/wallet_phrases.h"
 #include "ui/widgets/buttons.h"
-#include "ui/inline_diamond.h"
+#include "ui/inline_token_icon.h"
 #include "styles/style_wallet.h"
 #include "styles/style_layers.h"
 
@@ -18,34 +18,63 @@ namespace Wallet {
 void InvoiceQrBox(
 		not_null<Ui::GenericBox*> box,
 		const QString &link,
+        rpl::producer<std::optional<Ton::TokenKind>> selectedToken,
 		const Fn<void(QImage, QString)> &share) {
+
+    const auto token = rpl::duplicate(selectedToken) | rpl::map([=](std::optional<Ton::TokenKind> token) {
+        return token.value_or(Ton::TokenKind::DefaultToken);
+    });
+
 	box->setTitle(ph::lng_wallet_invoice_qr_title());
 	box->setStyle(st::walletBox);
 
 	box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
 
-	const auto qr = Ui::DiamondQr(
-		link,
-		st::walletInvoiceQrPixel,
-		st::boxWidth - st::boxRowPadding.left() - st::boxRowPadding.right());
-	const auto size = qr.width() / style::DevicePixelRatio();
-	const auto height = st::walletInvoiceQrSkip * 2 + size;
 	const auto container = box->addRow(
-		object_ptr<Ui::BoxContentDivider>(box, height),
+		object_ptr<Ui::BoxContentDivider>(box, 1),
 		st::walletInvoiceQrMargin);
-	const auto button = Ui::CreateChild<Ui::AbstractButton>(container);
-	button->resize(size, size);
-	button->paintRequest(
+
+    auto currentToken = container->lifetime().make_state<Ton::TokenKind>();
+
+    const auto button = Ui::CreateChild<Ui::AbstractButton>(container);
+
+    auto qr = button->lifetime().make_state<QImage>();
+
+    rpl::duplicate(token) | rpl::start_with_next([=]( std::optional<Ton::TokenKind> token){
+        *currentToken = token.value_or(Ton::TokenKind::DefaultToken);
+
+        *qr = Ui::TokenQr(
+            token.value_or(Ton::TokenKind::DefaultToken),
+            link,
+            st::walletInvoiceQrPixel,
+            st::boxWidth - st::boxRowPadding.left() - st::boxRowPadding.right());
+
+        const int size = qr->width() / style::DevicePixelRatio();
+        const auto height = st::walletInvoiceQrSkip * 2 + size;
+
+        container->setFixedHeight(height);
+
+        button->resize(size, size);
+
+    }, container->lifetime());
+
+    button->setClickedCallback([=] {
+        share(Ui::TokenQrForShare(*currentToken, link), QString());
+    });
+
+
+    button->paintRequest(
 	) | rpl::start_with_next([=] {
-		QPainter(button).drawImage(QRect(0, 0, size, size), qr);
+        const auto size = qr->width() / style::DevicePixelRatio();
+		QPainter(button).drawImage(QRect(0, 0, size, size), *qr);
 	}, button->lifetime());
+
 	container->widthValue(
 	) | rpl::start_with_next([=](int width) {
+        const auto size = qr->width() / style::DevicePixelRatio();
 		button->move((width - size) / 2, st::walletInvoiceQrSkip);
 	}, button->lifetime());
-	button->setClickedCallback([=] {
-		share(Ui::DiamondQrForShare(link), QString());
-	});
+
 
 	const auto prepared = ParseInvoice(link);
 
@@ -71,7 +100,7 @@ void InvoiceQrBox(
 
 	box->addButton(
 		ph::lng_wallet_invoice_qr_share(),
-		[=] { share(Ui::DiamondQrForShare(link), QString()); },
+		[=] { share(Ui::TokenQrForShare(*currentToken, link), QString()); },
 		st::walletBottomButton
 	)->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 }

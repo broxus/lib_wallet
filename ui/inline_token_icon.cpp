@@ -1,6 +1,7 @@
 #include "inline_token_icon.h"
 
 #include "ui/rp_widget.h"
+#include "qr/qr_generate.h"
 #include "styles/style_wallet.h"
 
 #include <QtGui/QPainter>
@@ -9,6 +10,9 @@ namespace Ui
 {
 namespace
 {
+
+constexpr auto kShareQrSize = 768;
+constexpr auto kShareQrPadding = 16;
 
 const std::vector<std::pair<int, QString>> &Variants(Ton::TokenKind kind) {
 	static const auto iconTon = std::vector<std::pair<int, QString>>{
@@ -107,6 +111,46 @@ not_null<RpWidget *> CreateInlineTokenIcon(
 	}, result->lifetime());
 
 	return result;
+}
+
+
+QImage TokenQrExact(Ton::TokenKind kind, const Qr::Data &data, int pixel) {
+    return Qr::ReplaceCenter(
+        Qr::Generate(data, pixel),
+        Ui::InlineTokenIcon(kind, Qr::ReplaceSize(data, pixel)));
+}
+
+QImage TokenQr(Ton::TokenKind kind, const Qr::Data &data, int pixel, int max = 0) {
+    Expects(data.size > 0);
+
+    if (max > 0 && data.size * pixel > max) {
+        pixel = std::max(max / data.size, 1);
+    }
+    return TokenQrExact(kind, data, pixel * style::DevicePixelRatio());
+}
+
+QImage TokenQr(Ton::TokenKind kind,
+               const QString &text,
+               int pixel,
+               int max) {
+    QImage img;
+    return TokenQr(kind, Qr::Encode(text), pixel, max);
+}
+
+QImage TokenQrForShare(Ton::TokenKind kind, const QString &text) {
+    const auto data = Qr::Encode(text);
+    const auto size = (kShareQrSize - 2 * kShareQrPadding);
+    const auto image = TokenQrExact(kind, data, size / data.size);
+    auto result = QImage(
+        kShareQrPadding * 2 + image.width(),
+        kShareQrPadding * 2 + image.height(),
+        QImage::Format_ARGB32_Premultiplied);
+    result.fill(Qt::white);
+    {
+        auto p = QPainter(&result);
+        p.drawImage(kShareQrPadding, kShareQrPadding, image);
+    }
+    return result;
 }
 
 } // namespace Ui

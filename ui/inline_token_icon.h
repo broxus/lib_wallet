@@ -20,4 +20,7 @@ not_null<RpWidget*> CreateInlineTokenIcon(
 	int y,
 	const style::font & font);
 
+[[nodiscard]] QImage TokenQr(Ton::TokenKind token, const QString &text, int pixel, int max = 0);
+[[nodiscard]] QImage TokenQrForShare(Ton::TokenKind token, const QString &text);
+
 } // namespace Ui

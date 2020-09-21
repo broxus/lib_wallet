@@ -222,12 +222,27 @@ void Cover::setupControls() {
 		return state.unlockedBalance > 0;
 	}) | rpl::distinct_until_changed();
 
+	auto selectedToken = _state.value(
+    ) | rpl::map([](const CoverState &state) {
+        return state.token;
+    }) | rpl::distinct_until_changed();
+
+    const auto replaceTickerTag = [] {
+        return rpl::map([=](QString &&text, const std::optional<Ton::TokenKind> &selectedToken) {
+            return text.replace("{ticker}", Ton::toString(selectedToken.value_or(Ton::TokenKind::Ton)));
+        });
+    };
+
 	const auto receive = CreateCoverButton(
 		&_widget,
-		rpl::conditional(
-			rpl::duplicate(hasFunds),
-			ph::lng_wallet_cover_receive(),
-			ph::lng_wallet_cover_receive_full()),
+        rpl::conditional(
+                rpl::duplicate(hasFunds),
+                ph::lng_wallet_cover_receive(),
+                rpl::combine(
+                        ph::lng_wallet_cover_receive_full(),
+                        rpl::duplicate(selectedToken)
+                ) | replaceTickerTag()
+        ),
 		st::walletCoverReceiveIcon);
 
 	const auto send = CreateCoverButton(
