@@ -198,6 +198,7 @@ phrase lng_wallet_settings_config_from_file = "Load from file";
 phrase lng_wallet_settings_mainnet = "Main Network";
 phrase lng_wallet_settings_testnet = "Test Network";
 phrase lng_wallet_settings_blockchain_name = "Blockchain ID";
+phrase lng_wallet_settings_tokens_contract_address = "Tokens contract address";
 
 phrase lng_wallet_warning_reconnect = "If you proceed, you will need to reconnect your wallet using 24 secret words.";
 phrase lng_wallet_warning_blockchain_name = "Are you sure you want to change the blockchain ID? You don't need this unless you're testing your own TON network.";

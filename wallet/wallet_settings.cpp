@@ -10,6 +10,7 @@
 #include "wallet/wallet_update_info.h"
 #include "wallet/wallet_common.h"
 #include "ton/ton_settings.h"
+#include "ton/ton_wallet.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/box_content_divider.h"
@@ -350,6 +351,21 @@ void SettingsBox(
 		url->entity()->setText(now.configUrl);
 	});
 
+	AddBoxSubtitle(box, ph::lng_wallet_settings_tokens_contract_address());
+
+	const auto tokenContractAddress = box->addRow(
+		object_ptr<Ui::SlideWrap<Ui::InputField>>(
+			box,
+			object_ptr<Ui::InputField>(
+				box,
+				st::walletInput,
+				ph::lng_wallet_settings_tokens_contract_address(),
+				was.tokenContractAddress)),
+		(st::boxRowPadding
+		 + QMargins(0, 0, 0, st::walletSettingsBlockchainNameSkip)));
+
+	tokenContractAddress->entity()->setText(was.tokenContractAddress);
+
 	const auto collectSettings = [=] {
 		auto result = settings;
 		auto &change = result.net();
@@ -362,6 +378,7 @@ void SettingsBox(
 		} else {
 			change.configUrl = url->entity()->getLastText().trimmed();
 		}
+		change.tokenContractAddress = tokenContractAddress->entity()->getLastText().trimmed();
 		return result;
 	};
 
@@ -375,6 +392,9 @@ void SettingsBox(
 		} else if (!custom->toggled()
 			&& url->entity()->getLastText().trimmed().isEmpty()) {
 			url->entity()->showError();
+			return false;
+		} else if (!Ton::Wallet::CheckAddress(tokenContractAddress->entity()->getLastText().trimmed())) {
+			tokenContractAddress->entity()->showError();
 			return false;
 		}
 		return true;
