@@ -29,7 +29,7 @@ struct FixedAddress {
 };
 
 [[nodiscard]] QString AmountSeparator() {
-	return FormatAmount(1, Ton::TokenKind::Ton).separator;
+	return FormatAmount(1, Ton::TokenKind::DefaultToken).separator;
 }
 
 [[nodiscard]] FixedAddress FixAddressInput(
@@ -68,7 +68,7 @@ void SendGramsBox(
 
 	const auto replaceTickerTag = [] {
 		return rpl::map([=](QString &&text, const std::optional<Ton::TokenKind> &selectedToken) {
-			return text.replace("{ticker}", Ton::toString(selectedToken.value_or(Ton::TokenKind::Ton)));
+			return text.replace("{ticker}", Ton::toString(selectedToken.value_or(Ton::TokenKind::DefaultToken)));
 		});
 	};
 

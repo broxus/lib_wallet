@@ -102,10 +102,10 @@ void ConfirmTransactionBox(
 			st::windowBgOver->c)),
 		st::walletConfirmationAddressPadding);
 
-	const auto feeParsed = FormatAmount(fee, Ton::TokenKind::Ton).full;
+	const auto feeParsed = FormatAmount(fee, Ton::TokenKind::DefaultToken).full;
 	auto feeText = rpl::combine(
 		ph::lng_wallet_confirm_fee(),
-		ph::lng_wallet_grams_count(feeParsed, Ton::TokenKind::Ton)()
+		ph::lng_wallet_grams_count(feeParsed, Ton::TokenKind::DefaultToken)()
 	) | rpl::map([=](QString &&text, const QString &grams) {
 		return text.replace("{grams}", grams);
 	});

@@ -70,7 +70,7 @@ std::optional<int64> ParseAmountFraction(QString trimmed, size_t decimals) {
 		const QString &text,
 		int position,
 		size_t decimals) {
-	const auto separator = FormatAmount(1, Ton::TokenKind::Ton).separator;
+	const auto separator = FormatAmount(1, Ton::TokenKind::DefaultToken).separator;
 
 	auto result = FixedAmount{ text, position };
 	if (text.isEmpty()) {
@@ -212,7 +212,7 @@ std::optional<int64> ParseAmountString(const QString &amount, size_t decimals) {
 PreparedInvoice ParseInvoice(QString invoice) {
 	const auto prefix = qstr("transfer/");
 	auto result = PreparedInvoice();
-	result.token = Ton::TokenKind::Ton;
+	result.token = Ton::TokenKind::DefaultToken;
 
 	const auto position = invoice.indexOf(prefix, 0, Qt::CaseInsensitive);
 	if (position >= 0) {
@@ -352,10 +352,10 @@ not_null<Ui::InputField*> CreateAmountInput(
 		Ui::InputField::Mode::SingleLine,
 		std::move(placeholder),
 		(amount > 0
-			? FormatAmount(amount, Ton::TokenKind::Ton, FormatFlag::Simple).full
+			? FormatAmount(amount, Ton::TokenKind::DefaultToken, FormatFlag::Simple).full
 			: QString()));
 
-	auto tokenState = result->lifetime().make_state<Ton::TokenKind>(Ton::TokenKind::Ton);
+	auto tokenState = result->lifetime().make_state<Ton::TokenKind>(Ton::TokenKind::DefaultToken);
 	std::move(
 		token
 	) | rpl::start_with_next([=](Ton::TokenKind value) {

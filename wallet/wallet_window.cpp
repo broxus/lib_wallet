@@ -726,7 +726,7 @@ void Window::sendMoney(const QString &invoice) {
 	const auto send = [=](
 			PreparedInvoice invoice,
 			const Fn<void(InvoiceField)> &showError) {
-		invoice.token = _selectedToken.current().value_or(Ton::TokenKind::Ton);
+		invoice.token = _selectedToken.current().value_or(Ton::TokenKind::DefaultToken);
 		const auto currentState = _state.current();
 		const auto account = currentState.account;
 

@@ -30,7 +30,7 @@ const std::vector<std::pair<int, QString>> &Variants(Ton::TokenKind kind) {
 	};
 
 	switch (kind) {
-		case Ton::TokenKind::Ton:
+		case Ton::TokenKind::DefaultToken:
 			return iconTon;
 		case Ton::TokenKind::USDT:
 			return iconUsdt;
@@ -66,7 +66,7 @@ QImage CreateImage(Ton::TokenKind kind, int size) {
 
 QImage Image(Ton::TokenKind kind) {
 	static const QImage images[] = {
-		CreateImage(Ton::TokenKind::Ton, st::walletTokenIconSize * style::DevicePixelRatio()),
+		CreateImage(Ton::TokenKind::DefaultToken, st::walletTokenIconSize * style::DevicePixelRatio()),
 		CreateImage(Ton::TokenKind::USDT, st::walletTokenIconSize * style::DevicePixelRatio()),
 	};
 	return images[static_cast<int>(kind)];
@@ -107,7 +107,7 @@ not_null<RpWidget *> CreateInlineTokenIcon(
 		std::move(kind)
 	) | rpl::start_with_next([=](const QRect&, std::optional<Ton::TokenKind> kind) {
 		auto p = QPainter(result);
-		Paint(kind.value_or(Ton::TokenKind::Ton), p, 0, 0);
+		Paint(kind.value_or(Ton::TokenKind::DefaultToken), p, 0, 0);
 	}, result->lifetime());
 
 	return result;

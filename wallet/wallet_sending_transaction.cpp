@@ -94,14 +94,14 @@ void SendingDoneBox(
 	lottie->start();
 	lottie->stopOnLoop(1);
 
-	const auto amount = FormatAmount(-CalculateValue(result), Ton::TokenKind::Ton).full;
+	const auto amount = FormatAmount(-CalculateValue(result), Ton::TokenKind::DefaultToken).full;
 	const auto title = Ui::CreateChild<Ui::FlatLabel>(
 		inner,
 		ph::lng_wallet_sent_title(),
 		st::walletSendingTitle);
 	const auto text = Ui::CreateChild<Ui::FlatLabel>(
 		inner,
-		ph::lng_wallet_grams_count_sent(amount, Ton::TokenKind::Ton)(),
+		ph::lng_wallet_grams_count_sent(amount, Ton::TokenKind::DefaultToken)(),
 		st::walletSendingText);
 
 	inner->widthValue(

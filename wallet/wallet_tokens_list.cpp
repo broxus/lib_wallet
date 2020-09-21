@@ -354,8 +354,8 @@ rpl::producer<TokensListState> MakeTokensListState(
 			const auto unlockedTonBalance = account.fullBalance - account.lockedBalance;
 
 			TokensListState result{};
-			result.tokens.insert({Ton::TokenKind::Ton, TokenItem {
-				.token = Ton::TokenKind::Ton,
+			result.tokens.insert({Ton::TokenKind::DefaultToken, TokenItem {
+				.token = Ton::TokenKind::DefaultToken,
 				.address = data.wallet.address,
 				.balance = unlockedTonBalance,
 			}});

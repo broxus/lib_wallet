@@ -229,7 +229,7 @@ void Cover::setupControls() {
 
     const auto replaceTickerTag = [] {
         return rpl::map([=](QString &&text, const std::optional<Ton::TokenKind> &selectedToken) {
-            return text.replace("{ticker}", Ton::toString(selectedToken.value_or(Ton::TokenKind::Ton)));
+            return text.replace("{ticker}", Ton::toString(selectedToken.value_or(Ton::TokenKind::DefaultToken)));
         });
     };
 
@@ -302,7 +302,7 @@ rpl::producer<CoverState> MakeCoverState(
 		const auto &account = data.wallet.account;
 
 		CoverState result{
-			.token = (selectedToken.has_value() ? *selectedToken : Ton::TokenKind::Ton),
+			.token = (selectedToken.has_value() ? *selectedToken : Ton::TokenKind::DefaultToken),
 			.justCreated = justCreated,
 			.useTestNetwork = useTestNetwork,
 		};

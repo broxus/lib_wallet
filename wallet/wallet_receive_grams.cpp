@@ -37,7 +37,7 @@ void ReceiveGramsBox(
 
     const auto replaceTickerTag = [] {
         return rpl::map([=](QString &&text, const std::optional<Ton::TokenKind> &selectedToken) {
-            return text.replace("{ticker}", Ton::toString(selectedToken.value_or(Ton::TokenKind::Ton)));
+            return text.replace("{ticker}", Ton::toString(selectedToken.value_or(Ton::TokenKind::DefaultToken)));
         });
     };
 

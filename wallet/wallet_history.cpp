@@ -88,7 +88,7 @@ void RefreshTimeTexts(
 	const auto encrypted = IsEncryptedMessage(data) && decrypt;
 	const auto amount = FormatAmount(
 		service ? (-data.fee) : CalculateValue(data),
-		Ton::TokenKind::Ton,
+		Ton::TokenKind::DefaultToken,
 		FormatFlag::Signed | FormatFlag::Rounded);
 	const auto incoming = !data.incoming.source.isEmpty();
 	const auto pending = (data.id.lt == 0);
@@ -118,7 +118,7 @@ void RefreshTimeTexts(
 		(encrypted ? QString() : ExtractMessage(data)),
 		_textPlainOptions);
 	if (data.fee) {
-		const auto fee = FormatAmount(data.fee, Ton::TokenKind::Ton).full;
+		const auto fee = FormatAmount(data.fee, Ton::TokenKind::DefaultToken).full;
 		result.fees.setText(
 			st::defaultTextStyle,
 			ph::lng_wallet_row_fees(ph::now).replace("{amount}", fee));
@@ -318,7 +318,7 @@ void HistoryRow::paint(Painter &p, int x, int y) {
 		const auto diamondLeft = nanoLeft
 			+ _layout.amountNano.maxWidth()
 			+ st::normalFont->spacew;
-        //  TODO: remove Ton::TokenKind::Ton
+        //  TODO: remove Ton::TokenKind::DefaultToken
 		Ui::PaintInlineTokenIcon(Ton::TokenKind::DefaultToken, p, diamondLeft, diamondTop, st::normalFont);
 
 		const auto labelTop = diamondTop;
