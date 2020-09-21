@@ -297,15 +297,17 @@ void SendGramsBox(
 	)) | rpl::map([=]() -> rpl::producer<QString> {
 		const auto text = amount->getLastText();
 		const auto value = ParseAmountString(text, Ton::countDecimals(*currentToken)).value_or(0);
-		return (value > 0)
-			? rpl::combine(
+		if (value > 0) {
+			return rpl::combine(
 				ph::lng_wallet_send_button_amount(),
 				ph::lng_wallet_grams_count(FormatAmount(value, *currentToken).full, *currentToken)()
-			) | replaceGramsTag()
-			: rpl::combine(
+			) | replaceGramsTag();
+		} else {
+			return rpl::combine(
 				ph::lng_wallet_send_button(),
 				rpl::duplicate(selectedToken)
 			) | replaceTickerTag();
+		}
 	}) | rpl::flatten_latest();
 
 	box->addButton(
