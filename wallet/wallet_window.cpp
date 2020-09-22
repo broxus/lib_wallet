@@ -22,7 +22,6 @@
 #include "wallet/wallet_export.h"
 #include "wallet/wallet_update_info.h"
 #include "wallet/wallet_settings.h"
-#include "wallet/wallet_update_info.h"
 #include "wallet/create/wallet_create_manager.h"
 #include "ton/ton_wallet.h"
 #include "ton/ton_account_viewer.h"
@@ -30,7 +29,6 @@
 #include "base/qt_signal_producer.h"
 #include "base/last_user_input.h"
 #include "base/algorithm.h"
-#include "ui/address_label.h"
 #include "ui/widgets/window.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/input_fields.h"
@@ -49,7 +47,6 @@
 #include <QtGui/QClipboard>
 #include <QtGui/QGuiApplication>
 #include <QtGui/QScreen>
-#include <QtWidgets/QFileDialog>
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QDesktopWidget>
 
@@ -738,7 +735,7 @@ void Window::sendMoney(const QString &invoice) {
 	const auto send = [=](
 			PreparedInvoice invoice,
 			const Fn<void(InvoiceField)> &showError) {
-		invoice.token = _selectedToken.current().value_or(Ton::TokenKind::DefaultToken);
+		invoice.token = invoice.token;
 		const auto currentState = _state.current();
 		const auto account = currentState.account;
 
@@ -763,26 +760,10 @@ void Window::sendMoney(const QString &invoice) {
 		}
 	};
 
-	auto unlockedBalance = rpl::combine(
-		_state.value(),
-		_selectedToken.value()
-	) | rpl::map([](const Ton::WalletState &state, const std::optional<Ton::TokenKind> &selectedToken) {
-		if (!selectedToken.has_value() || !*selectedToken) {
-			return state.account.fullBalance - state.account.lockedBalance;
-		} else {
-			const auto it = state.tokenStates.find(*selectedToken);
-			if (it != state.tokenStates.end()) {
-				return it->second.fullBalance;
-			} else {
-				return int64{};
-			}
-		}
-	});
-
 	auto box = Box(
 		SendGramsBox,
 		invoice,
-		std::move(unlockedBalance),
+		_state.value(),
 		_selectedToken.value(),
 		send);
 	_sendBox = box.data();

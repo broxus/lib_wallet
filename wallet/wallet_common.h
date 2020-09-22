@@ -13,6 +13,7 @@
 namespace Ton {
 struct Error;
 enum class TokenKind;
+TokenKind tokenFromString(QString token);
 } // namespace Ton
 
 namespace Ui {

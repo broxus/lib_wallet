@@ -50,25 +50,43 @@ struct FixedAddress {
 void SendGramsBox(
 		not_null<Ui::GenericBox*> box,
 		const QString &invoice,
-		rpl::producer<int64> unlockedBalance,
-		rpl::producer<std::optional<Ton::TokenKind>> selectedToken,
+        rpl::producer<Ton::WalletState> state,
+        rpl::producer<std::optional<Ton::TokenKind>> selectedToken,
 		const Fn<void(PreparedInvoice, Fn<void(InvoiceField)> error)> &done) {
-	const auto token = rpl::duplicate(selectedToken) | rpl::map([=](std::optional<Ton::TokenKind> token) {
-		return token.value_or(Ton::TokenKind::DefaultToken);
-	});
 
-	const auto currentToken = box->lifetime().make_state<Ton::TokenKind>(Ton::TokenKind::DefaultToken);
-	rpl::duplicate(token) | rpl::start_with_next([=](Ton::TokenKind value) {
-		*currentToken = value;
+    const auto prepared = box->lifetime().make_state<PreparedInvoice>(ParseInvoice(invoice));
+    const auto currentToken = box->lifetime().make_state<Ton::TokenKind>(prepared->token);
+
+    const auto token = rpl::duplicate(selectedToken) | rpl::map([=](std::optional<Ton::TokenKind> token) {
+        if (prepared->address.isEmpty()) {
+            return token.value_or(Ton::TokenKind::DefaultToken);
+        } else {
+            return prepared->token;
+        }
+    });
+    rpl::duplicate(token) | rpl::start_with_next([=](Ton::TokenKind value) {
+        *currentToken = value;
 	}, box->lifetime());
 
-	const auto prepared = ParseInvoice(invoice);
+
+    auto unlockedBalance = rpl::duplicate(state) | rpl::map([=](const Ton::WalletState &state) {
+        if (!*currentToken) {
+            return state.account.fullBalance - state.account.lockedBalance;
+        } else {
+            const auto it = state.tokenStates.find(*currentToken);
+            if (it != state.tokenStates.end()) {
+                return it->second.fullBalance;
+            } else {
+                return int64{};
+            }
+        }
+    });
 
 	const auto funds = std::make_shared<int64>();
 
-	const auto replaceTickerTag = [] {
-		return rpl::map([=](QString &&text, const std::optional<Ton::TokenKind> &selectedToken) {
-			return text.replace("{ticker}", Ton::toString(selectedToken.value_or(Ton::TokenKind::DefaultToken)));
+	const auto replaceTickerTag = [=] {
+		return rpl::map([=](QString &&text) {
+			return text.replace("{ticker}", Ton::toString(*currentToken));
 		});
 	};
 
@@ -78,10 +96,7 @@ void SendGramsBox(
 		});
 	};
 
-	const auto titleText = rpl::combine(
-		ph::lng_wallet_send_title(),
-		rpl::duplicate(selectedToken)
-	) | replaceTickerTag();
+	const auto titleText = rpl::duplicate(ph::lng_wallet_send_title()) | replaceTickerTag();
 
 	box->setTitle(titleText);
 	box->setStyle(st::walletBox);
@@ -94,7 +109,7 @@ void SendGramsBox(
 		st::walletSendInput,
 		Ui::InputField::Mode::NoNewlines,
 		ph::lng_wallet_send_address(),
-		prepared.address));
+		prepared->address));
 	address->rawTextEdit()->setWordWrapMode(QTextOption::WrapAnywhere);
 
 	const auto subtitle = AddBoxSubtitle(box, ph::lng_wallet_send_amount());
@@ -103,7 +118,7 @@ void SendGramsBox(
 		object_ptr<Ui::InputField>::fromRaw(CreateAmountInput(
 			box,
 			rpl::single("0" + AmountSeparator() + "0"),
-			prepared.amount,
+			prepared->amount,
 			token)),
 		st::walletSendAmountPadding);
 
@@ -117,7 +132,7 @@ void SendGramsBox(
 	});
 
 	const auto diamondLabel = Ui::CreateInlineTokenIcon(
-		selectedToken,
+        token,
 		subtitle->parentWidget(),
 		0,
 		0,
@@ -148,11 +163,11 @@ void SendGramsBox(
 		object_ptr<Ui::InputField>::fromRaw(CreateCommentInput(
 			box,
 			ph::lng_wallet_send_comment(),
-			prepared.comment)),
+			prepared->comment)),
 		st::walletSendCommentPadding);
 
 	rpl::duplicate(
-		selectedToken
+		token
 	) | rpl::start_with_next([=](const std::optional<Ton::TokenKind> &selectedToken) {
 		const auto showComment = (selectedToken.has_value() && !*selectedToken);
 		comment->setMinHeight(showComment ? st::walletInput.heightMin : 0);
@@ -225,8 +240,8 @@ void SendGramsBox(
 	});
 
 	box->setFocusCallback([=] {
-		if (prepared.address.isEmpty()
-			|| address->getLastText() != prepared.address) {
+		if (prepared->address.isEmpty()
+			|| address->getLastText() != prepared->address) {
 			address->setFocusFast();
 		} else {
 			amount->setFocusFast();
@@ -252,6 +267,7 @@ void SendGramsBox(
 		collected.address = address->getLastText();
 		collected.comment = comment->getLastText();
 		collected.swapBack = collected.address.startsWith("0x");
+		collected.token = *currentToken;
 		done(collected, showError);
 	};
 
@@ -300,10 +316,7 @@ void SendGramsBox(
                     ph::lng_wallet_grams_count(FormatAmount(value, *currentToken).full, *currentToken)()
             ) | replaceGramsTag();
         } else {
-            return rpl::combine(
-                    ph::lng_wallet_send_button(),
-                    rpl::duplicate(selectedToken)
-            ) | replaceTickerTag();
+            return rpl::duplicate(ph::lng_wallet_send_button()) | replaceTickerTag();
         }
 	}) | rpl::flatten_latest();
 

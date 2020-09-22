@@ -10,6 +10,7 @@
 
 namespace Ton {
 enum class TokenKind;
+struct WalletState;
 } // namespace Ton
 
 namespace Wallet {
@@ -25,7 +26,7 @@ enum class InvoiceField {
 void SendGramsBox(
 	not_null<Ui::GenericBox*> box,
 	const QString &invoice,
-	rpl::producer<int64> unlockedBalance,
+    rpl::producer<Ton::WalletState> state,
 	rpl::producer<std::optional<Ton::TokenKind>> selectedToken,
 	const Fn<void(PreparedInvoice, Fn<void(InvoiceField)> error)> &done);
 

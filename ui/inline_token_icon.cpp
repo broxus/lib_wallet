@@ -89,7 +89,7 @@ QImage InlineTokenIcon(Ton::TokenKind kind, int size) {
 }
 
 not_null<RpWidget *> CreateInlineTokenIcon(
-	rpl::producer<std::optional<Ton::TokenKind>> kind,
+	rpl::producer<Ton::TokenKind> kind,
 	not_null<QWidget *> parent,
 	int x,
 	int y,
@@ -105,9 +105,9 @@ not_null<RpWidget *> CreateInlineTokenIcon(
 	rpl::combine(
 		result->paintRequest(),
 		std::move(kind)
-	) | rpl::start_with_next([=](const QRect&, std::optional<Ton::TokenKind> kind) {
+	) | rpl::start_with_next([=](const QRect&, Ton::TokenKind kind) {
 		auto p = QPainter(result);
-		Paint(kind.value_or(Ton::TokenKind::DefaultToken), p, 0, 0);
+		Paint(kind, p, 0, 0);
 	}, result->lifetime());
 
 	return result;

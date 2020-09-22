@@ -224,7 +224,8 @@ PreparedInvoice ParseInvoice(QString invoice) {
 			invoice.mid(paramsPosition + 1),
 			qthelp::UrlParamNameTransform::ToLower);
 		result.amount = params.value("amount").toULongLong();
-		result.comment = params.value("text");
+        result.token = Ton::tokenFromString(params.value("token"));
+        result.comment = params.value("text");
 	}
 
 	const auto colonPosition = invoice.indexOf(':');
