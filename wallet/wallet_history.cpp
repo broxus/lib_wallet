@@ -36,6 +36,7 @@ enum class Flag : uchar {
 	Encrypted = 0x04,
 	Service = 0x08,
 	Initialization = 0x10,
+	SwapBack = 0x20,
 };
 inline constexpr bool is_flag_type(Flag) { return true; };
 using Flags = base::flags<Flag>;
@@ -50,6 +51,7 @@ struct TransactionLayout {
 	Ui::Text::String address;
 	Ui::Text::String comment;
 	Ui::Text::String fees;
+	Ton::TokenKind token = Ton::TokenKind::DefaultToken;
 	int addressWidth = 0;
 	int addressHeight = 0;
 	Flags flags = Flags();
@@ -135,6 +137,50 @@ void RefreshTimeTexts(
 	return result;
 }
 
+[[nodiscard]] TransactionLayout PrepareLayout(
+		const Ton::Transaction &transaction,
+		const Ton::TokenTransaction &tokenTransaction) {
+	const auto [token, address, value, flags] = v::match(tokenTransaction, [](const Ton::TokenTransfer &transfer) {
+		return std::make_tuple(transfer.token, transfer.dest, transfer.value, Flag(0));
+	}, [](const Ton::TokenSwapBack &tokenSwapBack) {
+		return std::make_tuple(tokenSwapBack.token, tokenSwapBack.dest, tokenSwapBack.value, Flag::SwapBack);
+	});
+
+	const auto amount = FormatAmount(-value, token, FormatFlag::Signed | FormatFlag::Rounded);
+	const auto addressPartWidth = [address = std::ref(address)](int from, int length = -1) {
+		return AddressStyle().font->width(address.get().mid(from, length));
+	};
+
+	auto result = TransactionLayout();
+	result.serverTime = transaction.time;
+	result.amountGrams.setText(st::walletRowGramsStyle, amount.gramsString);
+	result.amountNano.setText(
+		st::walletRowNanoStyle,
+		amount.separator + amount.nanoString);
+	result.address = Ui::Text::String(
+		AddressStyle(),
+		address,
+		_defaultOptions,
+		st::walletAddressWidthMin);
+	result.addressWidth = (AddressStyle().font->spacew / 2) + std::max(
+		addressPartWidth(0, address.size() / 2),
+		addressPartWidth(address.size() / 2));
+	result.addressHeight = AddressStyle().font->height * 2;
+	result.comment = Ui::Text::String(st::walletAddressWidthMin);
+	result.comment.setText(st::defaultTextStyle, {}, _textPlainOptions);
+
+	const auto fee = FormatAmount(-CalculateValue(transaction), Ton::TokenKind::DefaultToken).full;
+	result.fees.setText(
+		st::defaultTextStyle,
+		ph::lng_wallet_row_fees(ph::now).replace("{amount}", fee));
+	result.token = token;
+
+	result.flags = flags;
+
+	RefreshTimeTexts(result);
+	return result;
+}
+
 } // namespace
 
 class HistoryRow final {
@@ -164,6 +210,7 @@ public:
 
 	void setVisible(bool visible);
 	[[nodiscard]] bool isVisible() const;
+	void attachTokenTransaction(std::optional<Ton::TokenTransaction> &&tokenTransaction);
 
 	void paint(Painter &p, int x, int y);
 	void paintDate(Painter &p, int x, int y);
@@ -174,6 +221,7 @@ private:
 	[[nodiscard]] QRect computeInnerRect() const;
 
 	Ton::Transaction _transaction;
+	std::optional<Ton::TokenTransaction> _tokenTransaction;
 	TransactionLayout _layout;
 	int _top = 0;
 	int _width = 0;
@@ -295,6 +343,18 @@ bool HistoryRow::isVisible() const {
 	return _height > 0;
 }
 
+void HistoryRow::attachTokenTransaction(std::optional<Ton::TokenTransaction> &&tokenTransaction) {
+	if (_tokenTransaction.has_value() == tokenTransaction.has_value()) {
+		return;
+	}
+	_tokenTransaction = std::move(tokenTransaction);
+	if (_tokenTransaction.has_value()) {
+		_layout = PrepareLayout(_transaction, _tokenTransaction.value());
+	} else {
+		_layout = PrepareLayout(_transaction, {}, false);
+	}
+}
+
 void HistoryRow::paint(Painter &p, int x, int y) {
 	if (!isVisible()) {
 		return;
@@ -333,6 +393,8 @@ void HistoryRow::paint(Painter &p, int x, int y) {
 				: ph::lng_wallet_row_service(ph::now)));
 	} else {
 		const auto incoming = (_layout.flags & Flag::Incoming);
+		const auto swapBack = (_layout.flags & Flag::SwapBack);
+
 		p.setPen(incoming ? st::boxTextFgGood : st::boxTextFgError);
 		_layout.amountGrams.draw(p, x, y, avail);
 
@@ -348,8 +410,7 @@ void HistoryRow::paint(Painter &p, int x, int y) {
 		const auto diamondLeft = nanoLeft
 			+ _layout.amountNano.maxWidth()
 			+ st::normalFont->spacew;
-        //  TODO: remove Ton::TokenKind::DefaultToken
-		Ui::PaintInlineTokenIcon(Ton::TokenKind::DefaultToken, p, diamondLeft, diamondTop, st::normalFont);
+		Ui::PaintInlineTokenIcon(_layout.token, p, diamondLeft, diamondTop, st::normalFont);
 
 		const auto labelTop = diamondTop;
 		const auto labelLeft = diamondLeft
@@ -362,7 +423,9 @@ void HistoryRow::paint(Painter &p, int x, int y) {
 			labelTop + st::normalFont->ascent,
 			(incoming
 				? ph::lng_wallet_row_from(ph::now)
-				: ph::lng_wallet_row_to(ph::now)));
+				: swapBack
+					? ph::lng_wallet_row_swap_back_to(ph::now)
+					: ph::lng_wallet_row_to(ph::now)));
 
 		const auto timeTop = labelTop;
 		const auto timeLeft = x + avail - _layout.time.maxWidth();
@@ -554,7 +617,7 @@ void History::resizeToWidth(int width) {
 		row->resizeToWidth(width);
 		height += row->height();
 	}
-	_widget.resize(width, top * 2 + height);
+	_widget.resize(width, (height > 0 ? top * 2 : 0) + height);
 }
 
 rpl::producer<int> History::heightValue() const {
@@ -601,7 +664,6 @@ void History::setupContent(
 	std::move(
 		state
 	) | rpl::start_with_next([=](HistoryState &&state) {
-		_tokenContractAddress = state.tokenContractAddress;
 		mergeState(std::move(state));
 	}, lifetime());
 
@@ -744,7 +806,7 @@ void History::paint(Painter &p, QRect clip) {
 			clip.top() + clip.height(),
 			ranges::less(),
 			&HistoryRow::top);
-		if (from == till) {
+		if (from == till || from == rows.end()) {
 			return;
 		}
 		for (const auto &row : ranges::make_subrange(from, till)) {
@@ -793,6 +855,10 @@ void History::mergeState(HistoryState &&state) {
 	}
 	if (mergeListChanged(std::move(state.lastTransactions))) {
 		refreshRows();
+	} else if (_tokenContractAddress.current() != state.tokenContractAddress) {
+		_tokenContractAddress = state.tokenContractAddress;
+		refreshShowDates();
+		_widget.update();
 	}
 }
 
@@ -901,27 +967,35 @@ void History::computeInitTransactionId() {
 
 void History::refreshShowDates() {
 	auto selectedToken = _selectedToken.current();
-	auto filter = [this, selectedToken](const Ton::Transaction &data) {
-		if (!selectedToken) {
-			return true;
-		}
-
+	auto filterToken = [this, selectedToken](const Ton::Transaction &data) -> std::optional<Ton::TokenTransaction> {
 		for (const auto& out : data.outgoing) {
 			if (Ton::Wallet::ConvertIntoRaw(out.destination) == _tokenContractAddress.current()) {
-				return true;
+				auto transaction = Ton::Wallet::ParseTokenTransaction(out.message);
+				if (transaction.has_value() && !Ton::CheckTokenTransaction(selectedToken, transaction.value())) {
+					transaction.reset();
+				}
+				return transaction;
 			}
 		}
-		return false;
+		return std::nullopt;
 	};
 
 	auto previous = QDate();
 	for (auto &row : _rows) {
-		auto isVisible = filter(row->transaction());
+		// TODO: prettify
+		if (!selectedToken) {
+			row->setVisible(true);
+			row->attachTokenTransaction(std::nullopt);
+		} else if (auto transfer = filterToken(row->transaction()); transfer.has_value()) {
+			row->setVisible(true);
+			row->attachTokenTransaction(std::move(transfer));
+		} else {
+			row->setVisible(false);
+		}
 
 		const auto current = row->date().date();
-		row->setVisible(isVisible);
-		setRowShowDate(row, isVisible && current != previous);
-		if (isVisible) {
+		setRowShowDate(row, row->isVisible() && current != previous);
+		if (row->isVisible()) {
 			previous = current;
 		}
 	}

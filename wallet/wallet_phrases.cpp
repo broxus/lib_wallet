@@ -92,6 +92,7 @@ phrase lng_wallet_empty_history_welcome = "Welcome";
 phrase lng_wallet_empty_history_address = "Your wallet address";
 
 phrase lng_wallet_row_from = "from:";
+phrase lng_wallet_row_swap_back_to = "swap back to:";
 phrase lng_wallet_row_to = "to:";
 phrase lng_wallet_row_init = "Wallet initialization";
 phrase lng_wallet_row_service = "Empty transaction";

@@ -94,6 +94,7 @@ extern phrase lng_wallet_empty_history_welcome;
 extern phrase lng_wallet_empty_history_address;
 
 extern phrase lng_wallet_row_from;
+extern phrase lng_wallet_row_swap_back_to;
 extern phrase lng_wallet_row_to;
 extern phrase lng_wallet_row_init;
 extern phrase lng_wallet_row_service;
@@ -224,7 +225,7 @@ extern Fn<phrase(QString, Ton::TokenKind)> lng_wallet_grams_count_sent;
 
 namespace Wallet {
 
-inline constexpr auto kPhrasesCount = 166;
+inline constexpr auto kPhrasesCount = 167;
 
 void SetPhrases(
 	ph::details::phrase_value_array<kPhrasesCount> data,
