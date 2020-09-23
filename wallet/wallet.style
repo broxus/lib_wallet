@@ -13,6 +13,8 @@ WalletAmountLabel {
 	small: FlatLabel;
 	diamond: pixels;
 	diamondPosition: point;
+	tokenIcon: pixels;
+    tokenIconPosition: point;
 }
 
 walletScrollArea: ScrollArea(defaultScrollArea) {
@@ -150,6 +152,7 @@ walletMenuPosition: point(2px, 40px);
 walletDiamondSize: 22px;
 walletDiamondAscent: 16px;
 
+walletTokenInfoIconSize: 40px;
 walletTokenIconSize: 22px;
 walletTokenIconAscent: 16px;
 
@@ -257,6 +260,8 @@ walletCoverBalance: WalletAmountLabel {
 	small: walletCoverBalanceSmall;
 	diamond: 38px;
 	diamondPosition: point(6px, 4px);
+	tokenIcon: 38px;
+    tokenIconPosition: point(4px, 6px);
 }
 walletCoverLabelTop: 53px;
 walletCoverLabel: FlatLabel(defaultFlatLabel) {

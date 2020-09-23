@@ -43,7 +43,8 @@ private:
 	Ui::FlatLabel _large;
 	Ui::FlatLabel _small;
 	rpl::producer<Ton::TokenKind> _token;
-	const std::unique_ptr<Ui::LottieAnimation> _diamond;
+	std::unique_ptr<LottieAnimation> _diamond;
+    std::unique_ptr<Ui::FixedHeightWidget> _tokenIcon;
 
 	rpl::lifetime _lifetime;
 
