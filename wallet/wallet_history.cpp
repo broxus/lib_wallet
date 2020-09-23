@@ -752,7 +752,7 @@ void History::selectRowByMouse() {
 		ranges::less(),
 		&HistoryRow::top);
 
-	if (from != till && (*from)->isUnderCursor(point)) {
+	if (from != _rows.end() && from != till && (*from)->isUnderCursor(point)) {
 		selectRow(from - begin(_rows), (*from)->handlerUnderCursor(point));
 	} else {
 		selectRow(-1, nullptr);
@@ -966,10 +966,13 @@ void History::computeInitTransactionId() {
 }
 
 void History::refreshShowDates() {
+	auto contractAddress = _tokenContractAddress.current().isEmpty()
+		? QString{}
+		: Ton::Wallet::ConvertIntoRaw(_tokenContractAddress.current());
 	auto selectedToken = _selectedToken.current();
-	auto filterToken = [this, selectedToken](const Ton::Transaction &data) -> std::optional<Ton::TokenTransaction> {
+	auto filterToken = [selectedToken, contractAddress](const Ton::Transaction &data) -> std::optional<Ton::TokenTransaction> {
 		for (const auto& out : data.outgoing) {
-			if (Ton::Wallet::ConvertIntoRaw(out.destination) == _tokenContractAddress.current()) {
+			if (Ton::Wallet::ConvertIntoRaw(out.destination) == contractAddress) {
 				auto transaction = Ton::Wallet::ParseTokenTransaction(out.message);
 				if (transaction.has_value() && !Ton::CheckTokenTransaction(selectedToken, transaction.value())) {
 					transaction.reset();
