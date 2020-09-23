@@ -9,17 +9,40 @@
     <file alias="art/lottie/money.tgs">../art/lottie/money.tgs</file>
     <file alias="art/lottie/paper.tgs">../art/lottie/paper.tgs</file>
     <file alias="art/lottie/test.tgs">../art/lottie/test.tgs</file>
+
     <file alias="art/gem.png">../art/gem.png</file>
     <file alias="art/gem@2x.png">../art/gem@2x.png</file>
     <file alias="art/gem@4x.png">../art/gem@4x.png</file>
     <file alias="art/gem@large.png">../art/gem@large.png</file>
+
     <file alias="art/pepe.png">../art/pepe.png</file>
     <file alias="art/pepe@2x.png">../art/pepe@2x.png</file>
     <file alias="art/pepe@4x.png">../art/pepe@4x.png</file>
     <file alias="art/pepe@large.png">../art/pepe@large.png</file>
+
     <file alias="art/usdt.png">../art/usdt.png</file>
     <file alias="art/usdt@2x.png">../art/usdt@2x.png</file>
     <file alias="art/usdt@4x.png">../art/usdt@4x.png</file>
     <file alias="art/usdt@large.png">../art/usdt@large.png</file>
+
+    <file alias="art/usdc.png">../art/usdc.png</file>
+    <file alias="art/usdc@2x.png">../art/usdc@2x.png</file>
+    <file alias="art/usdc@4x.png">../art/usdc@4x.png</file>
+    <file alias="art/usdc@large.png">../art/usdc@large.png</file>
+
+    <file alias="art/weth.png">../art/weth.png</file>
+    <file alias="art/weth@2x.png">../art/weth@2x.png</file>
+    <file alias="art/weth@4x.png">../art/weth@4x.png</file>
+    <file alias="art/weth@large.png">../art/weth@large.png</file>
+
+    <file alias="art/wbtc.png">../art/wbtc.png</file>
+    <file alias="art/wbtc@2x.png">../art/wbtc@2x.png</file>
+    <file alias="art/wbtc@4x.png">../art/wbtc@4x.png</file>
+    <file alias="art/wbtc@large.png">../art/wbtc@large.png</file>
+
+    <file alias="art/dai.png">../art/dai.png</file>
+    <file alias="art/dai@2x.png">../art/dai@2x.png</file>
+    <file alias="art/dai@4x.png">../art/dai@4x.png</file>
+    <file alias="art/dai@large.png">../art/dai@large.png</file>
   </qresource>
 </RCC>

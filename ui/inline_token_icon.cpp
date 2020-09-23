@@ -24,9 +24,16 @@ const std::vector<std::pair<int, QString>> &Variants(Ton::TokenKind kind) {
 
 	static const auto iconUsdt = std::vector<std::pair<int, QString>>{
 		{24,  "usdt.png"},
-		{48,  "usdt@2x.png"},
-		{92,  "usdt@4x.png"},
+		{44,  "usdt@2x.png"},
+		{88,  "usdt@4x.png"},
 		{192, "usdt@large.png"},
+	};
+
+	static const auto iconUsdc = std::vector<std::pair<int, QString>>{
+		{24,  "usdc.png"},
+		{44,  "usdc@2x.png"},
+		{88,  "usdc@4x.png"},
+		{192, "usdc@large.png"},
 	};
 
 	switch (kind) {

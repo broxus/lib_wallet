@@ -833,11 +833,12 @@ void History::paint(Painter &p, QRect clip) {
 }
 
 History::ScrollState History::computeScrollState() const {
-	const auto item = ranges::upper_bound(
-		_rows,
-		_visibleTop,
-		ranges::less(),
-		&HistoryRow::bottom);
+	auto item = _rows.end();
+	for (auto it = _rows.begin(); it != _rows.end(); ++it) {
+		if (it->get()->isVisible() && it->get()->bottom() < _visibleTop) {
+			item = it;
+		}
+	}
 	if (item == _rows.end()
 		|| (item == _rows.begin()
 			&& _rows.front()->id() == _listData.front().id)) {
