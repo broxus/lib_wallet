@@ -707,13 +707,13 @@ void History::setupContent(
 		std::move(selectedToken)
 	) | rpl::start_with_next([=](const std::optional<Ton::TokenKind> &token) {
 		if (token.has_value()) {
-			_selectedToken = token.value();
-			refreshShowDates();
-			_widget.update();
 			std::cout << "Selected token: " << Ton::toString(*token).toStdString() << std::endl;
 		} else {
 			std::cout << "Selected token: none" << std::endl;
 		}
+		_selectedToken = token.value_or(Ton::TokenKind::DefaultToken);
+		refreshShowDates();
+		_widget.update();
 	}, _widget.lifetime());
 }
 
