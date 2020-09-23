@@ -36,11 +36,40 @@ const std::vector<std::pair<int, QString>> &Variants(Ton::TokenKind kind) {
 		{192, "usdc@large.png"},
 	};
 
+	static const auto iconDai = std::vector<std::pair<int, QString>>{
+		{24,  "dai.png"},
+		{44,  "dai@2x.png"},
+		{88,  "dai@4x.png"},
+		{192, "dai@large.png"},
+	};
+
+	static const auto iconWbtc = std::vector<std::pair<int, QString>>{
+		{24,  "wbtc.png"},
+		{44,  "wbtc@2x.png"},
+		{88,  "wbtc@4x.png"},
+		{192, "wbtc@large.png"},
+	};
+
+	static const auto iconWeth = std::vector<std::pair<int, QString>>{
+		{24,  "weth.png"},
+		{44,  "weth@2x.png"},
+		{88,  "weth@4x.png"},
+		{192, "weth@large.png"},
+	};
+
 	switch (kind) {
 		case Ton::TokenKind::DefaultToken:
 			return iconTon;
 		case Ton::TokenKind::USDT:
 			return iconUsdt;
+		case Ton::TokenKind::USDC:
+			return iconUsdc;
+		case Ton::TokenKind::DAI:
+			return iconDai;
+		case Ton::TokenKind::WBTC:
+			return iconWbtc;
+		case Ton::TokenKind::WETH:
+			return iconWeth;
 		default:
 			return iconTon;
 	}
