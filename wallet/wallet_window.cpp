@@ -960,7 +960,7 @@ void Window::showSendingTransaction(
 			? std::make_optional(*i)
 			: std::nullopt;
 	}) | rpl::start_with_next([=](std::optional<Ton::Transaction> &&result) {
-		showSendingDone(std::move(result));
+		showSendingDone(std::move(result), invoice);
 	}, _sendBox->lifetime());
 	_layers->showBox(std::move(box));
 
@@ -969,9 +969,14 @@ void Window::showSendingTransaction(
 	}
 }
 
-void Window::showSendingDone(std::optional<Ton::Transaction> result) {
+void Window::showSendingDone(std::optional<Ton::Transaction> result, const PreparedInvoice &invoice) {
 	if (result) {
-		_layers->showBox(Box(SendingDoneBox, *result, [this]() { refreshNow(); }));
+		_layers->showBox(Box(SendingDoneBox, *result, invoice, [this, invoice]() {
+			refreshNow();
+			if (invoice.swapBack) {
+				_wallet->openReveal(invoice.address);
+			}
+		}));
 	} else {
 		showSimpleError(
 			ph::lng_wallet_send_failed_title(),

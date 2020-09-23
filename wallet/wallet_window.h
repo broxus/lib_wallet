@@ -112,7 +112,7 @@ private:
 		const Ton::PendingTransaction &transaction,
 		const PreparedInvoice &invoice,
 		rpl::producer<> confirmed);
-	void showSendingDone(std::optional<Ton::Transaction> result);
+	void showSendingDone(std::optional<Ton::Transaction> result, const PreparedInvoice &invoice);
 	void refreshNow();
 	void receiveGrams();
 	void createInvoice(rpl::producer<std::optional<Ton::TokenKind>> selectedToken);

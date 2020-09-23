@@ -103,7 +103,7 @@ rpl::producer<int> AmountLabel::widthValue() const {
 		_small.widthValue(),
 		rpl::duplicate(_token)
 	) | rpl::map([this](int largeWidth, int smallWidth, Ton::TokenKind token) {
-		return largeWidth + smallWidth + (_diamond && !token ? (_st.diamond + _st.diamondPosition.x()) : 0);
+		return largeWidth + smallWidth + (_diamond ? (_st.diamond + _st.diamondPosition.x()) : 0);
 	});
 }
 

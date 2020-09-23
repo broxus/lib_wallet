@@ -302,7 +302,7 @@ rpl::producer<CoverState> MakeCoverState(
 		const auto &account = data.wallet.account;
 
 		CoverState result{
-			.token = (selectedToken.has_value() ? *selectedToken : Ton::TokenKind::DefaultToken),
+			.token = selectedToken.value_or(Ton::TokenKind::DefaultToken),
 			.justCreated = justCreated,
 			.useTestNetwork = useTestNetwork,
 		};

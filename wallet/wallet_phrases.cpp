@@ -180,6 +180,7 @@ phrase lng_wallet_sending_text = "Please wait a few seconds for your\ntransactio
 
 phrase lng_wallet_sent_title = "Done!";
 phrase lng_wallet_sent_close = "Close";
+phrase lng_wallet_sent_close_view = "View";
 
 phrase lng_wallet_settings_title = "Settings";
 phrase lng_wallet_settings_version_title = "Version and updates";

@@ -83,6 +83,7 @@ void SendingTransactionBox(
 void SendingDoneBox(
 		not_null<Ui::GenericBox*> box,
 		const Ton::Transaction &result,
+		const PreparedInvoice &invoice,
 		const Fn<void()> &onClose) {
 	const auto inner = box->addRow(object_ptr<Ui::FixedHeightWidget>(
 		box,
@@ -122,7 +123,10 @@ void SendingDoneBox(
 			width);
 	}, inner->lifetime());
 
-	box->addButton(ph::lng_wallet_sent_close(), [=] { box->closeBox(); onClose(); });
+	box->addButton(invoice.swapBack
+		? ph::lng_wallet_sent_close_view()
+		: ph::lng_wallet_sent_close(),
+		[=] { box->closeBox(); onClose(); });
 }
 
 } // namespace Wallet
