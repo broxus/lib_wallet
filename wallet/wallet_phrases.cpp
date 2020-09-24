@@ -161,6 +161,8 @@ phrase lng_wallet_send_balance = "Balance: {amount}";
 phrase lng_wallet_send_comment = "Comment (optional)";
 phrase lng_wallet_send_button = "Send {ticker}";
 phrase lng_wallet_send_button_amount = "Send {grams}";
+phrase lng_wallet_send_button_swap_back = "Swap Back {ticker}";
+phrase lng_wallet_send_button_swap_back_amount = "Swap Back {grams}";
 
 phrase lng_wallet_send_failed_title = "Sending failed";
 phrase lng_wallet_send_failed_text = "Could not perform the transaction. Please check your wallet's balance and try again.";

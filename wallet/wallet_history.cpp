@@ -706,11 +706,6 @@ void History::setupContent(
 	rpl::combine(
 		std::move(selectedToken)
 	) | rpl::start_with_next([=](const std::optional<Ton::TokenKind> &token) {
-		if (token.has_value()) {
-			std::cout << "Selected token: " << Ton::toString(*token).toStdString() << std::endl;
-		} else {
-			std::cout << "Selected token: none" << std::endl;
-		}
 		_selectedToken = token.value_or(Ton::TokenKind::DefaultToken);
 		refreshShowDates();
 		_widget.update();

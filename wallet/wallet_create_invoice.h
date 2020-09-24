@@ -17,7 +17,7 @@ void CreateInvoiceBox(
 	const QString &address,
 	bool testnet,
     rpl::producer<std::optional<Ton::TokenKind>> selectedToken,
-	Fn<void(QString)> generateQr,
-	Fn<void(QImage, QString)> share);
+	const Fn<void(QString)> &generateQr,
+	const Fn<void(QImage, QString)> &share);
 
 } // namespace Wallet

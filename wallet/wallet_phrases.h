@@ -163,6 +163,8 @@ extern phrase lng_wallet_send_balance;
 extern phrase lng_wallet_send_comment;
 extern phrase lng_wallet_send_button;
 extern phrase lng_wallet_send_button_amount;
+extern phrase lng_wallet_send_button_swap_back;
+extern phrase lng_wallet_send_button_swap_back_amount;
 
 extern phrase lng_wallet_send_failed_title;
 extern phrase lng_wallet_send_failed_text;
@@ -231,7 +233,7 @@ extern Fn<phrase(QString, Ton::TokenKind)> lng_wallet_grams_count_sent;
 
 namespace Wallet {
 
-inline constexpr auto kPhrasesCount = 172;
+inline constexpr auto kPhrasesCount = 174;
 
 void SetPhrases(
 	ph::details::phrase_value_array<kPhrasesCount> data,

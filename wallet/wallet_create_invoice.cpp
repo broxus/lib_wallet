@@ -25,7 +25,7 @@ public:
 	explicit InvoiceHandler(const QString &url) : UrlClickHandler(url) {
 	}
 
-	QString copyToClipboardContextItemText() const override {
+	[[nodiscard]] QString copyToClipboardContextItemText() const override {
 		return QString();
 	}
 
@@ -37,21 +37,21 @@ void CreateInvoiceBox(
 		not_null<Ui::GenericBox*> box,
 		const QString &address,
 		bool testnet,
-        rpl::producer<std::optional<Ton::TokenKind>> selectedToken,
-		Fn<void(QString)> generateQr,
-		Fn<void(QImage, QString)> share) {
+		rpl::producer<std::optional<Ton::TokenKind>> selectedToken,
+		const Fn<void(QString)> &generateQr,
+		const Fn<void(QImage, QString)> &share) {
 
-    const auto token = rpl::duplicate(selectedToken) | rpl::map([=](std::optional<Ton::TokenKind> token) {
-        return token.value_or(Ton::TokenKind::DefaultToken);
-    });
+	const auto token = rpl::duplicate(selectedToken) | rpl::map([=](std::optional<Ton::TokenKind> token) {
+		return token.value_or(Ton::TokenKind::DefaultToken);
+	});
 
-    const auto replaceTickerTag = [] {
-        return rpl::map([=](QString &&text, const std::optional<Ton::TokenKind> &selectedToken) {
-            return text.replace("{ticker}", Ton::toString(selectedToken.value_or(Ton::TokenKind::DefaultToken)));
-        });
-    };
+	const auto replaceTickerTag = [] {
+		return rpl::map([=](QString &&text, const std::optional<Ton::TokenKind> &selectedToken) {
+			return text.replace("{ticker}", Ton::toString(selectedToken.value_or(Ton::TokenKind::DefaultToken)));
+		});
+	};
 
-    const auto currentToken = box->lifetime().make_state<Ton::TokenKind>(Ton::TokenKind::DefaultToken);
+	const auto currentToken = box->lifetime().make_state<Ton::TokenKind>(Ton::TokenKind::DefaultToken);
 	const auto tokenDecimals = Ton::countDecimals(*currentToken);
 
 	box->setTitle(ph::lng_wallet_invoice_title());
@@ -63,11 +63,11 @@ void CreateInvoiceBox(
 	const auto amount = box->addRow(
 		object_ptr<Ui::InputField>::fromRaw(
 			CreateAmountInput(box,
-     rpl::combine(
-                    ph::lng_wallet_invoice_number(),
-                    rpl::duplicate(token)
-                ) | replaceTickerTag(), 0, rpl::single(*currentToken))),
-		    st::walletSendAmountPadding);
+				rpl::combine(
+					ph::lng_wallet_invoice_number(),
+					rpl::duplicate(token)
+				) | replaceTickerTag(), 0, rpl::single(*currentToken))),
+				st::walletSendAmountPadding);
 
 	const auto comment = box->addRow(
 		object_ptr<Ui::InputField>::fromRaw(
