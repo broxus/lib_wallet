@@ -87,6 +87,9 @@ phrase lng_wallet_cover_send = "Send";
 phrase lng_wallet_update = "Update Wallet";
 phrase lng_wallet_update_short = "Update";
 
+phrase lng_wallet_tokens_list_accounts = "Accounts";
+phrase lng_wallet_tokens_list_swap = "Swap Tokens";
+
 phrase lng_wallet_empty_history_title = "Wallet Created";
 phrase lng_wallet_empty_history_welcome = "Welcome";
 phrase lng_wallet_empty_history_address = "Your wallet address";
@@ -118,6 +121,7 @@ phrase lng_wallet_receive_description_test = "Share this address to receive Ruby
 phrase lng_wallet_receive_show_as_packed = "Show as packed";
 phrase lng_wallet_receive_create_invoice = "Create Invoice";
 phrase lng_wallet_receive_share = "Share Wallet Address";
+phrase lng_wallet_receive_swap = "Swap {ticker}";
 phrase lng_wallet_receive_copied = "Transfer link copied to clipboard.";
 phrase lng_wallet_receive_address_copied = "Wallet address copied to clipboard.";
 phrase lng_wallet_receive_copied_qr = "QR Code copied to clipboard.";

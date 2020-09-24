@@ -25,59 +25,58 @@ void ReceiveGramsBox(
 		not_null<Ui::GenericBox*> box,
 		const QString &packedAddress,
 		const QString &rawAddress,
-        rpl::producer<std::optional<Ton::TokenKind>> selectedToken,
-		Fn<void()> createInvoice,
-		Fn<void(QImage, QString)> share) {
+		rpl::producer<std::optional<Ton::TokenKind>> selectedToken,
+		const Fn<void()> &createInvoice,
+		const Fn<void(QImage, QString)> &share,
+		const Fn<void(Ton::TokenKind)> &swap) {
 
 	const auto showAsPackedOn = box->lifetime().make_state<rpl::variable<bool>>(true);
 
-    const auto token = rpl::duplicate(selectedToken) | rpl::map([=](std::optional<Ton::TokenKind> token) {
-        return token.value_or(Ton::TokenKind::DefaultToken);
-    });
+	const auto token = rpl::duplicate(selectedToken) | rpl::map([=](std::optional<Ton::TokenKind> token) {
+		return token.value_or(Ton::TokenKind::DefaultToken);
+	});
 
-    const auto replaceTickerTag = [] {
-        return rpl::map([=](QString &&text, const std::optional<Ton::TokenKind> &selectedToken) {
-            return text.replace("{ticker}", Ton::toString(selectedToken.value_or(Ton::TokenKind::DefaultToken)));
-        });
-    };
+	const auto replaceTickerTag = [] {
+		return rpl::map([=](QString &&text, const std::optional<Ton::TokenKind> &selectedToken) {
+			return text.replace("{ticker}", Ton::toString(selectedToken.value_or(Ton::TokenKind::DefaultToken)));
+		});
+	};
 
 	box->setTitle(
-        rpl::combine(
-                ph::lng_wallet_receive_title(),
-                rpl::duplicate(selectedToken)
-        ) | replaceTickerTag()
-    );
+		rpl::combine(
+			ph::lng_wallet_receive_title(),
+			rpl::duplicate(selectedToken)
+		) | replaceTickerTag()
+	);
 
 	box->setStyle(st::walletBox);
 
 	box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
 
 	const auto container = box->addRow(object_ptr<Ui::AbstractButton>(box));
-    auto currentToken = container->lifetime().make_state<Ton::TokenKind>();
+	auto currentToken = container->lifetime().make_state<Ton::TokenKind>();
 
-    container->setClickedCallback([=] {
-        share(Ui::TokenQrForShare(*currentToken, TransferLink(packedAddress, *currentToken)), QString());
-    });
+	container->setClickedCallback([=] {
+		share(Ui::TokenQrForShare(*currentToken, TransferLink(packedAddress, *currentToken)), QString());
+	});
 
-    auto qr = container->lifetime().make_state<QImage>();
+	auto qr = container->lifetime().make_state<QImage>();
 
-    rpl::duplicate(token) | rpl::start_with_next([=]( std::optional<Ton::TokenKind> token){
-        *currentToken = token.value_or(Ton::TokenKind::DefaultToken);
+	rpl::duplicate(token) | rpl::start_with_next([=]( std::optional<Ton::TokenKind> token){
+		*currentToken = token.value_or(Ton::TokenKind::DefaultToken);
 
-        const auto link = TransferLink(packedAddress, *currentToken);
-        *qr = Ui::TokenQr(*currentToken, link, st::walletReceiveQrPixel);
-        const auto size = qr->width() / style::DevicePixelRatio();
-        container->resize(size, size);
-    }, container->lifetime());
+		const auto link = TransferLink(packedAddress, *currentToken);
+		*qr = Ui::TokenQr(*currentToken, link, st::walletReceiveQrPixel);
+		const auto size = qr->width() / style::DevicePixelRatio();
+		container->resize(size, size);
+	}, container->lifetime());
 
-    container->paintRequest() | rpl::start_with_next([=] {
-        const auto size = qr->width() / style::DevicePixelRatio();
-        QPainter(container).drawImage(
-            QRect((container->width() - size) / 2, 0, size, size),
-            *qr);
-    }, container->lifetime());
-
-
+	container->paintRequest() | rpl::start_with_next([=] {
+		const auto size = qr->width() / style::DevicePixelRatio();
+		QPainter(container).drawImage(
+			QRect((container->width() - size) / 2, 0, size, size),
+		*qr);
+	}, container->lifetime());
 
 	// Address label
 	const auto addressWrap = box->addRow(
@@ -152,8 +151,20 @@ void ReceiveGramsBox(
 
 	// Submit button
 	box->addButton(
-		ph::lng_wallet_receive_share(),
-		[=] { share(QImage(), TransferLink(packedAddress, *currentToken)); },
+		rpl::duplicate(token) | rpl::map([](Ton::TokenKind token) {
+			if (!token) {
+				return ph::lng_wallet_receive_share(ph::now);
+			} else {
+				return ph::lng_wallet_receive_swap(ph::now).replace("{ticker}", Ton::toString(token));
+			}
+		}),
+		[=] {
+			if (!*currentToken) {
+				share(QImage(), TransferLink(packedAddress, *currentToken));
+			} else {
+				swap(*currentToken);
+			}
+		},
 		st::walletBottomButton
 	)->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 }

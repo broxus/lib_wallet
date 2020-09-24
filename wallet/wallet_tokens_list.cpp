@@ -9,6 +9,7 @@
 #include "styles/style_wallet.h"
 #include "styles/palette.h"
 #include "ui/layers/generic_box.h"
+#include "wallet_phrases.h"
 
 #include <QtWidgets/qlayout.h>
 #include <iostream>
@@ -197,7 +198,9 @@ void TokensList::setupContent(rpl::producer<TokensListState> &&state) {
 		}, lifetime());
 
 	// title
-	const auto titleLabel = Ui::CreateChild<Ui::FlatLabel>(&_widget, "Accounts", st::walletTokensListTitle);
+	const auto titleLabel = Ui::CreateChild<Ui::FlatLabel>(
+		&_widget, ph::lng_wallet_tokens_list_accounts(),
+		st::walletTokensListTitle);
 	titleLabel->show();
 
 	// content
@@ -210,7 +213,7 @@ void TokensList::setupContent(rpl::producer<TokensListState> &&state) {
 	// open gate button
 	const auto gateButton = Ui::CreateChild<Ui::RoundButton>(
 		&_widget,
-		rpl::single(QString("Swap")),
+		ph::lng_wallet_tokens_list_swap(),
 		st::walletCoverButton);
 	gateButton->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 

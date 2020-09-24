@@ -89,6 +89,9 @@ extern phrase lng_wallet_cover_send;
 extern phrase lng_wallet_update;
 extern phrase lng_wallet_update_short;
 
+extern phrase lng_wallet_tokens_list_accounts;
+extern phrase lng_wallet_tokens_list_swap;
+
 extern phrase lng_wallet_empty_history_title;
 extern phrase lng_wallet_empty_history_welcome;
 extern phrase lng_wallet_empty_history_address;
@@ -120,6 +123,7 @@ extern phrase lng_wallet_receive_description_test;
 extern phrase lng_wallet_receive_show_as_packed;
 extern phrase lng_wallet_receive_create_invoice;
 extern phrase lng_wallet_receive_share;
+extern phrase lng_wallet_receive_swap;
 extern phrase lng_wallet_receive_copied;
 extern phrase lng_wallet_receive_address_copied;
 extern phrase lng_wallet_receive_copied_qr;
@@ -227,7 +231,7 @@ extern Fn<phrase(QString, Ton::TokenKind)> lng_wallet_grams_count_sent;
 
 namespace Wallet {
 
-inline constexpr auto kPhrasesCount = 169;
+inline constexpr auto kPhrasesCount = 172;
 
 void SetPhrases(
 	ph::details::phrase_value_array<kPhrasesCount> data,

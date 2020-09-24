@@ -1014,7 +1014,8 @@ void Window::receiveGrams() {
 		_rawAddress,
         _selectedToken.value(),
 		[=] { createInvoice(_selectedToken.value()); },
-		shareAddressCallback()));
+		shareAddressCallback(),
+		[=](Ton::TokenKind token) { _wallet->openGate(_rawAddress, token); }));
 }
 
 void Window::createInvoice(rpl::producer<std::optional<Ton::TokenKind>> selectedToken) {

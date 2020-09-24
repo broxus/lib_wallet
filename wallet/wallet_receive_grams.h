@@ -9,7 +9,7 @@
 #include "ui/layers/generic_box.h"
 
 namespace Ton {
-    enum class TokenKind;
+enum class TokenKind;
 } // namespace Ton
 
 namespace Wallet {
@@ -18,8 +18,9 @@ void ReceiveGramsBox(
 	not_null<Ui::GenericBox*> box,
 	const QString &packedAddress,
 	const QString &rawAddress,
-    rpl::producer<std::optional<Ton::TokenKind>> selectedToken,
-	Fn<void()> createInvoice,
-	Fn<void(QImage, QString)> share);
+	rpl::producer<std::optional<Ton::TokenKind>> selectedToken,
+	const Fn<void()> &createInvoice,
+	const Fn<void(QImage, QString)> &share,
+	const Fn<void(Ton::TokenKind)> &swap);
 
 } // namespace Wallet
