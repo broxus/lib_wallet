@@ -431,6 +431,8 @@ walletTransactionValue: WalletAmountLabel(walletCoverBalance) {
 	}
 	diamond: 33px;
 	diamondPosition: point(6px, 2px);
+	tokenIcon: 32px;
+    tokenIconPosition: point(4px, 3px);
 }
 walletTransactionValueSmall: WalletAmountLabel(walletCoverBalance) {
 	large: FlatLabel(walletCoverBalanceLarge) {
@@ -447,6 +449,8 @@ walletTransactionValueSmall: WalletAmountLabel(walletCoverBalance) {
 	}
 	diamond: 29px;
 	diamondPosition: point(5px, 1px);
+	tokenIcon: 29px;
+    tokenIconPosition: point(5px, 1px);
 }
 walletTransactionValueTop: 5px;
 walletTransactionFee: FlatLabel(defaultFlatLabel) {

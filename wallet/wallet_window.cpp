@@ -460,7 +460,7 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
 		switch (action) {
 		case Action::Refresh: refreshNow(); return;
 		case Action::Export: askExportPassword(); return;
-		case Action::Send: sendMoney(); return;
+		case Action::Send: sendMoney(QString{}); return;
 		case Action::Receive: receiveGrams(); return;
 		case Action::ChangePassword: changePassword(); return;
 		case Action::ShowSettings: showSettings(); return;
@@ -477,17 +477,32 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
 
 	_info->viewRequests(
 	) | rpl::start_with_next([=](Ton::Transaction &&data) {
+		const auto selectedToken = _selectedToken
+			.current()
+			.value_or(Ton::TokenKind::DefaultToken);
+
 		const auto send = [=](const QString &address) {
-			sendMoney(address);
+			sendMoney(PreparedInvoice{
+				.token = selectedToken,
+				.address = address,
+			});
 		};
+
+		const auto reveal = [=](const QString &address) {
+			_wallet->openReveal(_rawAddress, address);
+		};
+
 		_layers->showBox(Box(
 			ViewTransactionBox,
 			std::move(data),
+			Ton::Wallet::ConvertIntoRaw(_tokenContractAddress.current()),
+			selectedToken,
 			_collectEncryptedRequests.events(),
 			_decrypted.events(),
 			shareAddressCallback(),
 			[=] { decryptEverything(publicKey); },
-			send));
+			send,
+			reveal));
 	}, _info->lifetime());
 
 	_info->decryptRequests(
@@ -711,7 +726,7 @@ void Window::showConfigUpgrade(Ton::ConfigUpgrade upgrade) {
 	}
 }
 
-void Window::sendMoney(const QString &invoice) {
+void Window::sendMoney(const PreparedInvoiceOrLink& invoice) {
 	if (_sendConfirmBox) {
 		_sendConfirmBox->closeBox();
 	}

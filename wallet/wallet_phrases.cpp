@@ -108,8 +108,9 @@ phrase lng_wallet_view_sender = "Sender";
 phrase lng_wallet_view_recipient = "Recipient";
 phrase lng_wallet_view_date = "Date";
 phrase lng_wallet_view_comment = "Comment";
-phrase lng_wallet_view_send_to_address = "Send TON to this address";
-phrase lng_wallet_view_send_to_recipient = "Send TON to this Recipient";
+phrase lng_wallet_view_send_to_address = "Send {ticker} to this address";
+phrase lng_wallet_view_send_to_recipient = "Send {ticker} to this Recipient";
+phrase lng_wallet_view_reveal = "Reveal";
 
 phrase lng_wallet_receive_title = "Receive {ticker}";
 phrase lng_wallet_receive_description = "Share this address with other TON Crystal wallet owners to receive TON from them.";

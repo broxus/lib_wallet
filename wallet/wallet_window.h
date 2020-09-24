@@ -42,6 +42,7 @@ struct PreparedInvoice;
 enum class InvoiceField;
 class UpdateInfo;
 enum class InfoTransition;
+using PreparedInvoiceOrLink = std::variant<PreparedInvoice, QString>;
 
 class Window final : public base::has_weak_ptr {
 public:
@@ -96,7 +97,7 @@ private:
 	void showAccount(const QByteArray &publicKey, bool justCreated = false);
 	void setupUpdateWithInfo();
 	void setupRefreshEach();
-	void sendMoney(const QString &invoice = QString());
+	void sendMoney(const PreparedInvoiceOrLink &invoice);
 	void confirmTransaction(
 		PreparedInvoice invoice,
 		const Fn<void(InvoiceField)> &showInvoiceError,

@@ -112,6 +112,7 @@ extern phrase lng_wallet_view_date;
 extern phrase lng_wallet_view_comment;
 extern phrase lng_wallet_view_send_to_address;
 extern phrase lng_wallet_view_send_to_recipient;
+extern phrase lng_wallet_view_reveal;
 
 extern phrase lng_wallet_receive_title;
 extern phrase lng_wallet_receive_description;
@@ -226,7 +227,7 @@ extern Fn<phrase(QString, Ton::TokenKind)> lng_wallet_grams_count_sent;
 
 namespace Wallet {
 
-inline constexpr auto kPhrasesCount = 168;
+inline constexpr auto kPhrasesCount = 169;
 
 void SetPhrases(
 	ph::details::phrase_value_array<kPhrasesCount> data,

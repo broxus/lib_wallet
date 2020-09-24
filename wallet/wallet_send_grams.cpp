@@ -49,12 +49,16 @@ struct FixedAddress {
 
 void SendGramsBox(
 		not_null<Ui::GenericBox*> box,
-		const QString &invoice,
+		const std::variant<PreparedInvoice, QString> &invoice,
         rpl::producer<Ton::WalletState> state,
         rpl::producer<std::optional<Ton::TokenKind>> selectedToken,
 		const Fn<void(PreparedInvoice, Fn<void(InvoiceField)> error)> &done) {
 
-    const auto prepared = box->lifetime().make_state<PreparedInvoice>(ParseInvoice(invoice));
+    const auto prepared = box->lifetime().make_state<PreparedInvoice>(v::match(invoice, [](const PreparedInvoice &invoice) {
+    	return invoice;
+    }, [](const QString &link) {
+		return ParseInvoice(link);
+    }));
     const auto currentToken = box->lifetime().make_state<Ton::TokenKind>(prepared->token);
 
     const auto token = rpl::duplicate(selectedToken) | rpl::map([=](std::optional<Ton::TokenKind> token) {

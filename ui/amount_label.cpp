@@ -57,40 +57,35 @@ AmountLabel::AmountLabel(
 	: std::make_unique<LottieAnimation>(
 		parent,
 		LottieFromResource("diamond")))
-,_tokenIcon(!st.diamond
-            ? nullptr
-            : std::make_unique<Ui::FixedHeightWidget>(
-            parent)) {
+, _tokenIcon(!st.diamond
+		? nullptr
+		: std::make_unique<Ui::FixedHeightWidget>(parent)) {
 
-    const auto currentToken = _tokenIcon->lifetime().make_state<Ton::TokenKind>(Ton::TokenKind::DefaultToken);
+	const auto currentToken = _tokenIcon->lifetime().make_state<Ton::TokenKind>(Ton::TokenKind::DefaultToken);
 
-    _diamond->start();
+	_diamond->start();
 
-    if (_diamond) {
-        rpl::duplicate(
+	if (_diamond) {
+		rpl::duplicate(
 			_token
 		) | rpl::start_with_next([=](Ton::TokenKind token) {
+			*currentToken = token;
 
-            *currentToken = token;
+			const auto isTon = !token;
+			_diamond->setVisible(isTon);
+			_tokenIcon->setVisible(!isTon);
 
-		    if (!!token) {
-		        _diamond->setVisible(false);
-                _tokenIcon->setVisible(true);
-            } else {
-
-            _diamond->start();
-
-            _diamond->setVisible(true);
-            _tokenIcon->setVisible(false);
-            }
-        }, _large.lifetime());
-    }
-    _large.show();
-    _small.show();
+			if (isTon) {
+				_diamond->start();
+			}
+		}, _large.lifetime());
+	}
+	_large.show();
+	_small.show();
 
 	_tokenIcon->paintRequest() | rpl::start_with_next([=](QRect clip){
-        QPainter p(_tokenIcon.get());
-        p.drawImage(0,0, Ui::InlineTokenIcon(*currentToken, _st.tokenIcon));
+		QPainter p(_tokenIcon.get());
+		p.drawImage(0,0, Ui::InlineTokenIcon(*currentToken, _st.tokenIcon));
 	}, _tokenIcon->lifetime());
 }
 
@@ -123,11 +118,11 @@ void AmountLabel::move(int x, int y) {
 		_diamond->setGeometry(
 			{ QPoint(x, y) + _st.diamondPosition, size });
 	}
-    if (_tokenIcon) {
-        const auto size = QSize(_st.tokenIcon, _st.tokenIcon);
-        _tokenIcon->setGeometry(
-            { QPoint(x, y) + _st.tokenIconPosition, size });
-    }
+	if (_tokenIcon) {
+		const auto size = QSize(_st.tokenIcon, _st.tokenIcon);
+		_tokenIcon->setGeometry(
+			{ QPoint(x, y) + _st.tokenIconPosition, size });
+	}
 }
 
 rpl::lifetime &AmountLabel::lifetime() {

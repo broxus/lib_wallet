@@ -19,49 +19,106 @@
 #include "styles/style_layers.h"
 #include "styles/style_wallet.h"
 #include "styles/palette.h"
+#include "ton/ton_wallet.h"
 
 #include <QtCore/QDateTime>
 #include <QtGui/QtEvents>
+#include <iostream>
 
 namespace Wallet {
 namespace {
 
+struct TokenTransaction {
+	Ton::TokenKind token;
+	QString recipient;
+	int64 amount;
+	bool isSwapBack;
+};
+
+std::optional<TokenTransaction> TryGetTokenTransaction(
+		const Ton::Transaction &data,
+		const QString &tokenContractAddress,
+		Ton::TokenKind selectedToken) {
+	for (const auto& out : data.outgoing) {
+		if (Ton::Wallet::ConvertIntoRaw(out.destination) == tokenContractAddress) {
+			auto transaction = Ton::Wallet::ParseTokenTransaction(out.message);
+			if (transaction.has_value() && !Ton::CheckTokenTransaction(selectedToken, transaction.value())) {
+				transaction.reset();
+			}
+			if (!transaction.has_value()) {
+				continue;
+			}
+
+			return v::match(transaction.value(), [=](const Ton::TokenTransfer& transfer) {
+				return TokenTransaction {
+					.token = selectedToken,
+					.recipient = transfer.dest,
+					.amount = transfer.value,
+					.isSwapBack = false,
+				};
+			}, [=](const Ton::TokenSwapBack& swapBack) {
+				return TokenTransaction {
+					.token = selectedToken,
+					.recipient = swapBack.dest,
+					.amount = swapBack.value,
+					.isSwapBack = true,
+				};
+			});
+		}
+	}
+	return {};
+}
+
 object_ptr<Ui::RpWidget> CreateSummary(
 		not_null<Ui::RpWidget*> parent,
-		const Ton::Transaction &data) {
+		const Ton::Transaction &data,
+		const std::optional<TokenTransaction> &tokenTransaction) {
+	const auto isTokenTransaction = tokenTransaction.has_value();
+	const auto token = isTokenTransaction
+		? tokenTransaction.value().token
+		: Ton::TokenKind::DefaultToken;
+
+	const auto showTransactionFee = isTokenTransaction || data.otherFee > 0;
+	const auto showStorageFee = !isTokenTransaction && data.storageFee;
+
 	const auto feeSkip = st::walletTransactionFeeSkip;
 	const auto secondFeeSkip = st::walletTransactionSecondFeeSkip;
 	const auto service = IsServiceTransaction(data);
 	const auto height = st::walletTransactionSummaryHeight
 		- (service ? st::walletTransactionValue.diamond : 0)
-		+ (data.otherFee ? (st::normalFont->height + feeSkip) : 0)
-		+ (data.storageFee
+		+ (showTransactionFee ? (st::normalFont->height + feeSkip) : 0)
+		+ (showStorageFee
 			? (st::normalFont->height
-				+ (data.otherFee ? secondFeeSkip : feeSkip))
+				+ (showTransactionFee ? secondFeeSkip : feeSkip))
 			: 0);
 	auto result = object_ptr<Ui::FixedHeightWidget>(
 		parent,
 		height);
 
-	const auto value = CalculateValue(data);
-	const auto useSmallStyle = (std::abs(value) >= 1'000'000);
+	const auto value = isTokenTransaction
+		? -tokenTransaction.value().amount
+		: CalculateValue(data);
 	const auto balance = !service
 		? result->lifetime().make_state<Ui::AmountLabel>(
 			result.data(),
-			rpl::single(FormatAmount(value, Ton::TokenKind::DefaultToken, FormatFlag::Signed)),
-			(useSmallStyle
-				? st::walletTransactionValueSmall
-				: st::walletTransactionValue))
+			rpl::single(FormatAmount(value, token, FormatFlag::Signed)),
+			st::walletTransactionValue)
 		: nullptr;
-	const auto otherFee = data.otherFee
+
+	const auto otherFee = showTransactionFee
 		? Ui::CreateChild<Ui::FlatLabel>(
 			result.data(),
 			ph::lng_wallet_view_transaction_fee(ph::now).replace(
 				"{amount}",
-				FormatAmount(data.otherFee, Ton::TokenKind::DefaultToken).full),
+				FormatAmount(
+					isTokenTransaction
+						? -CalculateValue(data)
+						: data.otherFee,
+					Ton::TokenKind::DefaultToken).full),
 			st::walletTransactionFee)
 		: nullptr;
-	const auto storageFee = data.storageFee
+
+	const auto storageFee = showStorageFee
 		? Ui::CreateChild<Ui::FlatLabel>(
 			result.data(),
 			ph::lng_wallet_view_storage_fee(ph::now).replace(
@@ -69,6 +126,7 @@ object_ptr<Ui::RpWidget> CreateSummary(
 				FormatAmount(data.storageFee, Ton::TokenKind::DefaultToken).full),
 			st::walletTransactionFee)
 		: nullptr;
+
 	rpl::combine(
 		result->widthValue(),
 		balance ? balance->widthValue() : rpl::single(0),
@@ -146,17 +204,27 @@ void SetupScrollByDrag(
 void ViewTransactionBox(
 		not_null<Ui::GenericBox*> box,
 		Ton::Transaction &&data,
+		const QString& tokenContractAddress,
+		Ton::TokenKind selectedToken,
 		rpl::producer<
 			not_null<std::vector<Ton::Transaction>*>> collectEncrypted,
 		rpl::producer<
 			not_null<const std::vector<Ton::Transaction>*>> decrypted,
-		Fn<void(QImage, QString)> share,
-		Fn<void()> decryptComment,
-		Fn<void(QString)> send) {
+		const Fn<void(QImage, QString)> &share,
+		const Fn<void()> &decryptComment,
+		const Fn<void(QString)> &send,
+		const Fn<void(QString)> &reveal) {
 	struct DecryptedText {
 		QString text;
 		bool success = false;
 	};
+
+	const auto tokenTransaction = TryGetTokenTransaction(
+		data,
+		tokenContractAddress,
+		selectedToken);
+	const auto isTokenTransaction = tokenTransaction.has_value();
+	const auto isSwapBack = isTokenTransaction && tokenTransaction.value().isSwapBack;
 
 	const auto service = IsServiceTransaction(data);
 
@@ -168,7 +236,9 @@ void ViewTransactionBox(
 	box->setStyle(service ? st::walletNoButtonsBox : st::walletBox);
 
 	const auto id = data.id;
-	const auto address = ExtractAddress(data);
+	const auto address = isTokenTransaction
+		? tokenTransaction.value().recipient
+		: ExtractAddress(data);
 	const auto incoming = data.outgoing.empty();
 	const auto encryptedComment = IsEncryptedMessage(data);
 	const auto decryptedComment = encryptedComment
@@ -208,7 +278,7 @@ void ViewTransactionBox(
 
 	box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
 
-	box->addRow(CreateSummary(box, data));
+	box->addRow(CreateSummary(box, data, tokenTransaction));
 
 	if (!service) {
 		AddBoxSubtitle(box, incoming
@@ -287,12 +357,22 @@ void ViewTransactionBox(
 		st::walletTransactionBottomSkip));
 
 	if (!service) {
-		auto text = incoming
-			? ph::lng_wallet_view_send_to_address()
-			: ph::lng_wallet_view_send_to_recipient();
+		auto text = isSwapBack
+			? ph::lng_wallet_view_reveal()
+			: incoming
+				? ph::lng_wallet_view_send_to_address()
+				: ph::lng_wallet_view_send_to_recipient();
 		box->addButton(
-			std::move(text),
-			[=] { send(address); },
+			std::move(text) | rpl::map([selectedToken](QString &&text) {
+				return text.replace("{ticker}", Ton::toString(selectedToken));
+			}),
+			[=] {
+				if (isSwapBack) {
+					reveal(address);
+				} else {
+					send(address);
+				}
+			},
 			st::walletBottomButton
 		)->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 	}
