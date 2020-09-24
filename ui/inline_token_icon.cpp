@@ -104,6 +104,10 @@ QImage Image(Ton::TokenKind kind) {
 	static const QImage images[] = {
 		CreateImage(Ton::TokenKind::DefaultToken, st::walletTokenIconSize * style::DevicePixelRatio()),
 		CreateImage(Ton::TokenKind::USDT, st::walletTokenIconSize * style::DevicePixelRatio()),
+		CreateImage(Ton::TokenKind::USDC, st::walletTokenIconSize * style::DevicePixelRatio()),
+		CreateImage(Ton::TokenKind::DAI, st::walletTokenIconSize * style::DevicePixelRatio()),
+		CreateImage(Ton::TokenKind::WBTC, st::walletTokenIconSize * style::DevicePixelRatio()),
+		CreateImage(Ton::TokenKind::WETH, st::walletTokenIconSize * style::DevicePixelRatio()),
 	};
 	return images[static_cast<int>(kind)];
 }
