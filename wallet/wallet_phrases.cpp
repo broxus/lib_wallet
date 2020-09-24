@@ -123,7 +123,7 @@ phrase lng_wallet_receive_copied_qr = "QR Code copied to clipboard.";
 
 phrase lng_wallet_invoice_title = "Create Invoice";
 phrase lng_wallet_invoice_amount = "Amount";
-phrase lng_wallet_invoice_number = "Amount in TON you expect to receive";
+phrase lng_wallet_invoice_number = "Amount in {ticker} you expect to receive";
 phrase lng_wallet_invoice_comment = "Comment (optional)";
 phrase lng_wallet_invoice_comment_about = "You can specify the amount and purpose of the payment to save the sender some time.";
 phrase lng_wallet_invoice_url = "Invoice URL";

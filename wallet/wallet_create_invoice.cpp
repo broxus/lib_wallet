@@ -45,6 +45,12 @@ void CreateInvoiceBox(
         return token.value_or(Ton::TokenKind::DefaultToken);
     });
 
+    const auto replaceTickerTag = [] {
+        return rpl::map([=](QString &&text, const std::optional<Ton::TokenKind> &selectedToken) {
+            return text.replace("{ticker}", Ton::toString(selectedToken.value_or(Ton::TokenKind::DefaultToken)));
+        });
+    };
+
     const auto currentToken = box->lifetime().make_state<Ton::TokenKind>(Ton::TokenKind::DefaultToken);
 	const auto tokenDecimals = Ton::countDecimals(*currentToken);
 
@@ -56,8 +62,12 @@ void CreateInvoiceBox(
 	AddBoxSubtitle(box, ph::lng_wallet_invoice_amount());
 	const auto amount = box->addRow(
 		object_ptr<Ui::InputField>::fromRaw(
-			CreateAmountInput(box, ph::lng_wallet_invoice_number(), 0, rpl::single(*currentToken))),
-		st::walletSendAmountPadding);
+			CreateAmountInput(box,
+     rpl::combine(
+                    ph::lng_wallet_invoice_number(),
+                    rpl::duplicate(token)
+                ) | replaceTickerTag(), 0, rpl::single(*currentToken))),
+		    st::walletSendAmountPadding);
 
 	const auto comment = box->addRow(
 		object_ptr<Ui::InputField>::fromRaw(
