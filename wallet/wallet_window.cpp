@@ -974,7 +974,7 @@ void Window::showSendingDone(std::optional<Ton::Transaction> result, const Prepa
 		_layers->showBox(Box(SendingDoneBox, *result, invoice, [this, invoice]() {
 			refreshNow();
 			if (invoice.swapBack) {
-				_wallet->openReveal(invoice.address);
+				_wallet->openReveal(_rawAddress, invoice.address);
 			}
 		}));
 	} else {
