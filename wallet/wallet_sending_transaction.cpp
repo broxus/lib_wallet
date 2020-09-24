@@ -95,14 +95,30 @@ void SendingDoneBox(
 	lottie->start();
 	lottie->stopOnLoop(1);
 
-	const auto amount = FormatAmount(-CalculateValue(result), Ton::TokenKind::DefaultToken).full;
 	const auto title = Ui::CreateChild<Ui::FlatLabel>(
 		inner,
 		ph::lng_wallet_sent_title(),
 		st::walletSendingTitle);
+
+	const auto isTon = !invoice.token;
+
+	Ui::FlatLabel* amountLabel = nullptr;
+	if (!isTon) {
+		const auto amount = FormatAmount(invoice.amount, invoice.token).full;
+		amountLabel = Ui::CreateChild<Ui::FlatLabel>(
+			inner,
+			ph::lng_wallet_grams_count_sent(amount, invoice.token)(),
+			st::walletSendingText);
+	}
+
+	const auto realAmount = FormatAmount(-CalculateValue(result), Ton::TokenKind::DefaultToken).full;
 	const auto text = Ui::CreateChild<Ui::FlatLabel>(
 		inner,
-		ph::lng_wallet_grams_count_sent(amount, Ton::TokenKind::DefaultToken)(),
+		isTon
+			? ph::lng_wallet_grams_count_sent(realAmount, Ton::TokenKind::DefaultToken)()
+			: ph::lng_wallet_row_fees() | rpl::map([realAmount](QString &&text) {
+				return text.replace("{amount}", realAmount);
+			}),
 		st::walletSendingText);
 
 	inner->widthValue(
@@ -117,9 +133,20 @@ void SendingDoneBox(
 			(width - title->width()) / 2,
 			st::walletSendingTitleTop,
 			width);
+
+		if (amountLabel != nullptr) {
+			amountLabel->moveToLeft(
+				(width - amountLabel->width()) / 2,
+				st::walletSendingTextTop,
+				width);
+		}
+
 		text->moveToLeft(
 			(width - text->width()) / 2,
-			st::walletSendingTextTop,
+			st::walletSendingTextTop
+			+ ((amountLabel == nullptr)
+				? 0
+				: text->height()),
 			width);
 	}, inner->lifetime());
 
