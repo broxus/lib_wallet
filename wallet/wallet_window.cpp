@@ -797,7 +797,10 @@ void Window::confirmTransaction(
 		if (!invoice.token) {
 			invoice.realAmount = invoice.amount;
 		} else {
-			invoice.realAmount = result.value().sourceFees.sum();
+			invoice.realAmount = result.value().sourceFees.sum() + 100'000'000;
+			for (auto fee : result.value().destinationFees) {
+				invoice.realAmount += fee.sum();
+			}
 		}
 
 		showSendConfirmation(
@@ -933,7 +936,7 @@ void Window::showSendConfirmation(
 	auto box = Box(
 		ConfirmTransactionBox,
 		invoice,
-		checkResult.sourceFees.sum(),
+		!invoice.token ? checkResult.sourceFees.sum() : invoice.realAmount,
 		confirmed);
 	_sendConfirmBox = box.data();
 	_layers->showBox(std::move(box));

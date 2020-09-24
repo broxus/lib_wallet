@@ -23,7 +23,7 @@ bool operator==(const TokenItem &a, const TokenItem &b);
 bool operator!=(const TokenItem &a, const TokenItem &b);
 
 struct TokensListState {
-	std::unordered_map<Ton::TokenKind, TokenItem> tokens;
+	std::map<Ton::TokenKind, TokenItem> tokens;
 };
 
 class TokensListRow;
@@ -43,8 +43,8 @@ public:
 
 private:
 	void setupContent(rpl::producer<TokensListState> &&state);
-	void refreshItemValues(Ton::TokenMap<TokenItem> &data);
-	bool mergeListChanged(Ton::TokenMap<TokenItem> &&data);
+	void refreshItemValues(std::map<Ton::TokenKind, TokenItem> &data);
+	bool mergeListChanged(std::map<Ton::TokenKind, TokenItem> &&data);
 
 	[[nodiscard]] std::unique_ptr<TokensListRow> makeRow(const TokenItem &data);
 
