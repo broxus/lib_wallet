@@ -197,7 +197,7 @@ void TokensList::setupContent(rpl::producer<TokensListState> &&state) {
 		}, lifetime());
 
 	// title
-	const auto titleLabel = Ui::CreateChild<Ui::FlatLabel>(&_widget, "Wallets", st::walletTokensListTitle);
+	const auto titleLabel = Ui::CreateChild<Ui::FlatLabel>(&_widget, "Accounts", st::walletTokensListTitle);
 	titleLabel->show();
 
 	// content
@@ -308,7 +308,7 @@ void TokensList::setupContent(rpl::producer<TokensListState> &&state) {
 		}, lifetime());
 }
 
-void TokensList::refreshItemValues(Ton::TokenMap<TokenItem> &data) {
+void TokensList::refreshItemValues(std::map<Ton::TokenKind, TokenItem> &data) {
 	for (size_t i = 0; i < _rows.size(); ++i) {
 		const auto it = data.find(_listData[i].token);
 		if (it == data.end()) {
@@ -321,7 +321,7 @@ void TokensList::refreshItemValues(Ton::TokenMap<TokenItem> &data) {
 	}
 }
 
-bool TokensList::mergeListChanged(Ton::TokenMap<TokenItem> &&data) {
+bool TokensList::mergeListChanged(std::map<Ton::TokenKind, TokenItem> &&data) {
 	for (auto & item : _listData) {
 		auto it = data.find(item.token);
 		if (it != data.end()) {
