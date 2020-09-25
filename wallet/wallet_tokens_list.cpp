@@ -136,9 +136,17 @@ void TokensListRow::paint(Painter &p, int /*x*/, int /*y*/) const {
 	const auto addressTop = availableHeight
 		- padding.bottom()
 		- AddressStyle().font->ascent * 2;
-	const auto addressLeft = availableWidth
-		- _layout.addressWidth;
-	_layout.address.draw(p, addressLeft, addressTop, _layout.addressWidth, style::al_bottomright);
+	_layout.address.drawRightElided(p,
+		padding.right(),
+		addressTop,
+		_layout.addressWidth,
+		_width - padding.right(),
+		/*lines*/ 2,
+		style::al_bottomright,
+		/*yFrom*/ 0,
+		/*yTo*/ -1,
+		/*removeFromEnd*/ 0,
+		/*breakEverywhere*/ true);
 }
 
 bool TokensListRow::refresh(const TokenItem &item) {
