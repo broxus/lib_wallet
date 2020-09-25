@@ -369,7 +369,7 @@ rpl::producer<TokensListState> MakeTokensListState(
 					.balance = state.fullBalance,
 				}});
 			}
-			return std::move(result);
+			return result;
 		});
 }
 

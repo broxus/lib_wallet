@@ -149,12 +149,17 @@ void CreateInvoiceBox(
 		url->setLink(1, std::make_shared<InvoiceHandler>(text.text));
 	}, url->lifetime());
 
+	auto token_name = rpl::combine(
+            ph::lng_wallet_invoice_url_about(),
+            rpl::duplicate(token)
+    ) | replaceTickerTag();
+
 	box->addRow(
 		object_ptr<Ui::FlatLabel>(
 			box,
 			(testnet
 				? ph::lng_wallet_invoice_url_about_test()
-				: ph::lng_wallet_invoice_url_about()),
+				: token_name),
 			st::walletSendAbout),
 		st::walletSendAboutPadding);
 
