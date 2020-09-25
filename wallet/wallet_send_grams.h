@@ -25,9 +25,8 @@ enum class InvoiceField {
 
 void SendGramsBox(
 	not_null<Ui::GenericBox*> box,
-	const std::variant<PreparedInvoice, QString> &invoice,
+	const PreparedInvoice &invoice,
     rpl::producer<Ton::WalletState> state,
-	rpl::producer<std::optional<Ton::TokenKind>> selectedToken,
 	const Fn<void(PreparedInvoice, Fn<void(InvoiceField)> error)> &done);
 
 } // namespace Wallet

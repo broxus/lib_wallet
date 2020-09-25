@@ -460,7 +460,11 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
 		switch (action) {
 		case Action::Refresh: refreshNow(); return;
 		case Action::Export: askExportPassword(); return;
-		case Action::Send: sendMoney(QString{}); return;
+		case Action::Send:
+			sendMoney(PreparedInvoice{
+				.token = _selectedToken.current().value_or(Ton::TokenKind::DefaultToken)
+			});
+			return;
 		case Action::Receive: receiveGrams(); return;
 		case Action::ChangePassword: changePassword(); return;
 		case Action::ShowSettings: showSettings(); return;
@@ -775,11 +779,16 @@ void Window::sendMoney(const PreparedInvoiceOrLink& invoice) {
 		}
 	};
 
+	PreparedInvoice parsedInvoice = v::match(invoice, [](const PreparedInvoice &invoice) {
+		return invoice;
+	}, [](const QString &link) {
+		return ParseInvoice(link);
+	});
+
 	auto box = Box(
 		SendGramsBox,
-		invoice,
+		parsedInvoice,
 		_state.value(),
-		_selectedToken.value(),
 		send);
 	_sendBox = box.data();
 	_layers->showBox(std::move(box));

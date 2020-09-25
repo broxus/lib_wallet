@@ -49,34 +49,17 @@ struct FixedAddress {
 
 void SendGramsBox(
 		not_null<Ui::GenericBox*> box,
-		const std::variant<PreparedInvoice, QString> &invoice,
+		const PreparedInvoice &invoice,
 		rpl::producer<Ton::WalletState> state,
-		rpl::producer<std::optional<Ton::TokenKind>> selectedToken,
 		const Fn<void(PreparedInvoice, Fn<void(InvoiceField)> error)> &done) {
 
-	const auto prepared = box->lifetime().make_state<PreparedInvoice>(v::match(invoice, [](const PreparedInvoice &invoice) {
-		return invoice;
-	}, [](const QString &link) {
-		return ParseInvoice(link);
-	}));
-	const auto currentToken = box->lifetime().make_state<Ton::TokenKind>(prepared->token);
-
-	const auto token = rpl::duplicate(selectedToken) | rpl::map([=](std::optional<Ton::TokenKind> token) {
-		if (prepared->address.isEmpty()) {
-			return token.value_or(Ton::TokenKind::DefaultToken);
-		} else {
-			return prepared->token;
-		}
-	});
-	rpl::duplicate(token) | rpl::start_with_next([=](Ton::TokenKind value) {
-		*currentToken = value;
-	}, box->lifetime());
+	const auto prepared = box->lifetime().make_state<PreparedInvoice>(invoice);
 
 	auto unlockedBalance = rpl::duplicate(state) | rpl::map([=](const Ton::WalletState &state) {
-		if (!*currentToken) {
+		if (!prepared->token) {
 			return state.account.fullBalance - state.account.lockedBalance;
 		} else {
-			const auto it = state.tokenStates.find(*currentToken);
+			const auto it = state.tokenStates.find(prepared->token);
 			if (it != state.tokenStates.end()) {
 				return it->second.fullBalance;
 			} else {
@@ -89,7 +72,7 @@ void SendGramsBox(
 
 	const auto replaceTickerTag = [=] {
 		return rpl::map([=](QString &&text) {
-			return text.replace("{ticker}", Ton::toString(*currentToken));
+			return text.replace("{ticker}", Ton::toString(prepared->token));
 		});
 	};
 
@@ -122,7 +105,7 @@ void SendGramsBox(
 			box,
 			rpl::single("0" + AmountSeparator() + "0"),
 			prepared->amount,
-			token)),
+			rpl::single(prepared->token))),
 		st::walletSendAmountPadding);
 
 	auto balanceText = rpl::combine(
@@ -131,11 +114,11 @@ void SendGramsBox(
 	) | rpl::map([=](QString &&phrase, int64 value) {
 		return phrase.replace(
 			"{amount}",
-			FormatAmount(std::max(value, 0LL), *currentToken, FormatFlag::Rounded).full);
+			FormatAmount(std::max(value, 0LL), prepared->token, FormatFlag::Rounded).full);
 	});
 
 	const auto diamondLabel = Ui::CreateInlineTokenIcon(
-		token,
+		rpl::single(prepared->token),
 		subtitle->parentWidget(),
 		0,
 		0,
@@ -178,7 +161,7 @@ void SendGramsBox(
 		&Ui::InputField::changed
 	)) | rpl::map([=]() -> rpl::producer<QString> {
 		const auto text = amount->getLastText();
-		const auto value = ParseAmountString(text, Ton::countDecimals(*currentToken)).value_or(0);
+		const auto value = ParseAmountString(text, Ton::countDecimals(prepared->token)).value_or(0);
 		if (value > 0) {
 			return rpl::combine(
 				isEthereumAddress->value() | rpl::map([](bool isEthereumAddress) {
@@ -189,8 +172,8 @@ void SendGramsBox(
 					}
 				}) | rpl::flatten_latest(),
 				ph::lng_wallet_grams_count(
-					FormatAmount(value, *currentToken).full,
-					*currentToken)()
+					FormatAmount(value, prepared->token).full,
+					prepared->token)()
 			) | replaceGramsTag();
 		} else {
 			return isEthereumAddress->value() | rpl::map([](bool isEthereumAddress) {
@@ -214,7 +197,7 @@ void SendGramsBox(
 
 	const auto submit = [=] {
 		auto collected = PreparedInvoice();
-		const auto parsed = ParseAmountString(amount->getLastText(), Ton::countDecimals(*currentToken));
+		const auto parsed = ParseAmountString(amount->getLastText(), Ton::countDecimals(prepared->token));
 		if (!parsed) {
 			amount->showError();
 			return;
@@ -223,7 +206,7 @@ void SendGramsBox(
 		collected.address = address->getLastText();
 		collected.comment = comment->getLastText();
 		collected.swapBack = collected.address.startsWith("0x");
-		collected.token = *currentToken;
+		collected.token = prepared->token;
 		done(collected, showError);
 	};
 
@@ -233,13 +216,9 @@ void SendGramsBox(
 		st::walletBottomButton
 	)->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 
-	rpl::duplicate(
-		token
-	) | rpl::start_with_next([=](const std::optional<Ton::TokenKind> &selectedToken) {
-		const auto showComment = (selectedToken.has_value() && !*selectedToken);
-		comment->setMinHeight(showComment ? st::walletInput.heightMin : 0);
-		comment->setMaxHeight(showComment ? st::walletInput.heightMax : 0);
-	}, comment->lifetime());
+	const auto isTon = !prepared->token;
+	comment->setMinHeight(isTon ? st::walletInput.heightMin : 0);
+	comment->setMaxHeight(isTon ? st::walletInput.heightMax : 0);
 
 	const auto checkFunds = [=](const QString &amount, Ton::TokenKind token) {
 		if (const auto value = ParseAmountString(amount, Ton::countDecimals(token))) {
@@ -249,17 +228,16 @@ void SendGramsBox(
 				: std::nullopt);
 		}
 	};
-	rpl::combine(
-		std::move(unlockedBalance),
-		rpl::duplicate(token)
-	) | rpl::start_with_next([=](int64 value, Ton::TokenKind token) {
+	std::move(
+		unlockedBalance
+	) | rpl::start_with_next([=](int64 value) {
 		*funds = value;
-		checkFunds(amount->getLastText(), token);
+		checkFunds(amount->getLastText(), prepared->token);
 	}, amount->lifetime());
 
 	Ui::Connect(amount, &Ui::InputField::changed, [=] {
 		Ui::PostponeCall(amount, [=] {
-			checkFunds(amount->getLastText(), *currentToken);
+			checkFunds(amount->getLastText(), prepared->token);
 		});
 	});
 	Ui::Connect(address, &Ui::InputField::changed, [=] {
@@ -275,7 +253,7 @@ void SendGramsBox(
 			if (fixed.invoice.amount > 0) {
 				amount->setText(FormatAmount(
 					fixed.invoice.amount,
-					*currentToken,
+					prepared->token,
 					FormatFlag::Simple).full);
 			}
 			if (!fixed.invoice.comment.isEmpty()) {
@@ -339,7 +317,7 @@ void SendGramsBox(
 	});
 
 	Ui::Connect(amount, &Ui::InputField::submitted, [=] {
-		if (ParseAmountString(amount->getLastText(), Ton::countDecimals(*currentToken)).value_or(0) <= 0) {
+		if (ParseAmountString(amount->getLastText(), Ton::countDecimals(prepared->token)).value_or(0) <= 0) {
 			amount->showError();
 		} else {
 			comment->setFocus();

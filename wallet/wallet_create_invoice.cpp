@@ -60,9 +60,9 @@ void CreateInvoiceBox(
 	box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
 
 	rpl::duplicate(token) | rpl::start_with_next([=](const std::optional<Ton::TokenKind> token){
-	    *currentToken = token.value_or(Ton::TokenKind::DefaultToken);
-        *tokenDecimals = Ton::countDecimals(*currentToken);
-	    }, box->lifetime());
+		*currentToken = token.value_or(Ton::TokenKind::DefaultToken);
+		*tokenDecimals = Ton::countDecimals(*currentToken);
+	}, box->lifetime());
 
 	AddBoxSubtitle(box, ph::lng_wallet_invoice_amount());
 	const auto amount = box->addRow(
@@ -155,9 +155,9 @@ void CreateInvoiceBox(
 	}, url->lifetime());
 
 	auto token_name = rpl::combine(
-            ph::lng_wallet_invoice_url_about(),
-            rpl::duplicate(token)
-    ) | replaceTickerTag();
+		ph::lng_wallet_invoice_url_about(),
+		rpl::duplicate(token)
+	) | replaceTickerTag();
 
 	box->addRow(
 		object_ptr<Ui::FlatLabel>(
