@@ -347,21 +347,22 @@ not_null<Ui::InputField*> CreateAmountInput(
 		rpl::producer<QString> placeholder,
 		int64 amount,
 		rpl::producer<Ton::TokenKind> token) {
-	const auto result = Ui::CreateChild<Ui::InputField>(
-		parent.get(),
-		st::walletInput,
-		Ui::InputField::Mode::SingleLine,
-		std::move(placeholder),
-		(amount > 0
-			? FormatAmount(amount, Ton::TokenKind::DefaultToken, FormatFlag::Simple).full
-			: QString()));
 
-	auto tokenState = result->lifetime().make_state<Ton::TokenKind>(Ton::TokenKind::DefaultToken);
-	std::move(
-		token
-	) | rpl::start_with_next([=](Ton::TokenKind value) {
-		*tokenState = value;
-	}, result->lifetime());
+    const auto result = Ui::CreateChild<Ui::InputField>(
+            parent.get(),
+            st::walletInput,
+            Ui::InputField::Mode::SingleLine,
+            std::move(placeholder));
+    auto tokenState = result->lifetime().make_state<Ton::TokenKind>(Ton::TokenKind::DefaultToken);
+    rpl::duplicate(
+            token
+    ) | rpl::start_with_next([=](Ton::TokenKind value) {
+        *tokenState = value;
+    }, result->lifetime());
+
+    result->setText(amount > 0
+             ? FormatAmount(amount, *tokenState, FormatFlag::Simple).full
+             : QString());
 
 	const auto lastAmountValue = std::make_shared<QString>();
 	Ui::Connect(result, &Ui::InputField::changed, [=] {

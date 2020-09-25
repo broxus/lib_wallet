@@ -37,7 +37,7 @@ void CreateInvoiceBox(
 		not_null<Ui::GenericBox*> box,
 		const QString &address,
 		bool testnet,
-		rpl::producer<std::optional<Ton::TokenKind>> selectedToken,
+		const rpl::producer<std::optional<Ton::TokenKind>>& selectedToken,
 		const Fn<void(QString)> &generateQr,
 		const Fn<void(QImage, QString)> &share) {
 
@@ -52,12 +52,17 @@ void CreateInvoiceBox(
 	};
 
 	const auto currentToken = box->lifetime().make_state<Ton::TokenKind>(Ton::TokenKind::DefaultToken);
-	const auto tokenDecimals = Ton::countDecimals(*currentToken);
+	const auto tokenDecimals = box->lifetime().make_state<uint32_t>(Ton::countDecimals(Ton::TokenKind::DefaultToken));
 
 	box->setTitle(ph::lng_wallet_invoice_title());
 	box->setStyle(st::walletInvoiceBox);
 
 	box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
+
+	rpl::duplicate(token) | rpl::start_with_next([=](const std::optional<Ton::TokenKind> token){
+	    *currentToken = token.value_or(Ton::TokenKind::DefaultToken);
+        *tokenDecimals = Ton::countDecimals(*currentToken);
+	    }, box->lifetime());
 
 	AddBoxSubtitle(box, ph::lng_wallet_invoice_amount());
 	const auto amount = box->addRow(
@@ -81,7 +86,7 @@ void CreateInvoiceBox(
 		st::walletInvoiceAboutCommentPadding);
 
 	const auto collectLink = [=]() -> std::optional<QString> {
-		const auto parsed = ParseAmountString(amount->getLastText(), tokenDecimals);
+		const auto parsed = ParseAmountString(amount->getLastText(), *tokenDecimals);
 		const auto text = comment->getLastText();
 		if (parsed.value_or(0) <= 0) {
 			amount->showError();
@@ -106,7 +111,7 @@ void CreateInvoiceBox(
 		amount,
 		&Ui::InputField::changed
 	)) | rpl::map([=] {
-		return ParseAmountString(amount->getLastText(), tokenDecimals).value_or(0);
+		return ParseAmountString(amount->getLastText(), *tokenDecimals).value_or(0);
 	});
 	auto commentValue = rpl::single(
 		rpl::empty_value()
@@ -132,9 +137,9 @@ void CreateInvoiceBox(
 	});
 	url->setMinimumHeight(st::walletInvoiceLinkLabel.maxHeight);
 
-    rpl::duplicate(token) | rpl::start_with_next([=]( std::optional<Ton::TokenKind> token){
-        *currentToken = token.value_or(Ton::TokenKind::DefaultToken);
-    }, url->lifetime());
+//    rpl::duplicate(token) | rpl::start_with_next([=]( std::optional<Ton::TokenKind> token){
+//        *currentToken = token.value_or(Ton::TokenKind::DefaultToken);
+//    }, url->lifetime());
 
 	rpl::combine(
 		std::move(amountValue),
@@ -168,7 +173,7 @@ void CreateInvoiceBox(
 	});
 
 	Ui::Connect(amount, &Ui::InputField::submitted, [=] {
-		if (ParseAmountString(amount->getLastText(), tokenDecimals).value_or(0) <= 0) {
+		if (ParseAmountString(amount->getLastText(), *tokenDecimals).value_or(0) <= 0) {
 			amount->showError();
 		} else {
 			comment->setFocus();
