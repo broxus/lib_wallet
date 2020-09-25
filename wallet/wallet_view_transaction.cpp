@@ -42,14 +42,14 @@ std::optional<TokenTransaction> TryGetTokenTransaction(
 	for (const auto& out : data.outgoing) {
 		if (Ton::Wallet::ConvertIntoRaw(out.destination) == tokenContractAddress) {
 			auto transaction = Ton::Wallet::ParseTokenTransaction(out.message);
-			if (transaction.has_value() && !Ton::CheckTokenTransaction(selectedToken, transaction.value())) {
+			if (transaction.has_value() && !Ton::CheckTokenTransaction(selectedToken, *transaction)) {
 				transaction.reset();
 			}
 			if (!transaction.has_value()) {
 				continue;
 			}
 
-			return v::match(transaction.value(), [=](const Ton::TokenTransfer& transfer) {
+			return v::match(*transaction, [=](const Ton::TokenTransfer& transfer) {
 				return TokenTransaction {
 					.token = selectedToken,
 					.recipient = transfer.dest,
@@ -75,7 +75,7 @@ object_ptr<Ui::RpWidget> CreateSummary(
 		const std::optional<TokenTransaction> &tokenTransaction) {
 	const auto isTokenTransaction = tokenTransaction.has_value();
 	const auto token = isTokenTransaction
-		? tokenTransaction.value().token
+		? tokenTransaction->token
 		: Ton::TokenKind::DefaultToken;
 
 	const auto showTransactionFee = isTokenTransaction || data.otherFee > 0;
@@ -96,7 +96,7 @@ object_ptr<Ui::RpWidget> CreateSummary(
 		height);
 
 	const auto value = isTokenTransaction
-		? -tokenTransaction.value().amount
+		? -tokenTransaction->amount
 		: CalculateValue(data);
 	const auto balance = !service
 		? result->lifetime().make_state<Ui::AmountLabel>(
@@ -224,7 +224,7 @@ void ViewTransactionBox(
 		tokenContractAddress,
 		selectedToken);
 	const auto isTokenTransaction = tokenTransaction.has_value();
-	const auto isSwapBack = isTokenTransaction && tokenTransaction.value().isSwapBack;
+	const auto isSwapBack = isTokenTransaction && tokenTransaction->isSwapBack;
 
 	const auto service = IsServiceTransaction(data);
 
@@ -237,7 +237,7 @@ void ViewTransactionBox(
 
 	const auto id = data.id;
 	const auto address = isTokenTransaction
-		? tokenTransaction.value().recipient
+		? tokenTransaction->recipient
 		: ExtractAddress(data);
 	const auto incoming = data.outgoing.empty();
 	const auto encryptedComment = IsEncryptedMessage(data);

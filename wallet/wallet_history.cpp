@@ -349,7 +349,7 @@ void HistoryRow::attachTokenTransaction(std::optional<Ton::TokenTransaction> &&t
 	}
 	_tokenTransaction = std::move(tokenTransaction);
 	if (_tokenTransaction.has_value()) {
-		_layout = PrepareLayout(_transaction, _tokenTransaction.value());
+		_layout = PrepareLayout(_transaction, *_tokenTransaction);
 	} else {
 		_layout = PrepareLayout(_transaction, {}, false);
 	}
@@ -970,7 +970,7 @@ void History::refreshShowDates() {
 		for (const auto& out : data.outgoing) {
 			if (Ton::Wallet::ConvertIntoRaw(out.destination) == contractAddress) {
 				auto transaction = Ton::Wallet::ParseTokenTransaction(out.message);
-				if (transaction.has_value() && !Ton::CheckTokenTransaction(selectedToken, transaction.value())) {
+				if (transaction.has_value() && !Ton::CheckTokenTransaction(selectedToken, *transaction)) {
 					transaction.reset();
 				}
 				return transaction;

@@ -87,8 +87,8 @@ std::optional<int64> ParseAmountFraction(QString trimmed, size_t decimals) {
 		const auto ch = result.text[i];
 		const auto atSeparator = result.text.midRef(i).startsWith(separator);
 		if (ch >= '0' && ch <= '9' &&
-				(!separatorFound && digitsCount < kMaxAmountInt ||
-				 separatorFound && digitsCount < decimals))
+				((!separatorFound && digitsCount < kMaxAmountInt) ||
+				 (separatorFound && digitsCount < decimals)))
 		{
 			++i;
 			++digitsCount;
