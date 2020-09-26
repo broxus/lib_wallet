@@ -35,7 +35,7 @@ struct TokenItemLayout
 }
 
 [[nodiscard]] TokenItemLayout PrepareLayout(const TokenItem &data) {
-	const auto balance = FormatAmount(static_cast<int64_t>(data.balance), data.token);
+	const auto balance = FormatAmount(std::max(data.balance, 0ll), data.token);
 	const auto address = data.address;
 	const auto addressPartWidth = [&](int from, int length = -1)
 	{
