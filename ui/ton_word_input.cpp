@@ -49,13 +49,25 @@ TonWordInput::TonWordInput(
 
 TonWordInput::~TonWordInput() = default;
 
+void TonWordInput::setText(const QString& text) {
+    _chosen = true;
+    _word->setText(text);
+    emit _word->submitted(Qt::KeyboardModifiers());
+}
+
 void TonWordInput::setupSuggestions() {
 	base::qt_signal_producer(
 		_word.data(),
 		&InputField::changed
 	) | rpl::start_with_next([=] {
 		_chosen = false;
-		showSuggestions(word());
+
+		if (_word->getLastText().indexOf(' ') != -1 || _word->getLastText().indexOf('\n') != -1) {
+		    QString text = _word->getLastText();
+		    _pasted_text.fire_copy(text);
+		} else {
+            showSuggestions(word());
+        }
 	}, _word->lifetime());
 
 	focused(
@@ -168,6 +180,10 @@ rpl::producer<> TonWordInput::blurred() const {
 
 rpl::producer<TonWordInput::TabDirection> TonWordInput::tabbed() const {
 	return _wordTabbed.events();
+}
+
+[[nodiscard]] rpl::producer<QString> TonWordInput::pasted() const {
+    return _pasted_text.events();
 }
 
 rpl::producer<> TonWordInput::submitted() const {

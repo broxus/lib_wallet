@@ -90,6 +90,23 @@ void Import::initControls(Fn<std::vector<QString>(QString)> wordsByPrefix) {
 				: nullptr;
 		};
 
+		word.pasted(
+		) | rpl::start_with_next([=] (QString text){
+            text = text.simplified();
+            int cnt = 0;
+            for(const auto& w: text.split(' ')) {
+                if (index + 1 < count) {
+                    (*inputs)[index + cnt]->setText(w);
+                    (*inputs)[index + cnt]->setFocus();
+                    cnt++;
+
+                }
+                else {
+                    break;
+                }
+            }
+        }, lifetime());
+
 		word.focused(
 		) | rpl::start_with_next([=] {
 			const auto row = index % rows;

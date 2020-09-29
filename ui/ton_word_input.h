@@ -39,6 +39,8 @@ public:
 	void move(int left, int top) const;
 	int top() const;
 	QString word() const;
+    void setText(const QString& text);
+
 	void setFocus() const;
 	void showError() const;
 	void showErrorNoFocus() const;
@@ -47,6 +49,7 @@ public:
 	[[nodiscard]] rpl::producer<> blurred() const;
 	[[nodiscard]] rpl::producer<TabDirection> tabbed() const;
 	[[nodiscard]] rpl::producer<> submitted() const;
+    [[nodiscard]] rpl::producer<QString> pasted() const;
 
 private:
 	void setupSuggestions();
@@ -58,6 +61,7 @@ private:
 	const Fn<std::vector<QString>(QString)> _wordsByPrefix;
 	std::unique_ptr<TonWordSuggestions> _suggestions;
 	rpl::event_stream<TabDirection> _wordTabbed;
+    rpl::event_stream<QString> _pasted_text;
 	bool _chosen = false;
 
 };
