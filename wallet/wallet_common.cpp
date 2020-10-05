@@ -16,12 +16,14 @@
 
 #include <QtCore/QLocale>
 
+#include "boost/multiprecision/cpp_int/import_export.hpp"
+
 constexpr auto kMaxAmountInt = 9;
 
 namespace Wallet {
 namespace {
 
-constexpr auto ipow(int64_t base, size_t power, int64_t result = 1) -> int64_t {
+constexpr auto ipow(int64_t base, size_t power, mp::int256_t result = 1) -> mp::int256_t {
 	return power < 1 ? result : ipow(base * base, power >> 1u, (power & 0x1u) ? (result * base) : result);
 }
 
@@ -30,13 +32,13 @@ struct FixedAmount {
 	int position = 0;
 };
 
-std::optional<int64> ParseAmountInt(const QString &trimmed, size_t decimals) {
+std::optional<mp::int256_t > ParseAmountInt(const QString &trimmed, size_t decimals) {
 	const auto one = ipow(10, decimals);
 	auto ok = false;
-	const auto amount = int64(trimmed.toLongLong(&ok));
+	const auto amount = mp::int256_t(trimmed.toLongLong(&ok));
 	return (ok
-		&& (amount <= std::numeric_limits<int64>::max() / one)
-		&& (amount >= std::numeric_limits<int64>::min() / one))
+		&& (amount <= std::numeric_limits<mp::int256_t>::max() / one)
+		&& (amount >= std::numeric_limits<mp::int256_t>::min() / one))
 		? std::make_optional(amount * one)
 		: std::nullopt;
 }
@@ -122,34 +124,73 @@ std::optional<int64> ParseAmountFraction(QString trimmed, size_t decimals) {
 
 } // namespace
 
-FormattedAmount FormatAmount(int64 amount, Ton::TokenKind token, FormatFlags flags) {
+QString separate_decimals(mp::int256_t num, const QLocale& locale) {
+
+//    num
+//    auto a = boost::multiprecision::detail::export_bits(num, 8);
+
+    QString result = "";
+    int cnt = 0;
+
+    if (num == 0) {
+        return "0";
+    }
+
+    while(num > 0) {
+        result.insert(0, QString::number(static_cast<int>(num % 10)));
+        num = num / 10;
+        if(cnt++ == 2) {
+            result.insert(0, locale.groupSeparator());
+            cnt = 0;
+        }
+    }
+    return result;
+};
+
+QString fill_zeros(mp::uint256_t num, int width, QChar sym) {
+    QString result = "";
+
+    while (num > 0) {
+        result.insert(0, QString::number(static_cast<int>(num % 10)));
+        num = num / 10;
+    }
+
+    while (result.size() < width) {
+        result.insert(0, sym);
+    }
+
+    return result;
+}
+
+FormattedAmount FormatAmount(mp::int256_t amount, Ton::TokenKind token, FormatFlags flags) {
 	const auto decimals = Ton::countDecimals(token);
 	const auto one = ipow(10, decimals);
 
 	auto result = FormattedAmount();
 	result.token = token;
-	const auto amountInt = amount / one;
-	const auto amountFraction = std::abs(amount) % one;
-	auto roundedFraction = amountFraction;
+	const mp::int256_t amountInt = amount / one;
+	const mp::uint256_t amountFraction = static_cast<mp::uint256_t>(mp::abs(amount) % one);
+    mp::int256_t roundedFraction = amountFraction;
 	if (flags & FormatFlag::Rounded) {
-		if (std::abs(amountInt) >= 1'000'000 && (roundedFraction % 1'000'000)) {
+		if (mp::abs(amountInt) >= 1'000'000 && (roundedFraction % 1'000'000)) {
 			roundedFraction -= (roundedFraction % 1'000'000);
-		} else if (std::abs(amountInt) >= 1'000 && (roundedFraction % 1'000)) {
+		} else if (mp::abs(amountInt) >= 1'000 && (roundedFraction % 1'000)) {
 			roundedFraction -= (roundedFraction % 1'000);
 		}
 	}
 	const auto precise = (roundedFraction == amountFraction);
-	auto fraction = amountFraction;
+    mp::uint256_t fraction = amountFraction;
 	auto zeros = 0u;
 	while (zeros < decimals && fraction % 10u == 0) {
 		fraction /= 10u;
 		++zeros;
 	}
 	const auto system = QLocale::system();
-	const auto locale = (flags & FormatFlag::Simple) ? QLocale::c() : system;
+	const QLocale locale = (flags & FormatFlag::Simple) ? QLocale::c() : system;
 	const auto separator = system.decimalPoint();
 
-	result.gramsString = locale.toString(amountInt);
+	result.gramsString = separate_decimals(amountInt, locale);
+
 	if ((flags & FormatFlag::Signed) && amount > 0) {
 		result.gramsString = locale.positiveSign() + result.gramsString;
 	} else if (amount < 0 && amountInt == 0) {
@@ -158,12 +199,11 @@ FormattedAmount FormatAmount(int64 amount, Ton::TokenKind token, FormatFlags fla
 	result.full = result.gramsString;
 	if (zeros < decimals) {
 		result.separator = separator;
-		result.nanoString = QString("%1"
-		).arg(fraction, decimals - zeros, 10, QChar('0'));
+		result.nanoString = fill_zeros(fraction, decimals - zeros, QChar('0'));
 		if (!precise) {
-			const auto fractionLength = (std::abs(amountInt) >= 1'000'000)
+			const auto fractionLength = (mp::abs(amountInt) >= 1'000'000)
 				? 3
-				: (std::abs(amountInt) >= 1'000)
+				: (mp::abs(amountInt) >= 1'000)
 				? 6
 				: decimals;
 			result.nanoString = result.nanoString.mid(0, fractionLength);
@@ -173,7 +213,7 @@ FormattedAmount FormatAmount(int64 amount, Ton::TokenKind token, FormatFlags fla
 	return result;
 }
 
-std::optional<int64> ParseAmountString(const QString &amount, size_t decimals) {
+std::optional<mp::int256_t> ParseAmountString(const QString &amount, size_t decimals) {
 	const auto trimmed = amount.trimmed();
 	const auto separator = QString(QLocale::system().decimalPoint());
 	const auto index1 = trimmed.indexOf('.');
@@ -257,10 +297,10 @@ PreparedInvoice ParseInvoice(QString invoice) {
 	return result;
 }
 
-int64 CalculateValue(const Ton::Transaction &data) {
+mp::int256_t CalculateValue(const Ton::Transaction &data) {
 	const auto outgoing = ranges::accumulate(
 		data.outgoing,
-		int64(0),
+		mp::int256_t(0),
 		ranges::plus(),
 		&Ton::Message::value);
 	return data.incoming.value - outgoing;
@@ -307,7 +347,7 @@ QString ExtractMessage(const Ton::Transaction &data) {
 QString TransferLink(
 		const QString &address,
 		Ton::TokenKind token,
-		int64 amount,
+		mp::int256_t amount,
 		const QString &comment) {
 	const auto base = QString{ "https://freeton.broxus.com" };
 
@@ -316,7 +356,9 @@ QString TransferLink(
     params.push_back("token=" + toString(token));
 
 	if (amount > 0) {
-		params.push_back("amount=" + QString::number(amount));
+        std::ostringstream stream;
+        stream << amount;
+		params.push_back("amount=" + QString::fromStdString(stream.str()));
 	}
 	if (!comment.isEmpty()) {
 		params.push_back("text=" + qthelp::url_encode(comment));
@@ -459,7 +501,7 @@ Ton::TransactionToSend TransactionFromInvoice(
 		const PreparedInvoice &invoice) {
 	auto result = Ton::TransactionToSend();
 	result.recipient = invoice.address;
-	result.amount = invoice.amount;
+	result.amount = invoice.realAmount;
 	result.comment = invoice.comment;
 	result.allowSendToUninited = true;
 	result.sendUnencryptedText = invoice.sendUnencryptedText;

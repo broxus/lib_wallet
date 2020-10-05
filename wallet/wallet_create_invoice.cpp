@@ -144,7 +144,7 @@ void CreateInvoiceBox(
 	rpl::combine(
 		std::move(amountValue),
 		std::move(commentValue)
-	) | rpl::map([=](int64 amount, const QString &comment) {
+	) | rpl::map([=](mp::int256_t amount, const QString &comment) {
 		const auto link = TransferLink(address, *currentToken, amount, comment);
 		return (amount > 0)
 			? Ui::Text::Link(link)

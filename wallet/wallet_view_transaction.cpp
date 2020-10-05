@@ -31,7 +31,7 @@ namespace {
 struct TokenTransaction {
 	Ton::TokenKind token;
 	QString recipient;
-	int64 amount;
+    mp::int256_t amount;
 	bool isSwapBack;
 };
 

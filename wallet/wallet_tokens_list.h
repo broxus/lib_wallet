@@ -5,6 +5,9 @@
 #include "ui/click_handler.h"
 #include "ui/widgets/buttons.h"
 
+#include "boost/multiprecision/cpp_int.hpp"
+using namespace boost::multiprecision;
+
 class Painter;
 
 namespace Ton {
@@ -16,7 +19,7 @@ namespace Wallet {
 struct TokenItem {
 	Ton::TokenKind token = Ton::TokenKind::DefaultToken;
 	QString address = "";
-	int64_t balance = 0;
+	int256_t balance = 0;
 };
 
 bool operator==(const TokenItem &a, const TokenItem &b);

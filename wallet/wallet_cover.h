@@ -17,8 +17,8 @@ namespace Wallet {
 
 struct CoverState {
 	Ton::TokenKind token;
-	int64 unlockedBalance = 0;
-	int64 lockedBalance = 0;
+	uint256 unlockedBalance = 0;
+    uint256 lockedBalance = 0;
 	bool justCreated = false;
 	bool useTestNetwork = false;
 };

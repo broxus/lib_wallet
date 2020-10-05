@@ -10,6 +10,10 @@
 
 #include "ton/ton_state.h"
 
+#include "boost/multiprecision/cpp_int.hpp"
+//#include "boost/multiprecision/detail/min_max.hpp"
+namespace mp = boost::multiprecision;
+
 namespace Ton {
 struct Error;
 enum class TokenKind;
@@ -43,8 +47,8 @@ struct FormattedAmount {
 
 struct PreparedInvoice {
 	Ton::TokenKind token{};
-	int64 amount{};
-	int64 realAmount{}; // used only for token transactions
+	uint256 amount{};
+    int64 realAmount{}; // used only for token transactions
 	QString address{};
 	QString comment{};
 	bool swapBack = false;
@@ -75,12 +79,12 @@ constexpr bool is_flag_type(FormatFlag) { return true; };
 using FormatFlags = base::flags<FormatFlag>;
 
 [[nodiscard]] FormattedAmount FormatAmount(
-	int64 amount,
+	mp::int256_t amount,
 	Ton::TokenKind token,
 	FormatFlags flags = FormatFlags());
-[[nodiscard]] std::optional<int64> ParseAmountString(const QString &amount, size_t decimals);
+[[nodiscard]] std::optional<mp::int256_t> ParseAmountString(const QString &amount, size_t decimals);
 [[nodiscard]] PreparedInvoice ParseInvoice(QString invoice);
-[[nodiscard]] int64 CalculateValue(const Ton::Transaction &data);
+[[nodiscard]] mp::int256_t CalculateValue(const Ton::Transaction &data);
 [[nodiscard]] QString ExtractAddress(const Ton::Transaction &data);
 [[nodiscard]] bool IsEncryptedMessage(const Ton::Transaction &data);
 [[nodiscard]] bool IsServiceTransaction(const Ton::Transaction &data);
@@ -89,7 +93,7 @@ using FormatFlags = base::flags<FormatFlag>;
 [[nodiscard]] QString TransferLink(
 	const QString &address,
     Ton::TokenKind token,
-	int64 amount = 0,
+    mp::int256_t amount = 0,
 	const QString &comment = QString());
 
 not_null<Ui::FlatLabel*> AddBoxSubtitle(

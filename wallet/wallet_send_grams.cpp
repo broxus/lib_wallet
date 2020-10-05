@@ -63,12 +63,12 @@ void SendGramsBox(
 			if (it != state.tokenStates.end()) {
 				return it->second.fullBalance;
 			} else {
-				return int64{};
+				return mp::int256_t{};
 			}
 		}
 	});
 
-	const auto funds = std::make_shared<int64>();
+	const auto funds = std::make_shared<mp::int256_t>();
 
 	const auto replaceTickerTag = [=] {
 		return rpl::map([=](QString &&text) {
@@ -111,7 +111,7 @@ void SendGramsBox(
 	auto balanceText = rpl::combine(
 		ph::lng_wallet_send_balance(),
 		rpl::duplicate(unlockedBalance)
-	) | rpl::map([=](QString &&phrase, int64 value) {
+	) | rpl::map([=](QString &&phrase, mp::int256_t value) {
 		return phrase.replace(
 			"{amount}",
 			FormatAmount(std::max(value, 0LL), prepared->token, FormatFlag::Rounded).full);
@@ -230,7 +230,7 @@ void SendGramsBox(
 	};
 	std::move(
 		unlockedBalance
-	) | rpl::start_with_next([=](int64 value) {
+	) | rpl::start_with_next([=](mp::int256_t value) {
 		*funds = value;
 		checkFunds(amount->getLastText(), prepared->token);
 	}, amount->lifetime());

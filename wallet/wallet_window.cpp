@@ -758,7 +758,7 @@ void Window::sendMoney(const PreparedInvoiceOrLink& invoice) {
 		const auto currentState = _state.current();
 		const auto account = currentState.account;
 
-		int64_t available;
+        mp::int256_t available;
 		if (!invoice.token) {
 			available = account.fullBalance - account.lockedBalance;
 		} else {
