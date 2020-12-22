@@ -100,7 +100,7 @@ void Info::setupControls(Data &&data) {
 	const auto tonHistoryWrapper = Ui::CreateChild<Ui::FixedHeightWidget>(_inner.get(), _widget->height());
 
 	// create tokens list page
-	const auto tokensList = _widget->lifetime().make_state<TokensList>(
+	const auto tokensList = _widget->lifetime().make_state<AssetsList>(
 		tokensListWrapper,
 		MakeTokensListState(rpl::duplicate(state)));
 
@@ -109,7 +109,7 @@ void Info::setupControls(Data &&data) {
 		_selectedToken = token.token;
 	}, tokensList->lifetime());
 
-	tokensList->gateOpenRequets(
+	tokensList->gateOpenRequests(
 	) | rpl::start_with_next([openGate = std::move(data.openGate)]() {
 		openGate();
 	}, tokensList->lifetime());

@@ -22,45 +22,58 @@ struct TokenItem {
 bool operator==(const TokenItem &a, const TokenItem &b);
 bool operator!=(const TokenItem &a, const TokenItem &b);
 
-struct TokensListState {
+struct DePoolItem {
+	QString address = "";
+	int64_t withdrawValue = 0;
+	int64_t reward = 0;
+};
+
+bool operator==(const DePoolItem &a, const DePoolItem &b);
+bool operator==(const DePoolItem &a, const DePoolItem &b);
+
+using AssetItem = std::variant<TokenItem, DePoolItem>;
+
+struct AssetsListState {
+	std::map<QString, DePoolItem> depools;
 	std::map<Ton::TokenKind, TokenItem> tokens;
 };
 
-class TokensListRow;
+class AssetsListRow;
 
-class TokensList final {
+class AssetsList final {
 public:
-	TokensList(not_null<Ui::RpWidget*> parent, rpl::producer<TokensListState> state);
-	~TokensList();
+	AssetsList(not_null<Ui::RpWidget*> parent, rpl::producer<AssetsListState> state);
+	~AssetsList();
 
 	void setGeometry(QRect geometry);
 
-	[[nodiscard]] rpl::producer<TokenItem> openRequests() const;
-	[[nodiscard]] rpl::producer<> gateOpenRequets() const;
+	[[nodiscard]] rpl::producer<AssetItem> openRequests() const;
+	[[nodiscard]] rpl::producer<> gateOpenRequests() const;
 	[[nodiscard]] rpl::producer<int> heightValue() const;
 
 	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:
-	void setupContent(rpl::producer<TokensListState> &&state);
-	void refreshItemValues(std::map<Ton::TokenKind, TokenItem> &data);
-	bool mergeListChanged(std::map<Ton::TokenKind, TokenItem> &&data);
+	void setupContent(rpl::producer<AssetsListState> &&state);
 
-	[[nodiscard]] std::unique_ptr<TokensListRow> makeRow(const TokenItem &data);
+	void refreshItemValues(const AssetsListState &data);
+	bool mergeListChanged(AssetsListState &&data);
+
+	[[nodiscard]] std::unique_ptr<AssetsListRow> makeTokenItemRow(const TokenItem &data);
 
 	Ui::RpWidget _widget;
 
-	std::vector<TokenItem> _listData{};
+	std::vector<AssetItem> _listData{};
 
-	std::vector<std::unique_ptr<TokensListRow>> _rows;
+	std::vector<std::unique_ptr<AssetsListRow>> _rows;
 	std::vector<std::unique_ptr<Ui::RoundButton>> _buttons;
 	rpl::variable<int> _height;
 
-	rpl::event_stream<TokenItem> _openRequests;
+	rpl::event_stream<AssetItem> _openRequests;
 	rpl::event_stream<> _gateOpenRequests;
 };
 
-[[nodiscard]] rpl::producer<TokensListState> MakeTokensListState(
+[[nodiscard]] rpl::producer<AssetsListState> MakeTokensListState(
 	rpl::producer<Ton::WalletViewerState> state);
 
 } // namespace Wallet

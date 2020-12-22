@@ -19,7 +19,7 @@ namespace Wallet
 
 namespace
 {
-struct TokenItemLayout
+struct AssetItemLayout
 {
 	QImage image;
 	Ui::Text::String title;
@@ -34,7 +34,7 @@ struct TokenItemLayout
 	return result;
 }
 
-[[nodiscard]] TokenItemLayout PrepareLayout(const TokenItem &data) {
+[[nodiscard]] AssetItemLayout PrepareLayout(const TokenItem &data) {
 	const auto balance = FormatAmount(std::max(data.balance, int64_t{}), data.token);
 	const auto address = data.address;
 	const auto addressPartWidth = [&](int from, int length = -1)
@@ -42,7 +42,7 @@ struct TokenItemLayout
 		return AddressStyle().font->width(address.mid(from, length));
 	};
 
-	auto result = TokenItemLayout();
+	auto result = AssetItemLayout();
 	result.image = Ui::InlineTokenIcon(data.token, st::walletTokensListRowIconSize);
 	result.title.setText(st::walletTokensListRowTitleStyle.style, Ton::toString(data.token));
 	result.balanceGrams.setText(st::walletTokensListRowGramsStyle, balance.gramsString);
@@ -57,147 +57,143 @@ struct TokenItemLayout
 
 } // namespace
 
-class TokensListRow final
+class AssetsListRow final
 {
 public:
-	explicit TokensListRow(const TokenItem &token);
-	TokensListRow(const TokensListRow &) = delete;
-	TokensListRow &operator=(const TokensListRow &) = delete;
-	~TokensListRow() = default;
+	explicit AssetsListRow(const TokenItem &token)
+		: _tokenItem(token)
+		, _layout(PrepareLayout(token)) {
+	}
 
-	Ton::TokenKind kind() const;
+	explicit AssetsListRow(const DePoolItem &depool) {
 
-	void paint(Painter &p, int x, int y) const;
+	}
 
-	bool refresh(const TokenItem &token);
-	void resizeToWidth(int width);
+	AssetsListRow(const AssetsListRow &) = delete;
+	AssetsListRow &operator=(const AssetsListRow &) = delete;
+	~AssetsListRow() = default;
+
+	Ton::TokenKind kind() const {
+		return _tokenItem.token;
+	}
+
+	void paint(Painter &p, int /*x*/, int /*y*/) const {
+		const auto padding = st::walletTokensListRowContentPadding;
+
+		const auto availableWidth = _width - padding.left() - padding.right();
+		const auto availableHeight = _height - padding.top() - padding.bottom();
+
+		// draw icon
+		const auto iconTop = padding.top() * 2;
+		const auto iconLeft = iconTop;
+
+		{
+			PainterHighQualityEnabler hq(p);
+			p.setPen(Qt::NoPen);
+			p.setBrush(st::windowBgRipple);
+			p.drawRoundedRect(
+				QRect(iconLeft, iconTop, st::walletTokensListRowIconSize, st::walletTokensListRowIconSize),
+				st::roundRadiusLarge,
+				st::roundRadiusLarge);
+		}
+		p.drawImage(iconLeft, iconTop, _layout.image);
+
+		// draw token name
+		p.setPen(st::walletTokensListRowTitleStyle.textFg);
+		const auto titleTop = iconTop
+			+ st::walletTokensListRowIconSize;
+		const auto titleLeft = iconLeft
+			+ (st::walletTokensListRowIconSize - _layout.title.maxWidth()) / 2;
+		_layout.title.draw(p, titleLeft, titleTop, availableWidth);
+
+		// draw balance
+		p.setPen(st::walletTokensListRow.textFg);
+
+		const auto nanoTop = padding.top()
+			+ st::walletTokensListRowGramsStyle.font->ascent
+			- st::walletTokensListRowNanoStyle.font->ascent;
+		const auto nanoLeft = availableWidth - _layout.balanceNano.maxWidth();
+		_layout.balanceNano.draw(p, nanoLeft, nanoTop, availableWidth);
+
+		const auto gramTop = padding.top();
+		const auto gramLeft = availableWidth
+			- _layout.balanceNano.maxWidth()
+			- _layout.balanceGrams.maxWidth();
+		_layout.balanceGrams.draw(p, gramLeft, gramTop, availableWidth);
+
+		// draw address
+		p.setPen(st::walletTokensListRowTitleStyle.textFg);
+
+		const auto addressTop = availableHeight
+			- padding.bottom()
+			- AddressStyle().font->ascent * 2;
+		_layout.address.drawRightElided(p,
+			padding.right(),
+			addressTop,
+			_layout.addressWidth,
+			_width - padding.right(),
+			/*lines*/ 2,
+			style::al_bottomright,
+			/*yFrom*/ 0,
+			/*yTo*/ -1,
+			/*removeFromEnd*/ 0,
+			/*breakEverywhere*/ true);
+	}
+
+	bool refresh(const TokenItem &item) {
+		if (_tokenItem.token != item.token || _tokenItem.balance == item.balance) {
+			return false;
+		}
+		_layout = PrepareLayout(item);
+		_tokenItem = item;
+		return true;
+	}
+
+	void resizeToWidth(int width) {
+		if (_width == width) {
+			return;
+		}
+
+		_width = width;
+		_height = st::walletTokensListRowHeight;
+		// TODO: handle contents resize
+	}
 
 private:
 	TokenItem _tokenItem;
-	TokenItemLayout _layout;
+	AssetItemLayout _layout;
 	int _width = 0;
 	int _height = 0;
 };
 
-TokensListRow::TokensListRow(const TokenItem &token)
-	: _tokenItem(token)
-	, _layout(PrepareLayout(token)) {
-}
+AssetsList::~AssetsList() = default;
 
-TokensList::~TokensList() = default;
-
-void TokensListRow::paint(Painter &p, int /*x*/, int /*y*/) const {
-	const auto padding = st::walletTokensListRowContentPadding;
-
-	const auto availableWidth = _width - padding.left() - padding.right();
-	const auto availableHeight = _height - padding.top() - padding.bottom();
-
-	// draw icon
-	const auto iconTop = padding.top() * 2;
-	const auto iconLeft = iconTop;
-
-	{
-		PainterHighQualityEnabler hq(p);
-		p.setPen(Qt::NoPen);
-		p.setBrush(st::windowBgRipple);
-		p.drawRoundedRect(
-			QRect(iconLeft, iconTop, st::walletTokensListRowIconSize, st::walletTokensListRowIconSize),
-			st::roundRadiusLarge,
-			st::roundRadiusLarge);
-	}
-	p.drawImage(iconLeft, iconTop, _layout.image);
-
-	// draw token name
-	p.setPen(st::walletTokensListRowTitleStyle.textFg);
-	const auto titleTop = iconTop
-		+ st::walletTokensListRowIconSize;
-	const auto titleLeft = iconLeft
-		+ (st::walletTokensListRowIconSize - _layout.title.maxWidth()) / 2;
-	_layout.title.draw(p, titleLeft, titleTop, availableWidth);
-
-	// draw balance
-	p.setPen(st::walletTokensListRow.textFg);
-
-	const auto nanoTop = padding.top()
-		+ st::walletTokensListRowGramsStyle.font->ascent
-		- st::walletTokensListRowNanoStyle.font->ascent;
-	const auto nanoLeft = availableWidth - _layout.balanceNano.maxWidth();
-	_layout.balanceNano.draw(p, nanoLeft, nanoTop, availableWidth);
-
-	const auto gramTop = padding.top();
-	const auto gramLeft = availableWidth
-		- _layout.balanceNano.maxWidth()
-		- _layout.balanceGrams.maxWidth();
-	_layout.balanceGrams.draw(p, gramLeft, gramTop, availableWidth);
-
-	// draw address
-	p.setPen(st::walletTokensListRowTitleStyle.textFg);
-
-	const auto addressTop = availableHeight
-		- padding.bottom()
-		- AddressStyle().font->ascent * 2;
-	_layout.address.drawRightElided(p,
-		padding.right(),
-		addressTop,
-		_layout.addressWidth,
-		_width - padding.right(),
-		/*lines*/ 2,
-		style::al_bottomright,
-		/*yFrom*/ 0,
-		/*yTo*/ -1,
-		/*removeFromEnd*/ 0,
-		/*breakEverywhere*/ true);
-}
-
-bool TokensListRow::refresh(const TokenItem &item) {
-	if (_tokenItem.token != item.token || _tokenItem.balance == item.balance) {
-		return false;
-	}
-	_layout = PrepareLayout(item);
-	_tokenItem = item;
-	return true;
-}
-
-void TokensListRow::resizeToWidth(int width) {
-	if (_width == width) {
-		return;
-	}
-
-	_width = width;
-	_height = st::walletTokensListRowHeight;
-	// TODO: handle contents resize
-}
-
-Ton::TokenKind TokensListRow::kind() const {
-	return _tokenItem.token;
-}
-
-TokensList::TokensList(not_null<Ui::RpWidget *> parent, rpl::producer<TokensListState> state)
+AssetsList::AssetsList(not_null<Ui::RpWidget *> parent, rpl::producer<AssetsListState> state)
 	: _widget(parent) {
 	setupContent(std::move(state));
 }
 
-void TokensList::setGeometry(QRect geometry) {
+void AssetsList::setGeometry(QRect geometry) {
 	_widget.setGeometry(geometry);
 }
 
-rpl::producer<TokenItem> TokensList::openRequests() const {
+rpl::producer<AssetItem> AssetsList::openRequests() const {
 	return _openRequests.events();
 }
 
-rpl::producer<> TokensList::gateOpenRequets() const {
+rpl::producer<> AssetsList::gateOpenRequests() const {
 	return _gateOpenRequests.events();
 }
 
-rpl::producer<int> TokensList::heightValue() const {
+rpl::producer<int> AssetsList::heightValue() const {
 	return _height.value();
 }
 
-rpl::lifetime &TokensList::lifetime() {
+rpl::lifetime &AssetsList::lifetime() {
 	return _widget.lifetime();
 }
 
-void TokensList::setupContent(rpl::producer<TokensListState> &&state) {
+void AssetsList::setupContent(rpl::producer<AssetsListState> &&state) {
 	_widget.paintRequest(
 	) | rpl::start_with_next(
 		[=](QRect clip)
@@ -264,7 +260,7 @@ void TokensList::setupContent(rpl::producer<TokensListState> &&state) {
 	std::move(
 		state
 	) | rpl::start_with_next(
-		[this, layoutWidget, layout](TokensListState &&state) {
+		[this, layoutWidget, layout](AssetsListState &&state) {
 			refreshItemValues(state.tokens);
 			if (!mergeListChanged(std::move(state.tokens))) {
 				return;
@@ -319,42 +315,59 @@ void TokensList::setupContent(rpl::producer<TokensListState> &&state) {
 		}, lifetime());
 }
 
-void TokensList::refreshItemValues(std::map<Ton::TokenKind, TokenItem> &data) {
+void AssetsList::refreshItemValues(const AssetsListState &data) {
 	for (size_t i = 0; i < _rows.size(); ++i) {
-		const auto it = data.find(_listData[i].token);
-		if (it == data.end()) {
-			continue;
-		}
-
-		if (_rows[i]->refresh(it->second)) {
-			_listData[i] = it->second;
-		}
+		v::match(_listData[i], [&](TokenItem& item) {
+			const auto it = data.tokens.find(item.token);
+			if (it != data.tokens.end() && _rows[i]->refresh(it->second)) {
+				_listData[i] = it->second;
+			}
+		},
+		[&](DePoolItem& item) {
+			const auto it = data.depools.find(item.address);
+			if (it != data.depools.end() /*TODO: && _rows[i]->refresh(it->second) */) {
+				_listData[i] = it->second;
+			}
+		});
 	}
 }
 
-bool TokensList::mergeListChanged(std::map<Ton::TokenKind, TokenItem> &&data) {
+bool AssetsList::mergeListChanged(AssetsListState &&data) {
 	for (auto & item : _listData) {
-		auto it = data.find(item.token);
-		if (it != data.end()) {
-			data.erase(it);
-		}
+		v::match(item, [&](TokenItem &item) {
+			auto it = data.tokens.find(item.token);
+			if (it != data.tokens.end()) {
+				data.tokens.erase(it);
+			}
+		}, [&](DePoolItem &item) {
+			auto it = data.depools.find(item.address);
+			if (it != data.depools.end()) {
+				data.depools.erase(it);
+			}
+		});
 	}
-	if (data.empty()) {
+
+	if (data.tokens.empty() && data.depools.empty()) {
 		return false;
 	}
 
-	for (auto& [kind, state] : data) {
-		_rows.push_back(makeRow(state));
+	for (auto& [address, depool] : data.depools) {
+		// TODO
+	}
+
+	for (auto& [kind, state] : data.tokens) {
+		_rows.push_back(makeTokenItemRow(state));
 		_listData.push_back(std::move(state));
 	}
+
 	return true;
 }
 
-std::unique_ptr<TokensListRow> TokensList::makeRow(const TokenItem &data) {
-	return std::make_unique<TokensListRow>(data);
+std::unique_ptr<AssetsListRow> AssetsList::makeTokenItemRow(const TokenItem &data) {
+	return std::make_unique<AssetsListRow>(data);
 }
 
-rpl::producer<TokensListState> MakeTokensListState(
+rpl::producer<AssetsListState> MakeTokensListState(
 	rpl::producer<Ton::WalletViewerState> state) {
 	return std::move(
 		state
@@ -364,7 +377,7 @@ rpl::producer<TokensListState> MakeTokensListState(
 			const auto &account = data.wallet.account;
 			const auto unlockedTonBalance = account.fullBalance - account.lockedBalance;
 
-			TokensListState result{};
+			AssetsListState result{};
 			result.tokens.insert({Ton::TokenKind::DefaultToken, TokenItem {
 				.token = Ton::TokenKind::DefaultToken,
 				.address = data.wallet.address,
@@ -387,6 +400,14 @@ bool operator==(const TokenItem &a, const TokenItem &b) {
 
 bool operator!=(const TokenItem &a, const TokenItem &b) {
 	return a.token != b.token;
+}
+
+bool operator==(const DePoolItem &a, const DePoolItem &b) {
+	return a.address == b.address;
+}
+
+bool operator==(const DePoolItem &a, const DePoolItem &b) {
+	return a.address != b.address;
 }
 
 } // namespace Wallet
