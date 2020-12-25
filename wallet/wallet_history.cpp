@@ -20,9 +20,8 @@
 #include "styles/palette.h"
 #include "ton/ton_wallet.h"
 
-#include <QtCore/QDateTime>
-
 #include <iostream>
+#include <QtCore/QDateTime>
 
 namespace Wallet {
 namespace {
@@ -57,12 +56,12 @@ struct TransactionLayout {
 	Flags flags = Flags();
 };
 
-[[nodiscard]] const style::TextStyle &AddressStyle() {
+[[nodiscard]] const style::TextStyle &addressStyle() {
 	const static auto result = Ui::ComputeAddressStyle(st::defaultTextStyle);
 	return result;
 }
 
-void RefreshTimeTexts(
+void refreshTimeTexts(
 		TransactionLayout &layout,
 		bool forceDateText = false) {
 	layout.dateTime = base::unixtime::parse(layout.serverTime);
@@ -83,7 +82,7 @@ void RefreshTimeTexts(
 	}
 }
 
-[[nodiscard]] TransactionLayout PrepareLayout(
+[[nodiscard]] TransactionLayout prepareLayout(
 		const Ton::Transaction &data,
 		Fn<void()> decrypt,
 		bool isInitTransaction) {
@@ -97,7 +96,7 @@ void RefreshTimeTexts(
 	const auto pending = (data.id.lt == 0);
 	const auto address = ExtractAddress(data);
 	const auto addressPartWidth = [&](int from, int length = -1) {
-		return AddressStyle().font->width(address.mid(from, length));
+		return addressStyle().font->width(address.mid(from, length));
 	};
 
 	auto result = TransactionLayout();
@@ -107,14 +106,14 @@ void RefreshTimeTexts(
 		st::walletRowNanoStyle,
 		amount.separator + amount.nanoString);
 	result.address = Ui::Text::String(
-		AddressStyle(),
+		addressStyle(),
 		service ? QString() : address,
 		_defaultOptions,
 		st::walletAddressWidthMin);
-	result.addressWidth = (AddressStyle().font->spacew / 2) + std::max(
+	result.addressWidth = (addressStyle().font->spacew / 2) + std::max(
 		addressPartWidth(0, address.size() / 2),
 		addressPartWidth(address.size() / 2));
-	result.addressHeight = AddressStyle().font->height * 2;
+	result.addressHeight = addressStyle().font->height * 2;
 	result.comment = Ui::Text::String(st::walletAddressWidthMin);
 	result.comment.setText(
 		st::defaultTextStyle,
@@ -133,11 +132,11 @@ void RefreshTimeTexts(
 		| (incoming ? Flag::Incoming : Flag(0))
 		| (pending ? Flag::Pending : Flag(0));
 
-	RefreshTimeTexts(result);
+	refreshTimeTexts(result);
 	return result;
 }
 
-[[nodiscard]] TransactionLayout PrepareLayout(
+[[nodiscard]] TransactionLayout prepareLayout(
 		const Ton::Transaction &transaction,
 		const Ton::TokenTransaction &tokenTransaction) {
 	const auto [token, address, value, flags] = v::match(tokenTransaction, [](const Ton::TokenTransfer &transfer) {
@@ -148,7 +147,7 @@ void RefreshTimeTexts(
 
 	const auto amount = FormatAmount(-value, token, FormatFlag::Signed | FormatFlag::Rounded);
 	const auto addressPartWidth = [address = std::ref(address)](int from, int length = -1) {
-		return AddressStyle().font->width(address.get().mid(from, length));
+		return addressStyle().font->width(address.get().mid(from, length));
 	};
 
 	auto result = TransactionLayout();
@@ -158,14 +157,14 @@ void RefreshTimeTexts(
 		st::walletRowNanoStyle,
 		amount.separator + amount.nanoString);
 	result.address = Ui::Text::String(
-		AddressStyle(),
+		addressStyle(),
 		address,
 		_defaultOptions,
 		st::walletAddressWidthMin);
-	result.addressWidth = (AddressStyle().font->spacew / 2) + std::max(
+	result.addressWidth = (addressStyle().font->spacew / 2) + std::max(
 		addressPartWidth(0, address.size() / 2),
 		addressPartWidth(address.size() / 2));
-	result.addressHeight = AddressStyle().font->height * 2;
+	result.addressHeight = addressStyle().font->height * 2;
 	result.comment = Ui::Text::String(st::walletAddressWidthMin);
 	result.comment.setText(st::defaultTextStyle, {}, _textPlainOptions);
 
@@ -177,7 +176,7 @@ void RefreshTimeTexts(
 
 	result.flags = flags;
 
-	RefreshTimeTexts(result);
+	refreshTimeTexts(result);
 	return result;
 }
 
@@ -240,7 +239,7 @@ HistoryRow::HistoryRow(
 	Fn<void()> decrypt,
 	bool isInitTransaction)
 : _transaction(transaction)
-, _layout(PrepareLayout(transaction, std::move(decrypt), isInitTransaction)) {
+, _layout(prepareLayout(transaction, std::move(decrypt), isInitTransaction)) {
 }
 
 Ton::TransactionId HistoryRow::id() const {
@@ -252,7 +251,7 @@ const Ton::Transaction &HistoryRow::transaction() const {
 }
 
 void HistoryRow::refreshDate() {
-	RefreshTimeTexts(_layout);
+	refreshTimeTexts(_layout);
 }
 
 QDateTime HistoryRow::date() const {
@@ -265,7 +264,7 @@ void HistoryRow::setShowDate(bool show, Fn<void()> repaintDate) {
 		_layout.date.clear();
 	} else {
 		_repaintDate = std::move(repaintDate);
-		RefreshTimeTexts(_layout, true);
+		refreshTimeTexts(_layout, true);
 	}
 }
 
@@ -349,9 +348,9 @@ void HistoryRow::attachTokenTransaction(std::optional<Ton::TokenTransaction> &&t
 	}
 	_tokenTransaction = std::move(tokenTransaction);
 	if (_tokenTransaction.has_value()) {
-		_layout = PrepareLayout(_transaction, *_tokenTransaction);
+		_layout = prepareLayout(_transaction, *_tokenTransaction);
 	} else {
-		_layout = PrepareLayout(_transaction, {}, false);
+		_layout = prepareLayout(_transaction, {}, false);
 	}
 }
 
@@ -551,12 +550,11 @@ History::History(
 	rpl::producer<HistoryState> state,
 	rpl::producer<Ton::LoadedSlice> loaded,
 	rpl::producer<not_null<std::vector<Ton::Transaction>*>> collectEncrypted,
-	rpl::producer<
-		not_null<const std::vector<Ton::Transaction>*>> updateDecrypted,
-	rpl::producer<std::optional<Ton::TokenKind>> selectedToken)
+	rpl::producer<not_null<const std::vector<Ton::Transaction>*>> updateDecrypted,
+	rpl::producer<std::optional<SelectedAsset>> selectedAsset)
 : _widget(parent)
-, _selectedToken(Ton::TokenKind::Ton) {
-	setupContent(std::move(state), std::move(loaded), std::move(selectedToken));
+, _selectedAsset(SelectedToken { .token = Ton::TokenKind::Ton }) {
+	setupContent(std::move(state), std::move(loaded), std::move(selectedAsset));
 
 	base::unixtime::updates(
 	) | rpl::start_with_next([=] {
@@ -618,6 +616,8 @@ void History::resizeToWidth(int width) {
 		height += row->height();
 	}
 	_widget.resize(width, (height > 0 ? top * 2 : 0) + height);
+
+	checkPreload();
 }
 
 rpl::producer<int> History::heightValue() const {
@@ -634,11 +634,7 @@ void History::setVisibleTopBottom(int top, int bottom) {
 	if (_visibleBottom <= _visibleTop || !_previousId.lt || _rows.empty()) {
 		return;
 	}
-	const auto visibleHeight = (_visibleBottom - _visibleTop);
-	const auto preloadHeight = kPreloadScreens * visibleHeight;
-	if (_visibleBottom + preloadHeight >= _widget.height()) {
-		_preloadRequests.fire_copy(_previousId);
-	}
+	checkPreload();
 }
 
 rpl::producer<Ton::TransactionId> History::preloadRequests() const {
@@ -660,7 +656,7 @@ rpl::lifetime &History::lifetime() {
 void History::setupContent(
 		rpl::producer<HistoryState> &&state,
 		rpl::producer<Ton::LoadedSlice> &&loaded,
-		rpl::producer<std::optional<Ton::TokenKind>> &&selectedToken) {
+		rpl::producer<std::optional<SelectedAsset>> &&selectedAsset) {
 	std::move(
 		state
 	) | rpl::start_with_next([=](HistoryState &&state) {
@@ -704,11 +700,13 @@ void History::setupContent(
 	}, lifetime());
 
 	rpl::combine(
-		std::move(selectedToken)
-	) | rpl::start_with_next([=](const std::optional<Ton::TokenKind> &token) {
-		_selectedToken = token.value_or(Ton::TokenKind::DefaultToken);
+		std::move(selectedAsset)
+	) | rpl::start_with_next([=](const std::optional<SelectedAsset> &asset) {
+		auto newAsset = asset.value_or(SelectedToken::defaultToken());
+		_selectedAsset = std::move(newAsset);
 		refreshShowDates();
 		_widget.update();
+		_widget.repaint();
 	}, _widget.lifetime());
 }
 
@@ -827,24 +825,6 @@ void History::paint(Painter &p, QRect clip) {
 	paintRows(_rows);
 }
 
-History::ScrollState History::computeScrollState() const {
-	auto item = _rows.end();
-	for (auto it = _rows.begin(); it != _rows.end(); ++it) {
-		if (it->get()->isVisible() && it->get()->bottom() < _visibleTop) {
-			item = it;
-		}
-	}
-	if (item == _rows.end()
-		|| (item == _rows.begin()
-			&& _rows.front()->id() == _listData.front().id)) {
-		return ScrollState();
-	}
-	auto result = ScrollState();
-	result.top = (*item)->id();
-	result.offset = _visibleTop - (*item)->top();
-	return result;
-}
-
 void History::mergeState(HistoryState &&state) {
 	if (mergePendingChanged(std::move(state.pendingTransactions))) {
 		refreshPending();
@@ -917,9 +897,11 @@ bool History::takeDecrypted(
 
 std::unique_ptr<HistoryRow> History::makeRow(const Ton::Transaction &data) {
 	const auto id = data.id;
-	if (const auto pending = (id.lt == 0)) {
+	if (id.lt == 0) {
+		// pending
 		return std::make_unique<HistoryRow>(data);
 	}
+
 	const auto isInitTransaction = (_initTransactionId == id);
 	return std::make_unique<HistoryRow>(
 		data,
@@ -962,35 +944,47 @@ void History::computeInitTransactionId() {
 }
 
 void History::refreshShowDates() {
-	auto contractAddress = _tokenContractAddress.current().isEmpty()
+	const auto tokenContractAddress = _tokenContractAddress.current().isEmpty()
 		? QString{}
 		: Ton::Wallet::ConvertIntoRaw(_tokenContractAddress.current());
-	auto selectedToken = _selectedToken.current();
-	auto filterToken = [selectedToken, contractAddress](const Ton::Transaction &data) -> std::optional<Ton::TokenTransaction> {
-		for (const auto& out : data.outgoing) {
-			if (Ton::Wallet::ConvertIntoRaw(out.destination) == contractAddress) {
-				auto transaction = Ton::Wallet::ParseTokenTransaction(out.message);
-				if (transaction.has_value() && !Ton::CheckTokenTransaction(selectedToken, *transaction)) {
-					transaction.reset();
-				}
-				return transaction;
+	const auto selectedAsset = _selectedAsset.current();
+
+	auto filterTransaction = [selectedAsset, tokenContractAddress](decltype(_rows.front())& row) {
+		const auto &transaction = row->transaction();
+
+		v::match(selectedAsset, [&](const SelectedToken &selectedToken) {
+			if (selectedToken.token == Ton::TokenKind::DefaultToken) {
+				row->setVisible(true);
+				row->attachTokenTransaction(std::nullopt);
+				return;
 			}
-		}
-		return std::nullopt;
+
+			for (const auto& out : transaction.outgoing) {
+				if (Ton::Wallet::ConvertIntoRaw(out.destination) != tokenContractAddress) {
+					continue;
+				}
+
+				auto tokenTransaction = Ton::Wallet::ParseTokenTransaction(out.message);
+				if (tokenTransaction.has_value() && !Ton::CheckTokenTransaction(selectedToken.token, *tokenTransaction)) {
+					break;
+				}
+
+				row->setVisible(true);
+				row->attachTokenTransaction(std::move(tokenTransaction));
+				return;
+			}
+
+			row->setVisible(false);
+		}, [&](const SelectedDePool &selectedDePool) {
+			// TODO: filter depool
+
+			row->setVisible(false);
+		});
 	};
 
 	auto previous = QDate();
 	for (auto &row : _rows) {
-		// TODO: prettify
-		if (!selectedToken) {
-			row->setVisible(true);
-			row->attachTokenTransaction(std::nullopt);
-		} else if (auto transfer = filterToken(row->transaction()); transfer.has_value()) {
-			row->setVisible(true);
-			row->attachTokenTransaction(std::move(transfer));
-		} else {
-			row->setVisible(false);
-		}
+		filterTransaction(row);
 
 		const auto current = row->date().date();
 		setRowShowDate(row, row->isVisible() && current != previous);
@@ -1067,6 +1061,14 @@ void History::repaintShadow(not_null<HistoryRow*> row) {
 	const auto min = std::min(row->top(), _visibleTop);
 	const auto delta = std::max(row->top(), _visibleTop) - min;
 	_widget.update(0, min, _widget.width(), delta + st::walletRowDateHeight);
+}
+
+void History::checkPreload() const {
+	const auto visibleHeight = (_visibleBottom - _visibleTop);
+	const auto preloadHeight = kPreloadScreens * visibleHeight;
+	if (_visibleBottom + preloadHeight >= _widget.height() && _previousId.lt != 0) {
+		_preloadRequests.fire_copy(_previousId);
+	}
 }
 
 rpl::producer<HistoryState> MakeHistoryState(

@@ -10,7 +10,7 @@
 #include "wallet/wallet_common.h"
 #include "wallet/wallet_info.h"
 #include "wallet/wallet_view_transaction.h"
-#include "wallet/wallet_receive_grams.h"
+#include "wallet/wallet_receive_tokens.h"
 #include "wallet/wallet_create_invoice.h"
 #include "wallet/wallet_invoice_qr.h"
 #include "wallet/wallet_send_grams.h"
@@ -74,7 +74,7 @@ Window::Window(
 , _window(std::make_unique<Ui::Window>())
 , _layers(std::make_unique<Ui::LayerManager>(_window->body()))
 , _updateInfo(updateInfo)
-, _selectedToken(std::nullopt) {
+, _selectedAsset(std::nullopt) {
 	init();
 	const auto keys = _wallet->publicKeys();
 	if (keys.empty()) {
@@ -435,9 +435,9 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
 	};
 	_info = std::make_unique<Info>(_window->body(), data);
 
-	_info->selectedToken(
-	) | rpl::start_with_next([=](const std::optional<Ton::TokenKind> &selectedToken) {
-		_selectedToken = selectedToken;
+	_info->selectedAsset(
+	) | rpl::start_with_next([=](std::optional<SelectedAsset> &&selectedAsset) {
+		_selectedAsset = selectedAsset;
 	}, _info->lifetime());
 
 	_layers->raise();
@@ -461,11 +461,27 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
 		case Action::Refresh: refreshNow(); return;
 		case Action::Export: askExportPassword(); return;
 		case Action::Send:
-			sendMoney(PreparedInvoice{
-				.token = _selectedToken.current().value_or(Ton::TokenKind::DefaultToken)
-			});
+			v::match(
+				_selectedAsset.current().value_or(SelectedToken::defaultToken()),
+				[&](const SelectedToken &selectedToken) {
+					sendMoney(PreparedInvoice{
+						.token = selectedToken.token
+					});
+				},
+				[&](const SelectedDePool &selectedDePool) {
+					// TODO: send stake
+				});
 			return;
-		case Action::Receive: receiveGrams(); return;
+		case Action::Receive:
+			v::match(
+				_selectedAsset.current().value_or(SelectedToken::defaultToken()),
+				[&](const SelectedToken &selectedToken) {
+					receiveTokens(selectedToken.token);
+				},
+				[&](const SelectedDePool &selectedDePool) {
+					// TODO: send stake
+				});
+			 return;
 		case Action::ChangePassword: changePassword(); return;
 		case Action::ShowSettings: showSettings(); return;
 		case Action::LogOut: logoutWithConfirmation(); return;
@@ -481,13 +497,18 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
 
 	_info->viewRequests(
 	) | rpl::start_with_next([=](Ton::Transaction &&data) {
-		const auto selectedToken = _selectedToken
+		const auto selectedAsset = _selectedAsset
 			.current()
-			.value_or(Ton::TokenKind::DefaultToken);
+			.value_or(SelectedToken::defaultToken());
+
+		if (!v::is<SelectedToken>(selectedAsset)) {
+			return;
+		}
+		auto selectedToken = v::get<SelectedToken>(selectedAsset);
 
 		const auto send = [=](const QString &address) {
 			sendMoney(PreparedInvoice{
-				.token = selectedToken,
+				.token = selectedToken.token,
 				.address = address,
 			});
 		};
@@ -500,7 +521,7 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
 			ViewTransactionBox,
 			std::move(data),
 			Ton::Wallet::ConvertIntoRaw(_tokenContractAddress.current()),
-			selectedToken,
+			selectedToken.token,
 			_collectEncryptedRequests.events(),
 			_decrypted.events(),
 			shareAddressCallback(),
@@ -1016,18 +1037,18 @@ void Window::showSendingDone(std::optional<Ton::Transaction> result, const Prepa
 	}
 }
 
-void Window::receiveGrams() {
+void Window::receiveTokens(Ton::TokenKind tokenKind) {
 	_layers->showBox(Box(
-		ReceiveGramsBox,
+		ReceiveTokensBox,
 		_packedAddress,
 		_rawAddress,
-        _selectedToken.value(),
-		[=] { createInvoice(_selectedToken.value()); },
+		tokenKind,
+		[=] { createInvoice(tokenKind); },
 		shareAddressCallback(),
-		[=](Ton::TokenKind token) { _wallet->openGate(_rawAddress, token); }));
+		[=] { _wallet->openGate(_rawAddress, tokenKind); }));
 }
 
-void Window::createInvoice(rpl::producer<std::optional<Ton::TokenKind>> selectedToken) {
+void Window::createInvoice(Ton::TokenKind selectedToken) {
 	_layers->showBox(Box(
 		CreateInvoiceBox,
 		_packedAddress,
@@ -1040,7 +1061,7 @@ void Window::createInvoice(rpl::producer<std::optional<Ton::TokenKind>> selected
 			ph::lng_wallet_receive_copied_qr(ph::now))));
 }
 
-void Window::showInvoiceQr(rpl::producer<std::optional<Ton::TokenKind>> selectedToken, const QString &link) {
+void Window::showInvoiceQr(Ton::TokenKind selectedToken, const QString &link) {
 	_layers->showBox(Box(
 		InvoiceQrBox,
 		link,

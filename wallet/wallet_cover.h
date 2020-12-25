@@ -8,6 +8,8 @@
 
 #include "ui/rp_widget.h"
 
+#include "wallet_common.h"
+
 namespace Ton {
 struct WalletViewerState;
 enum class TokenKind;
@@ -16,11 +18,13 @@ enum class TokenKind;
 namespace Wallet {
 
 struct CoverState {
-	Ton::TokenKind token;
+	SelectedAsset asset;
 	int64 unlockedBalance = 0;
 	int64 lockedBalance = 0;
 	bool justCreated = false;
 	bool useTestNetwork = false;
+
+	auto selectedToken() const -> Ton::TokenKind;
 };
 
 class Cover final {
@@ -49,7 +53,7 @@ private:
 
 [[nodiscard]] rpl::producer<CoverState> MakeCoverState(
 	rpl::producer<Ton::WalletViewerState> state,
-	rpl::producer<std::optional<Ton::TokenKind>> selectedToken,
+	rpl::producer<std::optional<SelectedAsset>> selectedAsset,
 	bool justCreated,
 	bool useTestNetwork);
 

@@ -90,16 +90,16 @@ PRIVATE
     wallet/wallet_log.h
     wallet/wallet_phrases.cpp
     wallet/wallet_phrases.h
-    wallet/wallet_receive_grams.cpp
-    wallet/wallet_receive_grams.h
+        wallet/wallet_receive_tokens.cpp
+        wallet/wallet_receive_tokens.h
     wallet/wallet_send_grams.cpp
     wallet/wallet_send_grams.h
     wallet/wallet_sending_transaction.cpp
     wallet/wallet_sending_transaction.h
     wallet/wallet_settings.cpp
     wallet/wallet_settings.h
-    wallet/wallet_tokens_list.cpp
-    wallet/wallet_tokens_list.h
+        wallet/wallet_assets_list.cpp
+        wallet/wallet_assets_list.h
     wallet/wallet_top_bar.cpp
     wallet/wallet_top_bar.h
     wallet/wallet_update_info.cpp

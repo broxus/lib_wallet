@@ -22,15 +22,15 @@ namespace {
 
 constexpr auto kMsInMinute = 60 * crl::time(1000);
 
-[[nodiscard]] auto ToTopBarState(const std::optional<Ton::TokenKind> &selectedToken, bool refreshing = false) {
+[[nodiscard]] auto ToTopBarState(const std::optional<SelectedAsset> &selectedAsset, bool refreshing = false) {
 	return rpl::map([=](QString &&text) {
-		return TopBarState{ std::move(text), refreshing, selectedToken };
+		return TopBarState{ std::move(text), refreshing, selectedAsset };
 	});
 }
 
 [[nodiscard]] rpl::producer<TopBarState> MakeTopBarStateRefreshing(
-		const std::optional<Ton::TokenKind> &selectedToken) {
-	return ph::lng_wallet_refreshing() | ToTopBarState(selectedToken, true);
+		const std::optional<SelectedAsset> &selectedAsset) {
+	return ph::lng_wallet_refreshing() | ToTopBarState(selectedAsset, true);
 }
 
 [[nodiscard]] rpl::producer<int> MakeRefreshedMinutesAgo(crl::time when) {
@@ -52,7 +52,7 @@ constexpr auto kMsInMinute = 60 * crl::time(1000);
 }
 
 [[nodiscard]] rpl::producer<TopBarState> MakeTopBarStateRefreshed(
-		const std::optional<Ton::TokenKind> &selectedToken,
+		const std::optional<SelectedAsset> &selectedAsset,
 		crl::time when) {
 	return MakeRefreshedMinutesAgo(
 		when
@@ -61,16 +61,16 @@ constexpr auto kMsInMinute = 60 * crl::time(1000);
 			? ph::lng_wallet_refreshed_minutes_ago(minutes)()
 			: ph::lng_wallet_refreshed_just_now();
 	}) | rpl::flatten_latest(
-	) | ToTopBarState(selectedToken);
+	) | ToTopBarState(selectedAsset);
 }
 
 [[nodiscard]] rpl::producer<TopBarState> MakeNonSyncTopBarState(
 		const Ton::WalletViewerState &state,
-		const std::optional<Ton::TokenKind> &selectedToken) {
+		const std::optional<SelectedAsset> &selectedAsset) {
 	if (state.refreshing || !state.lastRefresh) {
-		return MakeTopBarStateRefreshing(selectedToken);
+		return MakeTopBarStateRefreshing(selectedAsset);
 	}
-	return MakeTopBarStateRefreshed(selectedToken, state.lastRefresh);
+	return MakeTopBarStateRefreshed(selectedAsset, state.lastRefresh);
 }
 
 } // namespace
@@ -149,10 +149,10 @@ void TopBar::setupControls(rpl::producer<TopBarState> &&state) {
 	) | rpl::start_with_next([=](int width, const TopBarState& state) {
 		const auto height = _widget.height();
 
-		const auto isTokenSelected = state.selectedToken.has_value();
-		back->setVisible(isTokenSelected);
-		broxus->setVisible(!isTokenSelected);
-		if (isTokenSelected) {
+		const auto isAssetSelected = state.selectedAsset.has_value();
+		back->setVisible(isAssetSelected);
+		broxus->setVisible(!isAssetSelected);
+		if (isAssetSelected) {
 			back->moveToLeft(0, (height - back->height()) / 2, width);
 		} else {
 			broxus->moveToLeft(0, (height - back->height()) / 2, width);
@@ -222,7 +222,7 @@ void TopBar::showMenu(not_null<Ui::IconButton*> toggle) {
 rpl::producer<TopBarState> MakeTopBarState(
 		rpl::producer<Ton::WalletViewerState> &&state,
 		rpl::producer<Ton::Update> &&updates,
-		rpl::producer<std::optional<Ton::TokenKind>> &&selectedToken,
+		rpl::producer<std::optional<SelectedAsset>> &&selectedAsset,
 		rpl::lifetime &alive) {
 	auto syncs = rpl::single(
 		Ton::SyncState()
@@ -236,15 +236,15 @@ rpl::producer<TopBarState> MakeTopBarState(
 	return rpl::combine(
 		std::move(state),
 		std::move(syncs),
-		std::move(selectedToken)
+		std::move(selectedAsset)
 	) | rpl::map([=](
 			const Ton::WalletViewerState &state,
 			const Ton::SyncState &sync,
-			const std::optional<Ton::TokenKind> &selectedToken) -> rpl::producer<TopBarState> {
+			const std::optional<SelectedAsset> &selectedAsset) -> rpl::producer<TopBarState> {
 		if (!sync.valid() || sync.current == sync.to) {
-			return MakeNonSyncTopBarState(state, selectedToken);
+			return MakeNonSyncTopBarState(state, selectedAsset);
 		} else if (sync.current == sync.from) {
-			return ph::lng_wallet_sync() | ToTopBarState(selectedToken);
+			return ph::lng_wallet_sync() | ToTopBarState(selectedAsset);
 		} else {
 			const auto percent = QString::number(
 				(100 * (sync.current - sync.from)
@@ -254,7 +254,7 @@ rpl::producer<TopBarState> MakeTopBarState(
 				return TopBarState{
 					.text = text.replace("{percent}", percent),
 					.refreshing = false,
-					.selectedToken = selectedToken,
+					.selectedAsset = selectedAsset,
 				};
 			});
 		}

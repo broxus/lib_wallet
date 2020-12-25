@@ -19,23 +19,19 @@ struct TokenItem {
 	int64_t balance = 0;
 };
 
-bool operator==(const TokenItem &a, const TokenItem &b);
-bool operator!=(const TokenItem &a, const TokenItem &b);
-
 struct DePoolItem {
 	QString address = "";
 	int64_t withdrawValue = 0;
 	int64_t reward = 0;
 };
 
-bool operator==(const DePoolItem &a, const DePoolItem &b);
-bool operator==(const DePoolItem &a, const DePoolItem &b);
-
 using AssetItem = std::variant<TokenItem, DePoolItem>;
 
+bool operator==(const AssetItem &a, const AssetItem &b);
+bool operator!=(const AssetItem &a, const AssetItem &b);
+
 struct AssetsListState {
-	std::map<QString, DePoolItem> depools;
-	std::map<Ton::TokenKind, TokenItem> tokens;
+	std::vector<AssetItem> items;
 };
 
 class AssetsListRow;
@@ -59,11 +55,7 @@ private:
 	void refreshItemValues(const AssetsListState &data);
 	bool mergeListChanged(AssetsListState &&data);
 
-	[[nodiscard]] std::unique_ptr<AssetsListRow> makeTokenItemRow(const TokenItem &data);
-
 	Ui::RpWidget _widget;
-
-	std::vector<AssetItem> _listData{};
 
 	std::vector<std::unique_ptr<AssetsListRow>> _rows;
 	std::vector<std::unique_ptr<Ui::RoundButton>> _buttons;

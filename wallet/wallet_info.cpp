@@ -11,7 +11,7 @@
 #include "wallet/wallet_cover.h"
 #include "wallet/wallet_empty_history.h"
 #include "wallet/wallet_history.h"
-#include "wallet/wallet_tokens_list.h"
+#include "wallet/wallet_assets_list.h"
 #include "ui/rp_widget.h"
 #include "ui/lottie_widget.h"
 #include "ui/widgets/labels.h"
@@ -26,12 +26,28 @@
 
 namespace Wallet {
 
+namespace {
+
+auto mapAssetItem(const AssetItem &item) -> SelectedAsset {
+	return v::match(item, [](const TokenItem &item) {
+		return SelectedAsset{SelectedToken {
+			.token = item.token,
+		}};
+	}, [](const DePoolItem &item) {
+		return SelectedAsset{SelectedDePool {
+			.address = item.address
+		}};
+	});
+}
+
+} //
+
 Info::Info(not_null<QWidget*> parent, Data data)
 : _widget(std::make_unique<Ui::RpWidget>(parent))
 , _scroll(
 	Ui::CreateChild<Ui::ScrollArea>(_widget.get(), st::walletScrollArea))
 , _inner(_scroll->setOwnedWidget(object_ptr<Ui::RpWidget>(_scroll.get())))
-, _selectedToken(std::nullopt) {
+, _selectedAsset(std::nullopt) {
 	setupControls(std::move(data));
 	_widget->show();
 }
@@ -42,8 +58,8 @@ void Info::setGeometry(QRect geometry) {
 	_widget->setGeometry(geometry);
 }
 
-rpl::producer<std::optional<Ton::TokenKind>> Info::selectedToken() const {
-	return _selectedToken.value();
+rpl::producer<std::optional<SelectedAsset>> Info::selectedAsset() const {
+	return _selectedAsset.value();
 }
 
 rpl::producer<Action> Info::actionRequests() const {
@@ -69,7 +85,7 @@ void Info::setupControls(Data &&data) {
 		MakeTopBarState(
 			rpl::duplicate(state),
 			rpl::duplicate(data.updates),
-			rpl::duplicate(_selectedToken.value()),
+			rpl::duplicate(_selectedAsset.value()),
 			_widget->lifetime()));
 	topBar->actionRequests(
 	) | rpl::start_to_stream(_actionRequests, topBar->lifetime());
@@ -88,7 +104,7 @@ void Info::setupControls(Data &&data) {
 	) | rpl::start_with_next([=](InfoTransition transition) {
 		switch (transition) {
 			case InfoTransition::Back:
-				_selectedToken = std::nullopt;
+				_selectedAsset = std::nullopt;
 				return;
 			default:
 				return;
@@ -96,23 +112,23 @@ void Info::setupControls(Data &&data) {
 	}, lifetime());
 
 	// create wrappers
-	const auto tokensListWrapper = Ui::CreateChild<Ui::FixedHeightWidget>(_inner.get(), _widget->height());
+	const auto assetsListWrapper = Ui::CreateChild<Ui::FixedHeightWidget>(_inner.get(), _widget->height());
 	const auto tonHistoryWrapper = Ui::CreateChild<Ui::FixedHeightWidget>(_inner.get(), _widget->height());
 
 	// create tokens list page
-	const auto tokensList = _widget->lifetime().make_state<AssetsList>(
-		tokensListWrapper,
+	const auto assetsList = _widget->lifetime().make_state<AssetsList>(
+		assetsListWrapper,
 		MakeTokensListState(rpl::duplicate(state)));
 
-	tokensList->openRequests(
-	) | rpl::start_with_next([=](TokenItem token) {
-		_selectedToken = token.token;
-	}, tokensList->lifetime());
+	assetsList->openRequests(
+	) | rpl::start_with_next([=](AssetItem item) {
+		_selectedAsset = std::move(mapAssetItem(item));
+	}, assetsList->lifetime());
 
-	tokensList->gateOpenRequests(
+	assetsList->gateOpenRequests(
 	) | rpl::start_with_next([openGate = std::move(data.openGate)]() {
 		openGate();
-	}, tokensList->lifetime());
+	}, assetsList->lifetime());
 
 	// create ton history page
 
@@ -121,7 +137,7 @@ void Info::setupControls(Data &&data) {
 		tonHistoryWrapper,
 		MakeCoverState(
 			rpl::duplicate(state),
-			_selectedToken.value(),
+			_selectedAsset.value(),
 			data.justCreated,
 			data.useTestNetwork));
 
@@ -135,10 +151,10 @@ void Info::setupControls(Data &&data) {
 	const auto history = _widget->lifetime().make_state<History>(
 		tonHistoryWrapper,
 		MakeHistoryState(std::move(data.tokenContractAddress), rpl::duplicate(state)),
-			std::move(loaded),
-			std::move(data.collectEncrypted),
-			std::move(data.updateDecrypted),
-			_selectedToken.value());
+		std::move(loaded),
+		std::move(data.collectEncrypted),
+		std::move(data.updateDecrypted),
+		_selectedAsset.value());
 
 	const auto emptyHistory = _widget->lifetime().make_state<EmptyHistory>(
 		tonHistoryWrapper,
@@ -159,11 +175,11 @@ void Info::setupControls(Data &&data) {
 	// set wrappers size same as scroll height
 	rpl::combine(
 		_scroll->sizeValue(),
-		tokensList->heightValue(),
+		assetsList->heightValue(),
 		history->heightValue(),
-		_selectedToken.value()
-	) | rpl::start_with_next([=](QSize size, int tokensListHeight, int historyHeight, std::optional<Ton::TokenKind> token) {
-		if (token.has_value()) {
+		_selectedAsset.value()
+	) | rpl::start_with_next([=](QSize size, int tokensListHeight, int historyHeight, std::optional<SelectedAsset> asset) {
+		if (asset.has_value()) {
 			const auto innerHeight = std::max(
 				size.height(),
 				cover->height() + historyHeight);
@@ -182,17 +198,17 @@ void Info::setupControls(Data &&data) {
 			const auto innerHeight = std::max(size.height(), tokensListHeight);
 			_inner->setGeometry(QRect(0, 0, size.width(), innerHeight));
 
-			tokensListWrapper->setGeometry(QRect(0, 0, size.width(), innerHeight));
-			tokensList->setGeometry(QRect(0, 0, size.width(), innerHeight));
+			assetsListWrapper->setGeometry(QRect(0, 0, size.width(), innerHeight));
+			assetsList->setGeometry(QRect(0, 0, size.width(), innerHeight));
 		}
 	}, _scroll->lifetime());
 
 	rpl::combine(
 		_scroll->scrollTopValue(),
 		_scroll->heightValue(),
-		_selectedToken.value()
-	) | rpl::start_with_next([=](int scrollTop, int scrollHeight, const std::optional<Ton::TokenKind> &token) {
-		if (token.has_value()) {
+		_selectedAsset.value()
+	) | rpl::start_with_next([=](int scrollTop, int scrollHeight, const std::optional<SelectedAsset> &asset) {
+		if (asset.has_value()) {
 			history->setVisibleTopBottom(scrollTop, scrollTop + scrollHeight);
 		}
 	}, history->lifetime());
@@ -207,9 +223,9 @@ void Info::setupControls(Data &&data) {
 	) | rpl::start_to_stream(_decryptRequests, history->lifetime());
 
 	// initialize default layouts
-	_selectedToken.value(
-	) | rpl::start_with_next([=](std::optional<Ton::TokenKind> token) {
-		tokensListWrapper->setVisible(!token.has_value());
+	_selectedAsset.value(
+	) | rpl::start_with_next([=](std::optional<SelectedAsset> token) {
+		assetsListWrapper->setVisible(!token.has_value());
 		tonHistoryWrapper->setVisible(token.has_value());
 	}, lifetime());
 }

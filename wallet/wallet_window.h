@@ -10,6 +10,8 @@
 #include "base/weak_ptr.h"
 #include "base/object_ptr.h"
 
+#include "wallet_common.h"
+
 #include <QtCore/QPointer>
 
 namespace Ton {
@@ -115,9 +117,9 @@ private:
 		rpl::producer<> confirmed);
 	void showSendingDone(std::optional<Ton::Transaction> result, const PreparedInvoice &invoice);
 	void refreshNow();
-	void receiveGrams();
-	void createInvoice(rpl::producer<std::optional<Ton::TokenKind>> selectedToken);
-	void showInvoiceQr(rpl::producer<std::optional<Ton::TokenKind>> selectedToken, const QString &link);
+	void receiveTokens(Ton::TokenKind selectedToken);
+	void createInvoice(Ton::TokenKind selectedToken);
+	void showInvoiceQr(Ton::TokenKind selectedToken, const QString &link);
 	void changePassword();
 	void askExportPassword();
 	void showExported(const std::vector<QString> &words);
@@ -157,7 +159,7 @@ private:
 	QString _rawAddress;
 	std::unique_ptr<Ton::AccountViewer> _viewer;
 	rpl::variable<Ton::WalletState> _state;
-	rpl::variable<std::optional<Ton::TokenKind>> _selectedToken;
+	rpl::variable<std::optional<SelectedAsset>> _selectedAsset;
 	rpl::variable<bool> _syncing;
 	rpl::variable<QString> _tokenContractAddress;
 	std::unique_ptr<Info> _info;

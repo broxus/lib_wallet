@@ -33,6 +33,24 @@ inline constexpr auto kEncodedAddressLength = 48;
 inline constexpr auto kRawAddressLength = 64;
 inline constexpr auto kEtheriumAddressLength = 40;
 
+struct SelectedToken {
+	Ton::TokenKind token;
+
+	static auto defaultToken() -> SelectedToken {
+		return SelectedToken {
+			.token = Ton::TokenKind::DefaultToken,
+		};
+	}
+};
+
+struct SelectedDePool {
+	QString address;
+};
+
+using SelectedAsset = std::variant<SelectedToken, SelectedDePool>;
+
+auto operator==(const SelectedAsset &a, const SelectedAsset &b) -> bool;
+
 struct FormattedAmount {
 	Ton::TokenKind token;
 	QString gramsString;

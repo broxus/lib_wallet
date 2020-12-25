@@ -14,13 +14,13 @@ enum class TokenKind;
 
 namespace Wallet {
 
-void ReceiveGramsBox(
+void ReceiveTokensBox(
 	not_null<Ui::GenericBox*> box,
 	const QString &packedAddress,
 	const QString &rawAddress,
-	rpl::producer<std::optional<Ton::TokenKind>> selectedToken,
+	Ton::TokenKind token,
 	const Fn<void()> &createInvoice,
 	const Fn<void(QImage, QString)> &share,
-	const Fn<void(Ton::TokenKind)> &swap);
+	const Fn<void()> &swap);
 
 } // namespace Wallet

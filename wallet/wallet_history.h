@@ -6,9 +6,12 @@
 //
 #pragma once
 
-#include "ui/rp_widget.h"
 #include "ton/ton_state.h"
+
+#include "ui/rp_widget.h"
 #include "ui/click_handler.h"
+
+#include "wallet_common.h"
 
 class Painter;
 
@@ -28,11 +31,9 @@ public:
 		not_null<Ui::RpWidget*> parent,
 		rpl::producer<HistoryState> state,
 		rpl::producer<Ton::LoadedSlice> loaded,
-		rpl::producer<
-			not_null<std::vector<Ton::Transaction>*>> collectEncrypted,
-		rpl::producer<
-			not_null<const std::vector<Ton::Transaction>*>> updateDecrypted,
-		rpl::producer<std::optional<Ton::TokenKind>> selectedToken);
+		rpl::producer<not_null<std::vector<Ton::Transaction>*>> collectEncrypted,
+		rpl::producer<not_null<const std::vector<Ton::Transaction>*>> updateDecrypted,
+		rpl::producer<std::optional<SelectedAsset>> selectedAsset);
 	~History();
 
 	void updateGeometry(QPoint position, int width);
@@ -55,7 +56,7 @@ private:
 	void setupContent(
 		rpl::producer<HistoryState> &&state,
 		rpl::producer<Ton::LoadedSlice> &&loaded,
-		rpl::producer<std::optional<Ton::TokenKind>> &&selectedToken);
+		rpl::producer<std::optional<SelectedAsset>> &&selectedAsset);
 	void resizeToWidth(int width);
 	void mergeState(HistoryState &&state);
 	bool mergePendingChanged(std::vector<Ton::PendingTransaction> &&list);
@@ -65,7 +66,7 @@ private:
 	void paint(Painter &p, QRect clip);
 	void repaintRow(not_null<HistoryRow*> row);
 	void repaintShadow(not_null<HistoryRow*> row);
-	[[nodiscard]] ScrollState computeScrollState() const;
+	void checkPreload() const;
 
 	void selectRow(int selected, ClickHandlerPtr handler);
 	void selectRowByMouse();
@@ -91,7 +92,7 @@ private:
 	Ton::TransactionId _previousId;
 	Ton::TransactionId _initTransactionId;
 
-	rpl::variable<Ton::TokenKind> _selectedToken;
+	rpl::variable<SelectedAsset> _selectedAsset;
 	rpl::variable<QString> _tokenContractAddress;
 	std::vector<std::unique_ptr<HistoryRow>> _pendingRows;
 	std::vector<std::unique_ptr<HistoryRow>> _rows;

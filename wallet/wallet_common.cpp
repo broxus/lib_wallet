@@ -478,4 +478,18 @@ Ton::TokenTransactionToSend TokenTransactionFromInvoice(
 	return result;
 }
 
+auto operator==(const SelectedAsset &a, const SelectedAsset &b) -> bool {
+	if (a.index() != b.index()) {
+		return false;
+	}
+
+	return v::match(a, [&](const SelectedToken &left) {
+		const auto &right = v::get<SelectedToken>(b);
+		return left.token == right.token;
+	}, [&](const SelectedDePool &left) {
+		const auto &right = v::get<SelectedDePool>(b);
+		return left.address == right.address;
+	});
+}
+
 } // namespace Wallet

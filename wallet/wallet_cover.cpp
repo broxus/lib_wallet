@@ -51,6 +51,14 @@ not_null<Ui::RoundButton*> CreateCoverButton(
 
 } // namespace
 
+auto CoverState::selectedToken() const -> Ton::TokenKind {
+	return v::match(asset, [](const SelectedToken &selectedToken) {
+		return selectedToken.token;
+	}, [&](const SelectedDePool &/*selectedDePool*/) {
+		return Ton::TokenKind::DefaultToken;
+	});
+}
+
 Cover::Cover(not_null<Ui::RpWidget*> parent, rpl::producer<CoverState> state)
 : _widget(parent)
 , _state(std::move(state)) {
@@ -82,7 +90,7 @@ void Cover::setupBalance() {
 	) | rpl::map([](const CoverState &state) {
 		return FormatAmount(
 			std::max(state.unlockedBalance, 0LL),
-			state.token,
+			state.selectedToken(),
 			FormatFlag::Rounded);
 	});
 
@@ -103,9 +111,13 @@ void Cover::setupBalance() {
 
 	auto lockedAmount = _state.value(
 	) | rpl::map([](const CoverState &state) {
-		return (state.lockedBalance > 0)
-			? FormatAmount(state.lockedBalance, state.token, FormatFlag::Rounded).full
-			: QString();
+		return v::match(state.asset, [&](const SelectedToken &selectedToken) {
+			return (state.lockedBalance > 0)
+				? FormatAmount(state.lockedBalance, selectedToken.token, FormatFlag::Rounded).full
+				: QString();
+		}, [&](const SelectedDePool &/*selectedDePool*/) {
+			return QString();
+		});
 	});
 
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
@@ -172,7 +184,7 @@ void Cover::setupBalance() {
 		const auto diamondTop = 0;
 		const auto diamondLeft = locked->width() - st::walletDiamondSize;
 		Ui::PaintInlineTokenIcon(
-			state.token,
+			state.selectedToken(),
 			p,
 			diamondLeft,
 			diamondTop,
@@ -224,7 +236,7 @@ void Cover::setupControls() {
 
 	auto selectedToken = _state.value(
     ) | rpl::map([](const CoverState &state) {
-        return state.token;
+        return state.selectedToken();
     }) | rpl::distinct_until_changed();
 
     const auto replaceTickerTag = [] {
@@ -235,14 +247,14 @@ void Cover::setupControls() {
 
 	const auto receive = CreateCoverButton(
 		&_widget,
-        rpl::conditional(
-                rpl::duplicate(hasFunds),
-                ph::lng_wallet_cover_receive(),
-                rpl::combine(
-                        ph::lng_wallet_cover_receive_full(),
-                        rpl::duplicate(selectedToken)
-                ) | replaceTickerTag()
-        ),
+		rpl::conditional(
+			rpl::duplicate(hasFunds),
+			ph::lng_wallet_cover_receive(),
+			rpl::combine(
+				ph::lng_wallet_cover_receive_full(),
+				rpl::duplicate(selectedToken)
+			) | replaceTickerTag()
+		),
 		st::walletCoverReceiveIcon);
 
 	const auto send = CreateCoverButton(
@@ -292,33 +304,37 @@ void Cover::setupControls() {
 
 rpl::producer<CoverState> MakeCoverState(
 		rpl::producer<Ton::WalletViewerState> state,
-		rpl::producer<std::optional<Ton::TokenKind>> selectedToken,
+		rpl::producer<std::optional<SelectedAsset>> selectedAsset,
 		bool justCreated,
 		bool useTestNetwork) {
 	return rpl::combine(
 		std::move(state),
-		std::move(selectedToken)
-	) | rpl::map([=](const Ton::WalletViewerState &data, const std::optional<Ton::TokenKind> &selectedToken) {
+		std::move(selectedAsset)
+	) | rpl::map([=](const Ton::WalletViewerState &data, const std::optional<SelectedAsset> &asset) {
 		const auto &account = data.wallet.account;
 
 		CoverState result{
-			.token = selectedToken.value_or(Ton::TokenKind::DefaultToken),
+			.asset = asset.value_or(SelectedToken { .token = Ton::TokenKind::DefaultToken }),
 			.justCreated = justCreated,
 			.useTestNetwork = useTestNetwork,
 		};
 
-		if (!result.token) {
-			result.unlockedBalance = account.fullBalance - account.lockedBalance;
-			result.lockedBalance = account.lockedBalance;
-		} else {
-			const auto it = data.wallet.tokenStates.find(*selectedToken);
-			if (it == data.wallet.tokenStates.end()) {
-				result.unlockedBalance = 0;
+		v::match(result.asset, [&](const SelectedToken &selectedToken) {
+			if (selectedToken.token == Ton::TokenKind::DefaultToken) {
+				result.unlockedBalance = account.fullBalance - account.lockedBalance;
+				result.lockedBalance = account.lockedBalance;
 			} else {
-				result.unlockedBalance = it->second.fullBalance;
+				const auto it = data.wallet.tokenStates.find(selectedToken.token);
+				if (it == data.wallet.tokenStates.end()) {
+					result.unlockedBalance = 0;
+				} else {
+					result.unlockedBalance = it->second.fullBalance;
+				}
+				result.lockedBalance = 0;
 			}
-			result.lockedBalance = 0;
-		}
+		}, [&](const SelectedDePool &selectedDePool) {
+			// TODO: set depool balance
+		});
 
 		return result;
 	});

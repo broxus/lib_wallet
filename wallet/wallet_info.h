@@ -9,6 +9,8 @@
 #include "ton/ton_state.h"
 #include "ton/ton_result.h"
 
+#include "wallet_common.h"
+
 namespace Ui {
 class RpWidget;
 class ScrollArea;
@@ -25,10 +27,8 @@ public:
 		rpl::producer<Ton::WalletViewerState> state;
 		rpl::producer<Ton::Result<Ton::LoadedSlice>> loaded;
 		rpl::producer<Ton::Update> updates;
-		rpl::producer<
-			not_null<std::vector<Ton::Transaction>*>> collectEncrypted;
-		rpl::producer<
-			not_null<const std::vector<Ton::Transaction>*>> updateDecrypted;
+		rpl::producer<not_null<std::vector<Ton::Transaction>*>> collectEncrypted;
+		rpl::producer<not_null<const std::vector<Ton::Transaction>*>> updateDecrypted;
 		rpl::producer<InfoTransition> transitionEvents;
 		rpl::producer<QString> tokenContractAddress;
 		Fn<void(QImage, QString)> share;
@@ -41,7 +41,7 @@ public:
 
 	void setGeometry(QRect geometry);
 
-	[[nodiscard]] rpl::producer<std::optional<Ton::TokenKind>> selectedToken() const;
+	[[nodiscard]] rpl::producer<std::optional<SelectedAsset>> selectedAsset() const;
 
 	[[nodiscard]] rpl::producer<Action> actionRequests() const;
 	[[nodiscard]] rpl::producer<Ton::TransactionId> preloadRequests() const;
@@ -57,7 +57,7 @@ private:
 	const not_null<Ui::ScrollArea*> _scroll;
 	const not_null<Ui::RpWidget*> _inner;
 
-	rpl::variable<std::optional<Ton::TokenKind>> _selectedToken;
+	rpl::variable<std::optional<SelectedAsset>> _selectedAsset;
 
 	rpl::event_stream<Action> _actionRequests;
 	rpl::event_stream<Ton::TransactionId> _preloadRequests;

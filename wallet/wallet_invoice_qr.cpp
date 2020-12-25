@@ -18,12 +18,8 @@ namespace Wallet {
 void InvoiceQrBox(
 		not_null<Ui::GenericBox*> box,
 		const QString &link,
-        rpl::producer<std::optional<Ton::TokenKind>> selectedToken,
+        Ton::TokenKind token,
 		const Fn<void(QImage, QString)> &share) {
-
-    const auto token = rpl::duplicate(selectedToken) | rpl::map([=](std::optional<Ton::TokenKind> token) {
-        return token.value_or(Ton::TokenKind::DefaultToken);
-    });
 
 	box->setTitle(ph::lng_wallet_invoice_qr_title());
 	box->setStyle(st::walletBox);
@@ -39,29 +35,22 @@ void InvoiceQrBox(
     const auto button = Ui::CreateChild<Ui::AbstractButton>(container);
 
     auto qr = button->lifetime().make_state<QImage>();
+	*qr = Ui::TokenQr(
+		token,
+		link,
+		st::walletInvoiceQrPixel,
+		st::boxWidth - st::boxRowPadding.left() - st::boxRowPadding.right());
 
-    rpl::duplicate(token) | rpl::start_with_next([=]( std::optional<Ton::TokenKind> token){
-        *currentToken = token.value_or(Ton::TokenKind::DefaultToken);
+	const int size = qr->width() / style::DevicePixelRatio();
+	const auto height = st::walletInvoiceQrSkip * 2 + size;
 
-        *qr = Ui::TokenQr(
-            token.value_or(Ton::TokenKind::DefaultToken),
-            link,
-            st::walletInvoiceQrPixel,
-            st::boxWidth - st::boxRowPadding.left() - st::boxRowPadding.right());
+	container->setFixedHeight(height);
 
-        const int size = qr->width() / style::DevicePixelRatio();
-        const auto height = st::walletInvoiceQrSkip * 2 + size;
-
-        container->setFixedHeight(height);
-
-        button->resize(size, size);
-
-    }, container->lifetime());
+	button->resize(size, size);
 
     button->setClickedCallback([=] {
         share(Ui::TokenQrForShare(*currentToken, link), QString());
     });
-
 
     button->paintRequest(
 	) | rpl::start_with_next([=] {

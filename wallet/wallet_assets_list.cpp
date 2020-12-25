@@ -1,4 +1,4 @@
-#include "wallet_tokens_list.h"
+#include "wallet_assets_list.h"
 
 #include "wallet/wallet_common.h"
 #include "ui/painter.h"
@@ -29,28 +29,38 @@ struct AssetItemLayout
 	int addressWidth = 0;
 };
 
-[[nodiscard]] const style::TextStyle &AddressStyle() {
+[[nodiscard]] const style::TextStyle &addressStyle() {
 	const static auto result = Ui::ComputeAddressStyle(st::defaultTextStyle);
 	return result;
 }
 
-[[nodiscard]] AssetItemLayout PrepareLayout(const TokenItem &data) {
-	const auto balance = FormatAmount(std::max(data.balance, int64_t{}), data.token);
-	const auto address = data.address;
-	const auto addressPartWidth = [&](int from, int length = -1)
-	{
-		return AddressStyle().font->width(address.mid(from, length));
-	};
+auto addressPartWidth(const QString &address, int from, int length = -1) {
+	return addressStyle().font->width(address.mid(from, length));
+}
+
+[[nodiscard]] AssetItemLayout prepareLayout(const AssetItem &data) {
+	const auto [title, token, address, balance] = v::match(data, [](const TokenItem &item) {
+		return std::make_tuple(Ton::toString(item.token), item.token, item.address, item.balance);
+	}, [](const DePoolItem &item) {
+		return std::make_tuple(QString{"DePool"}, Ton::TokenKind::Ton, item.address, item.withdrawValue);
+	});
+
+	const auto formattedBalance = FormatAmount(std::max(balance, int64_t{}), token);
 
 	auto result = AssetItemLayout();
-	result.image = Ui::InlineTokenIcon(data.token, st::walletTokensListRowIconSize);
-	result.title.setText(st::walletTokensListRowTitleStyle.style, Ton::toString(data.token));
-	result.balanceGrams.setText(st::walletTokensListRowGramsStyle, balance.gramsString);
-	result.balanceNano.setText(st::walletTokensListRowNanoStyle, balance.separator + balance.nanoString);
-	result.address = Ui::Text::String(AddressStyle(), address, _defaultOptions, st::walletAddressWidthMin);
-	result.addressWidth = (AddressStyle().font->spacew / 2) + std::max(
-		addressPartWidth(0, address.size() / 2),
-		addressPartWidth(address.size() / 2));
+	result.image = Ui::InlineTokenIcon(token, st::walletTokensListRowIconSize);
+	result.title.setText(st::walletTokensListRowTitleStyle.style, title);
+
+	result.balanceGrams.setText(st::walletTokensListRowGramsStyle, formattedBalance.gramsString);
+
+	result.balanceNano.setText(
+		st::walletTokensListRowNanoStyle,
+		formattedBalance.separator + formattedBalance.nanoString);
+
+	result.address = Ui::Text::String(addressStyle(), address, _defaultOptions, st::walletAddressWidthMin);
+	result.addressWidth = (addressStyle().font->spacew / 2) + std::max(
+		addressPartWidth(address, 0, address.size() / 2),
+		addressPartWidth(address, address.size() / 2));
 
 	return result;
 }
@@ -60,22 +70,14 @@ struct AssetItemLayout
 class AssetsListRow final
 {
 public:
-	explicit AssetsListRow(const TokenItem &token)
-		: _tokenItem(token)
-		, _layout(PrepareLayout(token)) {
-	}
-
-	explicit AssetsListRow(const DePoolItem &depool) {
-
+	explicit AssetsListRow(const AssetItem &item)
+		: _data(item)
+		, _layout(prepareLayout(item)) {
 	}
 
 	AssetsListRow(const AssetsListRow &) = delete;
 	AssetsListRow &operator=(const AssetsListRow &) = delete;
 	~AssetsListRow() = default;
-
-	Ton::TokenKind kind() const {
-		return _tokenItem.token;
-	}
 
 	void paint(Painter &p, int /*x*/, int /*y*/) const {
 		const auto padding = st::walletTokensListRowContentPadding;
@@ -125,8 +127,8 @@ public:
 		p.setPen(st::walletTokensListRowTitleStyle.textFg);
 
 		const auto addressTop = availableHeight
-			- padding.bottom()
-			- AddressStyle().font->ascent * 2;
+								- padding.bottom()
+								- addressStyle().font->ascent * 2;
 		_layout.address.drawRightElided(p,
 			padding.right(),
 			addressTop,
@@ -140,12 +142,13 @@ public:
 			/*breakEverywhere*/ true);
 	}
 
-	bool refresh(const TokenItem &item) {
-		if (_tokenItem.token != item.token || _tokenItem.balance == item.balance) {
+	bool refresh(const AssetItem &item) {
+		if (_data == item) {
 			return false;
 		}
-		_layout = PrepareLayout(item);
-		_tokenItem = item;
+
+		_layout = prepareLayout(item);
+		_data = item;
 		return true;
 	}
 
@@ -159,8 +162,12 @@ public:
 		// TODO: handle contents resize
 	}
 
+	auto data() const -> const AssetItem& {
+		return _data;
+	}
+
 private:
-	TokenItem _tokenItem;
+	AssetItem _data;
 	AssetItemLayout _layout;
 	int _width = 0;
 	int _height = 0;
@@ -261,13 +268,14 @@ void AssetsList::setupContent(rpl::producer<AssetsListState> &&state) {
 		state
 	) | rpl::start_with_next(
 		[this, layoutWidget, layout](AssetsListState &&state) {
-			refreshItemValues(state.tokens);
-			if (!mergeListChanged(std::move(state.tokens))) {
+			refreshItemValues(state);
+			if (!mergeListChanged(std::move(state))) {
 				return;
 			}
 
 			for (size_t i = 0; i < _rows.size(); ++i) {
 				if (i < _buttons.size()) {
+					// skip already existing buttons
 					continue;
 				}
 
@@ -294,7 +302,7 @@ void AssetsList::setupContent(rpl::producer<AssetsListState> &&state) {
 					if (mouseButton != Qt::MouseButton::LeftButton) {
 						return;
 					}
-					_openRequests.fire_copy(_listData[i]);
+					_openRequests.fire_copy(_rows[i]->data());
 				}, button->lifetime());
 
 				layout->addWidget(button.get());
@@ -302,13 +310,14 @@ void AssetsList::setupContent(rpl::producer<AssetsListState> &&state) {
 				_buttons.emplace_back(std::move(button));
 			}
 
-			for (size_t i = _buttons.size(); i > state.tokens.size() + 1; --i) {
+			for (size_t i = _buttons.size(); i > _rows.size() + 1; --i) {
+				// remove unused buttons
 				layout->removeWidget(_buttons.back().get());
 				_buttons.pop_back();
 			}
 
 			layoutWidget->setFixedHeight(
-				_buttons.size() * (st::walletTokensListRowHeight + st::walletTokensListRowSpacing)
+				static_cast<int>(_buttons.size()) * (st::walletTokensListRowHeight + st::walletTokensListRowSpacing)
 				- (_buttons.empty() ? 0 : st::walletTokensListRowSpacing)
 				+ st::walletTokensListPadding.top()
 				+ st::walletTokensListPadding.bottom());
@@ -316,98 +325,85 @@ void AssetsList::setupContent(rpl::producer<AssetsListState> &&state) {
 }
 
 void AssetsList::refreshItemValues(const AssetsListState &data) {
-	for (size_t i = 0; i < _rows.size(); ++i) {
-		v::match(_listData[i], [&](TokenItem& item) {
-			const auto it = data.tokens.find(item.token);
-			if (it != data.tokens.end() && _rows[i]->refresh(it->second)) {
-				_listData[i] = it->second;
-			}
-		},
-		[&](DePoolItem& item) {
-			const auto it = data.depools.find(item.address);
-			if (it != data.depools.end() /*TODO: && _rows[i]->refresh(it->second) */) {
-				_listData[i] = it->second;
-			}
-		});
+	for (size_t i = 0; i < _rows.size() && i < data.items.size(); ++i) {
+		_rows[i]->refresh(data.items[i]);
 	}
 }
 
 bool AssetsList::mergeListChanged(AssetsListState &&data) {
-	for (auto & item : _listData) {
-		v::match(item, [&](TokenItem &item) {
-			auto it = data.tokens.find(item.token);
-			if (it != data.tokens.end()) {
-				data.tokens.erase(it);
-			}
-		}, [&](DePoolItem &item) {
-			auto it = data.depools.find(item.address);
-			if (it != data.depools.end()) {
-				data.depools.erase(it);
-			}
-		});
-	}
-
-	if (data.tokens.empty() && data.depools.empty()) {
+	if (_rows.size() == data.items.size()) {
 		return false;
 	}
 
-	for (auto& [address, depool] : data.depools) {
-		// TODO
+	while (_rows.size() > data.items.size()) {
+		_rows.pop_back();
 	}
 
-	for (auto& [kind, state] : data.tokens) {
-		_rows.push_back(makeTokenItemRow(state));
-		_listData.push_back(std::move(state));
+	for (size_t i = _rows.size(); i < data.items.size(); ++i) {
+		_rows.emplace_back(std::make_unique<AssetsListRow>(data.items[i]));
 	}
 
 	return true;
 }
 
-std::unique_ptr<AssetsListRow> AssetsList::makeTokenItemRow(const TokenItem &data) {
-	return std::make_unique<AssetsListRow>(data);
-}
-
 rpl::producer<AssetsListState> MakeTokensListState(
-	rpl::producer<Ton::WalletViewerState> state) {
+		rpl::producer<Ton::WalletViewerState> state) {
 	return std::move(
 		state
 	) | rpl::map(
-		[=](const Ton::WalletViewerState &data)
-		{
+		[=](const Ton::WalletViewerState &data) {
 			const auto &account = data.wallet.account;
 			const auto unlockedTonBalance = account.fullBalance - account.lockedBalance;
 
 			AssetsListState result{};
-			result.tokens.insert({Ton::TokenKind::DefaultToken, TokenItem {
+
+			result.items.emplace_back(TokenItem {
 				.token = Ton::TokenKind::DefaultToken,
 				.address = data.wallet.address,
 				.balance = unlockedTonBalance,
-			}});
+			});
+
+			for (const auto &[address, state]: data.wallet.dePoolParticipantStates) {
+				std::cout << "DePool: " << address.toStdString() << std::endl;
+
+				result.items.emplace_back(DePoolItem {
+					.address = address,
+					.withdrawValue = state.withdrawValue,
+					.reward = state.reward
+				});
+			}
+
 			for (const auto &[token, state] : data.wallet.tokenStates) {
-				result.tokens.insert({token, TokenItem {
+				result.items.emplace_back(TokenItem {
 					.token = token,
 					.address = data.wallet.address,
 					.balance = state.fullBalance,
-				}});
+				});
 			}
 			return result;
 		});
 }
 
-bool operator==(const TokenItem &a, const TokenItem &b) {
-	return a.token == b.token;
+bool operator==(const AssetItem &a, const AssetItem &b) {
+	if (a.index() != b.index()) {
+		return false;
+	}
+
+	return v::match(a, [&](const TokenItem &left) {
+		const auto &right = v::get<TokenItem>(b);
+		return left.address == right.address
+			&& left.balance == right.balance
+			&& left.token == right.token;
+	}, [&](const DePoolItem &left) {
+		const auto &right = v::get<DePoolItem>(b);
+		return left.address == right.address
+			&& left.reward == right.reward
+			&& left.withdrawValue == right.withdrawValue;
+	});
 }
 
-bool operator!=(const TokenItem &a, const TokenItem &b) {
-	return a.token != b.token;
-}
-
-bool operator==(const DePoolItem &a, const DePoolItem &b) {
-	return a.address == b.address;
-}
-
-bool operator==(const DePoolItem &a, const DePoolItem &b) {
-	return a.address != b.address;
+bool operator!=(const AssetItem &a, const AssetItem &b) {
+	return !(a == b);
 }
 
 } // namespace Wallet
