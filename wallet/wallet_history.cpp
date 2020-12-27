@@ -372,7 +372,7 @@ void HistoryRow::paint(Painter &p, int x, int y) {
 			: x;
 		const auto shadowWidth = (use < _width)
 			? (avail + 2 * st::walletRowShadowAdd)
-			: _width - padding.left();
+			: _width - padding.left() - padding.right();
 		p.fillRect(shadowLeft, y, shadowWidth, st::lineWidth, st::shadowFg);
 	}
 	y += padding.top();

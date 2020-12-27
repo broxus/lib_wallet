@@ -24,7 +24,7 @@ namespace Wallet {
 namespace {
 
 struct FixedAddress {
-	PreparedInvoice invoice;
+	QString address{};
 	int position = 0;
 };
 
@@ -35,10 +35,19 @@ struct FixedAddress {
 [[nodiscard]] FixedAddress FixAddressInput(
 		const QString &text,
 		int position) {
-	auto result = FixedAddress{ ParseInvoice(text), position };
-	if (result.invoice.address != text) {
+	const auto address = v::match(ParseInvoice(text), [](const TonTransferInvoice &tonTransferInvoice) {
+		return tonTransferInvoice.address;
+	}, [](const TokenTransferInvoice &tokenTransferInvoice) {
+		return tokenTransferInvoice.address;
+	}, [](const StakeInvoice &) {
+		return QString{};
+	});
+
+	auto result = FixedAddress{ address, position };
+
+	if (result.address != text) {
 		const auto removed = std::max(
-			int(text.size()) - int(result.invoice.address.size()),
+			int(text.size()) - int(result.address.size()),
 			0);
 		result.position = std::max(position - removed, 0);
 	}
@@ -47,24 +56,36 @@ struct FixedAddress {
 
 } // namespace
 
+template<typename T>
 void SendGramsBox(
 		not_null<Ui::GenericBox*> box,
-		const PreparedInvoice &invoice,
+		const T &invoice,
 		rpl::producer<Ton::WalletState> state,
-		const Fn<void(PreparedInvoice, Fn<void(InvoiceField)> error)> &done) {
+		const Fn<void(const T&, Fn<void(InvoiceField)> error)> &done) {
+	constexpr auto isTonTransfer = std::is_same_v<T, TonTransferInvoice>;
+	constexpr auto isTokenTransfer = std::is_same_v<T, TokenTransferInvoice>;
+	static_assert(isTonTransfer || isTokenTransfer);
 
-	const auto prepared = box->lifetime().make_state<PreparedInvoice>(invoice);
+	auto token = Ton::TokenKind::DefaultToken;
+	if constexpr (isTokenTransfer) {
+		token = invoice.token;
+	}
+	const auto tokenDecimals = Ton::countDecimals(token);
+
+	const auto prepared = box->lifetime().make_state<T>(invoice);
 
 	auto unlockedBalance = rpl::duplicate(state) | rpl::map([=](const Ton::WalletState &state) {
-		if (!prepared->token) {
+		if constexpr (isTonTransfer) {
 			return state.account.fullBalance - state.account.lockedBalance;
-		} else {
-			const auto it = state.tokenStates.find(prepared->token);
+		} else if constexpr (isTokenTransfer) {
+			const auto it = state.tokenStates.find(token);
 			if (it != state.tokenStates.end()) {
 				return it->second.fullBalance;
 			} else {
 				return int64{};
 			}
+		} else {
+			return 0;
 		}
 	});
 
@@ -72,13 +93,13 @@ void SendGramsBox(
 
 	const auto replaceTickerTag = [=] {
 		return rpl::map([=](QString &&text) {
-			return text.replace("{ticker}", Ton::toString(prepared->token));
+			return text.replace("{ticker}", Ton::toString(token));
 		});
 	};
 
-	const auto replaceGramsTag = [] {
-		return rpl::map([=](QString &&text, const QString &grams) {
-			return text.replace("{grams}", grams);
+	const auto replaceAmountTag = [] {
+		return rpl::map([=](QString &&text, const QString &amount) {
+			return text.replace("{amount}", amount);
 		});
 	};
 
@@ -105,7 +126,7 @@ void SendGramsBox(
 			box,
 			rpl::single("0" + AmountSeparator() + "0"),
 			prepared->amount,
-			rpl::single(prepared->token))),
+			rpl::single(token))),
 		st::walletSendAmountPadding);
 
 	auto balanceText = rpl::combine(
@@ -114,11 +135,11 @@ void SendGramsBox(
 	) | rpl::map([=](QString &&phrase, int64 value) {
 		return phrase.replace(
 			"{amount}",
-			FormatAmount(std::max(value, 0LL), prepared->token, FormatFlag::Rounded).full);
+			FormatAmount(std::max(value, 0LL), token, FormatFlag::Rounded).full);
 	});
 
 	const auto diamondLabel = Ui::CreateInlineTokenIcon(
-		rpl::single(prepared->token),
+		rpl::single(token),
 		subtitle->parentWidget(),
 		0,
 		0,
@@ -145,12 +166,15 @@ void SendGramsBox(
 		balanceLabel->moveToRight(labelRight, labelTop);
 	}, balanceLabel->lifetime());
 
-	const auto comment = box->addRow(
-		object_ptr<Ui::InputField>::fromRaw(CreateCommentInput(
-			box,
-			ph::lng_wallet_send_comment(),
-			prepared->comment)),
-		st::walletSendCommentPadding);
+	Ui::InputField* comment = nullptr;
+	if constexpr (isTonTransfer) {
+		comment = box->addRow(
+			object_ptr<Ui::InputField>::fromRaw(CreateCommentInput(
+				box,
+				ph::lng_wallet_send_comment(),
+				prepared->comment)),
+			st::walletSendCommentPadding);
+	}
 
 	auto isEthereumAddress = box->lifetime().make_state<rpl::variable<bool>>(false);
 
@@ -161,7 +185,7 @@ void SendGramsBox(
 		&Ui::InputField::changed
 	)) | rpl::map([=]() -> rpl::producer<QString> {
 		const auto text = amount->getLastText();
-		const auto value = ParseAmountString(text, Ton::countDecimals(prepared->token)).value_or(0);
+		const auto value = ParseAmountString(text, tokenDecimals).value_or(0);
 		if (value > 0) {
 			return rpl::combine(
 				isEthereumAddress->value() | rpl::map([](bool isEthereumAddress) {
@@ -171,10 +195,8 @@ void SendGramsBox(
 						return ph::lng_wallet_send_button_amount();
 					}
 				}) | rpl::flatten_latest(),
-				ph::lng_wallet_grams_count(
-					FormatAmount(value, prepared->token).full,
-					prepared->token)()
-			) | replaceGramsTag();
+				ph::lng_wallet_grams_count(FormatAmount(value, token).full, token)()
+			) | replaceAmountTag();
 		} else {
 			return isEthereumAddress->value() | rpl::map([](bool isEthereumAddress) {
 				if (isEthereumAddress) {
@@ -190,23 +212,31 @@ void SendGramsBox(
 		switch (field) {
 			case InvoiceField::Address: address->showError(); return;
 			case InvoiceField::Amount: amount->showError(); return;
-			case InvoiceField::Comment: comment->showError(); return;
+			case InvoiceField::Comment: {
+				if (comment != nullptr) {
+					comment->showError();
+				}
+				return;
+			}
 		}
 		Unexpected("Field value in SendGramsBox error callback.");
 	});
 
 	const auto submit = [=] {
-		auto collected = PreparedInvoice();
-		const auto parsed = ParseAmountString(amount->getLastText(), Ton::countDecimals(prepared->token));
+		auto collected = T{};
+		const auto parsed = ParseAmountString(amount->getLastText(), tokenDecimals);
 		if (!parsed) {
 			amount->showError();
 			return;
 		}
 		collected.amount = *parsed;
 		collected.address = address->getLastText();
-		collected.comment = comment->getLastText();
-		collected.swapBack = collected.address.startsWith("0x");
-		collected.token = prepared->token;
+		if constexpr (isTonTransfer) {
+			collected.comment = comment->getLastText();
+		} else if constexpr (isTokenTransfer) {
+			collected.swapBack = collected.address.startsWith("0x");
+			collected.token = token;
+		}
 		done(collected, showError);
 	};
 
@@ -216,10 +246,6 @@ void SendGramsBox(
 		st::walletBottomButton
 	)->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 
-	const auto isTon = !prepared->token;
-	comment->setMinHeight(isTon ? st::walletInput.heightMin : 0);
-	comment->setMaxHeight(isTon ? st::walletInput.heightMax : 0);
-
 	const auto checkFunds = [=](const QString &amount, Ton::TokenKind token) {
 		if (const auto value = ParseAmountString(amount, Ton::countDecimals(token))) {
 			const auto insufficient = (*value > std::max(*funds, 0LL));
@@ -228,56 +254,51 @@ void SendGramsBox(
 				: std::nullopt);
 		}
 	};
+
 	std::move(
 		unlockedBalance
 	) | rpl::start_with_next([=](int64 value) {
 		*funds = value;
-		checkFunds(amount->getLastText(), prepared->token);
+		checkFunds(amount->getLastText(), token);
 	}, amount->lifetime());
 
 	Ui::Connect(amount, &Ui::InputField::changed, [=] {
 		Ui::PostponeCall(amount, [=] {
-			checkFunds(amount->getLastText(), prepared->token);
+			checkFunds(amount->getLastText(), token);
 		});
 	});
+
 	Ui::Connect(address, &Ui::InputField::changed, [=] {
 		Ui::PostponeCall(address, [=] {
 			const auto position = address->textCursor().position();
 			const auto now = address->getLastText();
 			const auto fixed = FixAddressInput(now, position);
-			if (fixed.invoice.address != now) {
-				address->setText(fixed.invoice.address);
+			if (fixed.address != now) {
+				address->setText(fixed.address);
 				address->setFocusFast();
 				address->setCursorPosition(fixed.position);
 			}
-			if (fixed.invoice.amount > 0) {
-				amount->setText(FormatAmount(
-					fixed.invoice.amount,
-					prepared->token,
-					FormatFlag::Simple).full);
-			}
-			if (!fixed.invoice.comment.isEmpty()) {
-				comment->setText(fixed.invoice.comment);
-			}
 
-			const auto colonPosition = fixed.invoice.address.indexOf(':');
+			const auto colonPosition = fixed.address.indexOf(':');
 			const auto isRaw = colonPosition > 0;
-			const auto hexPrefixPosition = fixed.invoice.address.indexOf("0x");
+			const auto hexPrefixPosition = fixed.address.indexOf("0x");
 			*isEthereumAddress = hexPrefixPosition == 0;
 
 			bool shouldShiftFocus = false;
-			if (isRaw && ((fixed.invoice.address.size() - colonPosition - 1) == kRawAddressLength)) {
+			if (isRaw && ((fixed.address.size() - colonPosition - 1) == kRawAddressLength)) {
 				shouldShiftFocus = true;
-			} else if (isEthereumAddress->current() && (fixed.invoice.address.size() - 2) == kEtheriumAddressLength) {
+			} else if (isEthereumAddress->current() && (fixed.address.size() - 2) == kEtheriumAddressLength) {
 				shouldShiftFocus = true;
-			} else if (!(isRaw || isEthereumAddress->current()) && fixed.invoice.address.size() == kEncodedAddressLength) {
+			} else if (!(isRaw || isEthereumAddress->current()) && fixed.address.size() == kEncodedAddressLength) {
 				shouldShiftFocus = true;
 			}
 
 			if (shouldShiftFocus && address->hasFocus()) {
 				if (amount->getLastText().isEmpty()) {
-					amount->setFocus();
-				} else {
+					return amount->setFocus();
+				}
+
+				if constexpr (isTonTransfer) {
 					comment->setFocus();
 				}
 			}
@@ -285,8 +306,7 @@ void SendGramsBox(
 	});
 
 	box->setFocusCallback([=] {
-		if (prepared->address.isEmpty()
-			|| address->getLastText() != prepared->address) {
+		if (prepared->address.isEmpty() || address->getLastText() != prepared->address) {
 			address->setFocusFast();
 		} else {
 			amount->setFocusFast();
@@ -317,14 +337,28 @@ void SendGramsBox(
 	});
 
 	Ui::Connect(amount, &Ui::InputField::submitted, [=] {
-		if (ParseAmountString(amount->getLastText(), Ton::countDecimals(prepared->token)).value_or(0) <= 0) {
-			amount->showError();
-		} else {
+		if (ParseAmountString(amount->getLastText(), tokenDecimals).value_or(0) <= 0) {
+			return amount->showError();
+		}
+
+		if constexpr (isTokenTransfer) {
 			comment->setFocus();
 		}
 	});
 
 	Ui::Connect(comment, &Ui::InputField::submitted, submit);
 }
+
+template void SendGramsBox<TonTransferInvoice>(
+	not_null<Ui::GenericBox*> box,
+	const TonTransferInvoice &invoice,
+	rpl::producer<Ton::WalletState> state,
+	const Fn<void(const TonTransferInvoice&, Fn<void(InvoiceField)> error)> &done);
+
+template void SendGramsBox<TokenTransferInvoice>(
+	not_null<Ui::GenericBox*> box,
+	const TokenTransferInvoice &invoice,
+	rpl::producer<Ton::WalletState> state,
+	const Fn<void(const TokenTransferInvoice&, Fn<void(InvoiceField)> error)> &done);
 
 } // namespace Wallet

@@ -24,11 +24,21 @@ namespace {
 
 constexpr auto kWarningPreviewLength = 30;
 
+template<typename T>
 [[nodiscard]] rpl::producer<TextWithEntities> PrepareEncryptionWarning(
-		const PreparedInvoice &invoice) {
-	const auto text = (invoice.comment.size() > kWarningPreviewLength)
-		? (invoice.comment.mid(0, kWarningPreviewLength - 3) + "...")
-		: invoice.comment;
+		const T &invoice) {
+	constexpr auto isTonTransfer = std::is_same_v<T, TonTransferInvoice>;
+	constexpr auto isTokenTransfer = std::is_same_v<T, TokenTransferInvoice>;
+	constexpr auto isStakeTransfer = std::is_same_v<T, StakeInvoice>;
+	static_assert(isTonTransfer || isTokenTransfer || isStakeTransfer);
+
+	QString text{};
+	if constexpr (isTonTransfer) {
+		text = (invoice.comment.size() > kWarningPreviewLength)
+			? (invoice.comment.mid(0, kWarningPreviewLength - 3) + "...")
+			: invoice.comment;
+	}
+
 	return ph::lng_wallet_confirm_warning(
 		Ui::Text::RichLangValue
 	) | rpl::map([=](TextWithEntities value) {
@@ -69,23 +79,49 @@ constexpr auto kWarningPreviewLength = 30;
 
 } // namespace
 
+template<typename T>
 void ConfirmTransactionBox(
 		not_null<Ui::GenericBox*> box,
-		const PreparedInvoice &invoice,
+		const T &invoice,
 		int64 fee,
 		const Fn<void()> &confirmed) {
+	constexpr auto isTonTransfer = std::is_same_v<T, TonTransferInvoice>;
+	constexpr auto isTokenTransfer = std::is_same_v<T, TokenTransferInvoice>;
+	constexpr auto isStakeTransfer = std::is_same_v<T, StakeInvoice>;
+	static_assert(isTonTransfer || isTokenTransfer || isStakeTransfer);
+
+	auto token = Ton::TokenKind::DefaultToken;
+	if constexpr (isTokenTransfer) {
+		token = invoice.token;
+	}
+
+	QString address{};
+	if constexpr (isTonTransfer || isTokenTransfer) {
+		address = invoice.address;
+	} else if constexpr (isStakeTransfer) {
+		address = invoice.dePool;
+	}
+
 	box->setTitle(ph::lng_wallet_confirm_title());
 
 	box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
 	box->setCloseByOutsideClick(false);
 
-	const auto amount = FormatAmount(invoice.amount, invoice.token).full;
+	const auto amount = [=]() constexpr {
+		if constexpr (isTonTransfer || isTokenTransfer) {
+			return FormatAmount(invoice.amount, token).full;
+		} else if constexpr (isStakeTransfer) {
+			return FormatAmount(invoice.stake, token).full;
+		}
+	}();
+
 	auto text = rpl::combine(
 		ph::lng_wallet_confirm_text(),
-		ph::lng_wallet_grams_count(amount, invoice.token)()
+		ph::lng_wallet_grams_count(amount, token)()
 	) | rpl::map([=](QString &&text, const QString &grams) {
 		return Ui::Text::RichLangValue(text.replace("{grams}", grams));
 	});
+
 	box->addRow(
 		object_ptr<Ui::FlatLabel>(
 			box,
@@ -96,7 +132,7 @@ void ConfirmTransactionBox(
 	box->addRow(
 		object_ptr<Ui::RpWidget>::fromRaw(Ui::CreateAddressLabel(
 			box,
-			invoice.address,
+			address,
 			st::walletConfirmationAddressLabel,
 			nullptr,
 			st::windowBgOver->c)),
@@ -127,17 +163,19 @@ void ConfirmTransactionBox(
 			outerWidth);
 	}, feeLabel->lifetime());
 
-	if (invoice.sendUnencryptedText && !invoice.comment.isEmpty()) {
-		box->addRow(object_ptr<Ui::FlatLabel>(
-			box,
-			PrepareEncryptionWarning(invoice),
-			st::walletLabel));
+	if constexpr (isTonTransfer) {
+		if (invoice.sendUnencryptedText && !invoice.comment.isEmpty()) {
+			box->addRow(object_ptr<Ui::FlatLabel>(
+				box,
+				PrepareEncryptionWarning(invoice),
+				st::walletLabel));
+		}
 	}
 
 	box->events(
 	) | rpl::start_with_next([=](not_null<QEvent*> e) {
 		if (e->type() == QEvent::KeyPress) {
-			const auto key = static_cast<QKeyEvent*>(e.get())->key();
+			const auto key = dynamic_cast<QKeyEvent*>(e.get())->key();
 			if (key == Qt::Key_Enter || key == Qt::Key_Return) {
 				confirmed();
 			}
@@ -150,8 +188,26 @@ void ConfirmTransactionBox(
 		});
 	};
 
-	box->addButton(ph::lng_wallet_confirm_send() | replaceTickerTag(invoice.token), confirmed);
+	box->addButton(ph::lng_wallet_confirm_send() | replaceTickerTag(token), confirmed);
 	box->addButton(ph::lng_wallet_cancel(), [=] { box->closeBox(); });
 }
+
+template void ConfirmTransactionBox(
+	not_null<Ui::GenericBox*> box,
+	const TonTransferInvoice &invoice,
+	int64 fee,
+	const Fn<void()> &confirmed);
+
+template void ConfirmTransactionBox(
+	not_null<Ui::GenericBox*> box,
+	const TokenTransferInvoice &invoice,
+	int64 fee,
+	const Fn<void()> &confirmed);
+
+template void ConfirmTransactionBox(
+	not_null<Ui::GenericBox*> box,
+	const StakeInvoice &invoice,
+	int64 fee,
+	const Fn<void()> &confirmed);
 
 } // namespace Wallet

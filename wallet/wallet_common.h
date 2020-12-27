@@ -25,7 +25,6 @@ class VerticalLayout;
 
 namespace Wallet {
 
-struct PreparedInvoice;
 enum class InvoiceField;
 
 inline constexpr auto kMaxCommentLength = 500;
@@ -59,15 +58,37 @@ struct FormattedAmount {
 	QString full;
 };
 
-struct PreparedInvoice {
-	Ton::TokenKind token{};
+struct TonTransferInvoice {
 	int64 amount{};
-	int64 realAmount{}; // used only for token transactions
 	QString address{};
 	QString comment{};
-	bool swapBack = false;
 	bool sendUnencryptedText = false;
+
+	auto asTransaction() const -> Ton::TransactionToSend;
 };
+
+struct TokenTransferInvoice {
+	Ton::TokenKind token{};
+	int64 amount{};
+	int64 realAmount{};
+	QString address{};
+	bool swapBack = false;
+
+	auto asTransaction() const -> Ton::TokenTransactionToSend;
+};
+
+struct StakeInvoice {
+	int64 stake{};
+	int64 realAmount{};
+	QString dePool{};
+
+	auto asTransaction() const -> Ton::StakeTransactionToSend;
+};
+
+using PreparedInvoice = std::variant<
+	TonTransferInvoice,
+	TokenTransferInvoice,
+	StakeInvoice>;
 
 enum class Action {
 	Refresh,
@@ -131,9 +152,5 @@ not_null<Ui::FlatLabel*> AddBoxSubtitle(
 [[nodiscard]] bool IsIncorrectMnemonicError(const Ton::Error &error);
 [[nodiscard]] std::optional<InvoiceField> ErrorInvoiceField(
 	const Ton::Error &error);
-[[nodiscard]] Ton::TransactionToSend TransactionFromInvoice(
-	const PreparedInvoice &invoice);
-[[nodiscard]] Ton::TokenTransactionToSend TokenTransactionFromInvoice(
-	const PreparedInvoice &invoice);
 
 } // namespace Wallet

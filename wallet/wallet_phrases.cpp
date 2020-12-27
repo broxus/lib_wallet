@@ -83,6 +83,8 @@ phrase lng_wallet_cover_locked = "locked";
 phrase lng_wallet_cover_receive_full = "Receive {ticker}";
 phrase lng_wallet_cover_receive = "Receive";
 phrase lng_wallet_cover_send = "Send";
+phrase lng_wallet_cover_stake = "Stake";
+phrase lng_wallet_cover_withdraw = "Withdraw";
 
 phrase lng_wallet_update = "Update Wallet";
 phrase lng_wallet_update_short = "Update";
@@ -160,9 +162,15 @@ phrase lng_wallet_send_amount = "Amount";
 phrase lng_wallet_send_balance = "Balance: {amount}";
 phrase lng_wallet_send_comment = "Comment (optional)";
 phrase lng_wallet_send_button = "Send {ticker}";
-phrase lng_wallet_send_button_amount = "Send {grams}";
+phrase lng_wallet_send_button_amount = "Send {amount}";
 phrase lng_wallet_send_button_swap_back = "Swap Back {ticker}";
-phrase lng_wallet_send_button_swap_back_amount = "Swap Back {grams}";
+phrase lng_wallet_send_button_swap_back_amount = "Swap Back {amount}";
+
+phrase lng_wallet_send_stake_title = "Send stake";
+phrase lng_wallet_send_stake_amount = "Amount";
+phrase lng_wallet_send_stake_balance = "Balance: {amount}";
+phrase lng_wallet_send_stake_button = "Send stake";
+phrase lng_wallet_send_stake_button_amount = "Stake {amount}";
 
 phrase lng_wallet_send_failed_title = "Sending failed";
 phrase lng_wallet_send_failed_text = "Could not perform the transaction. Please check your wallet's balance and try again.";

@@ -17,7 +17,6 @@ namespace Wallet {
 void InvoiceQrBox(
 	not_null<Ui::GenericBox*> box,
 	const QString &link,
-    Ton::TokenKind token,
 	const Fn<void(QImage, QString)> &share);
 
 } // namespace Wallet

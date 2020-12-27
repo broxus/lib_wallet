@@ -14,6 +14,7 @@
 #include "wallet/wallet_create_invoice.h"
 #include "wallet/wallet_invoice_qr.h"
 #include "wallet/wallet_send_grams.h"
+#include "wallet/wallet_send_stake.h"
 #include "wallet/wallet_enter_passcode.h"
 #include "wallet/wallet_change_passcode.h"
 #include "wallet/wallet_confirm_transaction.h"
@@ -59,7 +60,7 @@ constexpr auto kRefreshWhileSendingDelay = 3 * crl::time(1000);
 
 [[nodiscard]] bool ValidateTransferLink(const QString &link) {
 	return QRegularExpression(
-		QString("^((freeton://)?transfer/)?[a-z0-9_\\-]{%1}/?($|\\?)"
+		QString("^((freeton://)?transfer|stake/)?[a-z0-9_\\-]{%1}/?($|\\?)"
 		).arg(kEncodedAddressLength),
 		QRegularExpression::CaseInsensitiveOption
 	).match(link.trimmed()).hasMatch();
@@ -429,7 +430,7 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
 		.transitionEvents = _infoTransitions.events(),
 		.tokenContractAddress = _tokenContractAddress.value(),
 		.share = shareAddressCallback(),
-		.openGate = [this]() { _wallet->openGate(_rawAddress); },
+		.openGate = [this] { _wallet->openGate(_rawAddress); },
 		.justCreated = justCreated,
 		.useTestNetwork = _wallet->settings().useTestNetwork,
 	};
@@ -464,12 +465,19 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
 			v::match(
 				_selectedAsset.current().value_or(SelectedToken::defaultToken()),
 				[&](const SelectedToken &selectedToken) {
-					sendMoney(PreparedInvoice{
-						.token = selectedToken.token
-					});
+					if (selectedToken.token == Ton::TokenKind::DefaultToken) {
+						sendMoney(TonTransferInvoice{});
+					} else {
+						sendMoney(TokenTransferInvoice {
+							.token = selectedToken.token
+						});
+					}
 				},
 				[&](const SelectedDePool &selectedDePool) {
-					// TODO: send stake
+					sendStake(StakeInvoice{
+						.stake = 0,
+						.dePool = selectedDePool.address,
+					});
 				});
 			return;
 		case Action::Receive:
@@ -507,10 +515,16 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
 		auto selectedToken = v::get<SelectedToken>(selectedAsset);
 
 		const auto send = [=](const QString &address) {
-			sendMoney(PreparedInvoice{
-				.token = selectedToken.token,
-				.address = address,
-			});
+			if (selectedToken.token == Ton::TokenKind::DefaultToken) {
+				sendMoney(TonTransferInvoice{
+					.address = address,
+				});
+			} else {
+				sendMoney(TokenTransferInvoice{
+					.token = selectedToken.token,
+					.address = address,
+				});
+			}
 		};
 
 		const auto reveal = [=](const QString &address) {
@@ -771,32 +785,22 @@ void Window::sendMoney(const PreparedInvoiceOrLink& invoice) {
 			ph::lng_wallet_ok());
 		return;
 	}
-	const auto checking = std::make_shared<bool>();
-	const auto send = [=](
-			PreparedInvoice invoice,
-			const Fn<void(InvoiceField)> &showError) {
-		invoice.token = invoice.token;
+
+	constexpr auto defaultToken = Ton::TokenKind::DefaultToken;
+
+	auto available = [=](Ton::TokenKind token) -> int64_t {
 		const auto currentState = _state.current();
 		const auto account = currentState.account;
 
-		int64_t available;
-		if (!invoice.token) {
-			available = account.fullBalance - account.lockedBalance;
+		if (token == defaultToken) {
+			return account.fullBalance - account.lockedBalance;
 		} else {
-			auto it = currentState.tokenStates.find(invoice.token);
+			auto it = currentState.tokenStates.find(token);
 			if (it != currentState.tokenStates.end()) {
-				available = it->second.fullBalance;
+				return it->second.fullBalance;
 			} else {
-				available = 0;
+				return 0ll;
 			}
-		}
-
-		if (!invoice.swapBack && !Ton::Wallet::CheckAddress(invoice.address)) {
-			showError(InvoiceField::Address);
-		} else if (invoice.amount > available || invoice.amount <= 0) {
-			showError(InvoiceField::Amount);
-		} else {
-			confirmTransaction(invoice, showError, checking);
 		}
 	};
 
@@ -806,9 +810,81 @@ void Window::sendMoney(const PreparedInvoiceOrLink& invoice) {
 		return ParseInvoice(link);
 	});
 
+	const auto checking = std::make_shared<bool>();
+	auto box = v::match(parsedInvoice, [=](const TonTransferInvoice &tonTransferInvoice) {
+		const auto send = [=](
+				const TonTransferInvoice& finalInvoice,
+				const Fn<void(InvoiceField)> &showError) {
+			if (!Ton::Wallet::CheckAddress(finalInvoice.address)) {
+				showError(InvoiceField::Address);
+			} else if (finalInvoice.amount > available(defaultToken) || finalInvoice.amount <= 0) {
+				showError(InvoiceField::Amount);
+			} else {
+				confirmTransaction(finalInvoice, showError, checking);
+			}
+		};
+
+		return Box(
+			SendGramsBox<TonTransferInvoice>,
+			tonTransferInvoice,
+			_state.value(),
+			send);
+	}, [=](const TokenTransferInvoice &tokenTransferInvoice) {
+		const auto send = [=](
+			const TokenTransferInvoice& finalInvoice,
+			const Fn<void(InvoiceField)> &showError) {
+			if (!tokenTransferInvoice.swapBack && !Ton::Wallet::CheckAddress(finalInvoice.address)) {
+				showError(InvoiceField::Address);
+			} else if (finalInvoice.amount > available(finalInvoice.token) || finalInvoice.amount <= 0) {
+				showError(InvoiceField::Amount);
+			} else {
+				confirmTransaction(finalInvoice, showError, checking);
+			}
+		};
+
+		return Box(
+			SendGramsBox<TokenTransferInvoice>,
+			tokenTransferInvoice,
+			_state.value(),
+			send);
+	}, [=](auto&&) -> object_ptr<Ui::GenericBox> {
+		return nullptr;
+	});
+
+	if (box != nullptr) {
+		_sendBox = box.data();
+		_layers->showBox(std::move(box));
+	}
+}
+
+void Window::sendStake(const StakeInvoice &invoice) {
+	if (_sendStakeBox) {
+		_sendStakeBox->closeBox();
+	}
+
+	const auto checking = std::make_shared<bool>();
+	const auto send = [=](const StakeInvoice& invoice, const Fn<void(StakeInvoiceField)> &showError) {
+		const auto currentState = _state.current();
+		const auto account = currentState.account;
+
+		int64_t available = account.fullBalance - account.lockedBalance;
+
+		if (invoice.stake > available || invoice.stake <= 0) {
+			showError(StakeInvoiceField::Amount);
+		} else {
+			confirmTransaction(
+				invoice,
+				[=](InvoiceField field) {
+					if (field == InvoiceField::Amount) {
+						showError(StakeInvoiceField::Amount);
+					}
+				}, checking);
+		}
+	};
+
 	auto box = Box(
-		SendGramsBox,
-		parsedInvoice,
+		SendStakeBox,
+		invoice,
 		_state.value(),
 		send);
 	_sendBox = box.data();
@@ -816,37 +892,46 @@ void Window::sendMoney(const PreparedInvoiceOrLink& invoice) {
 }
 
 void Window::confirmTransaction(
-		PreparedInvoice invoice,
+		const PreparedInvoice &invoice,
 		const Fn<void(InvoiceField)> &showInvoiceError,
 		const std::shared_ptr<bool> &guard) {
 	if (*guard || !_sendBox) {
 		return;
 	}
 	*guard = true;
-	auto done = [=](Ton::Result<Ton::TransactionCheckResult> result) mutable {
+	auto done = [=, invoice = invoice](Ton::Result<Ton::TransactionCheckResult> result) mutable {
 		*guard = false;
 		if (!result) {
 			if (const auto field = ErrorInvoiceField(result.error())) {
-				showInvoiceError(*field);
-			} else if (!invoice.sendUnencryptedText
-				&& result.error().details.startsWith("MESSAGE_ENCRYPTION")) {
-				auto copy = invoice;
-				copy.sendUnencryptedText = true;
-				confirmTransaction(copy, showInvoiceError, guard);
-			} else {
-				showGenericError(result.error());
+				return showInvoiceError(*field);
 			}
+
+			v::match(invoice, [&](const TonTransferInvoice &tonTransferInvoice) {
+				if (!tonTransferInvoice.sendUnencryptedText
+					&& result.error().details.startsWith("MESSAGE_ENCRYPTION")) {
+					auto copy = tonTransferInvoice;
+					copy.sendUnencryptedText = true;
+					confirmTransaction(copy, showInvoiceError, guard);
+				} else {
+					showGenericError(result.error());
+				}
+			}, [&](auto&&) {
+				showGenericError(result.error());
+			});
+
 			return;
 		}
 
-		if (!invoice.token) {
-			invoice.realAmount = invoice.amount;
-		} else {
-			invoice.realAmount = result.value().sourceFees.sum() + 100'000'000;
+		v::match(invoice, [&](TonTransferInvoice &tonTransferInvoice) {
+			// stay same
+		}, [&](TokenTransferInvoice &tokenTransferInvoice) {
+			tokenTransferInvoice.realAmount = result.value().sourceFees.sum() + 100'000'000;
 			for (auto fee : result.value().destinationFees) {
-				invoice.realAmount += fee.sum();
+				tokenTransferInvoice.realAmount += fee.sum();
 			}
-		}
+		}, [&](StakeInvoice &stakeInvoice) {
+			stakeInvoice.realAmount = stakeInvoice.stake + 500'000'000;
+		});
 
 		showSendConfirmation(
 			invoice,
@@ -854,17 +939,22 @@ void Window::confirmTransaction(
 			showInvoiceError);
 	};
 
-	if (!invoice.token) {
+	v::match(invoice, [&](const TonTransferInvoice &tonTransferInvoice) {
 		_wallet->checkSendGrams(
 			_wallet->publicKeys().front(),
-			TransactionFromInvoice(invoice),
+			tonTransferInvoice.asTransaction(),
 			crl::guard(_sendBox.data(), done));
-	} else {
+	}, [&](const TokenTransferInvoice &tokenTransferInvoice) {
 		_wallet->checkSendTokens(
 			_wallet->publicKeys().front(),
-			TokenTransactionFromInvoice(invoice),
+			tokenTransferInvoice.asTransaction(),
 			crl::guard(_sendBox.data(), done));
-	}
+	}, [&](const StakeInvoice &stakeInvoice) {
+		_wallet->checkSendStake(
+			_wallet->publicKeys().front(),
+			stakeInvoice.asTransaction(),
+			crl::guard(_sendBox.data(), done));
+	});
 }
 
 void Window::askSendPassword(
@@ -910,21 +1000,28 @@ void Window::askSendPassword(
 			confirmations->fire({});
 		};
 
-		if (!invoice.token) {
+		v::match(invoice, [&](const TonTransferInvoice &tonTransferInvoice) {
 			_wallet->sendGrams(
 				publicKey,
 				passcode,
-				TransactionFromInvoice(invoice),
+				tonTransferInvoice.asTransaction(),
 				crl::guard(this, ready),
 				crl::guard(this, sent));
-		} else {
+		}, [&](const TokenTransferInvoice &tokenTransferInvoice) {
 			_wallet->sendTokens(
 				publicKey,
 				passcode,
-				TokenTransactionFromInvoice(invoice),
+				tokenTransferInvoice.asTransaction(),
 				crl::guard(this, ready),
 				crl::guard(this, sent));
-		}
+		}, [&](const StakeInvoice &stakeInvoice) {
+			_wallet->sendStake(
+				publicKey,
+				passcode,
+				stakeInvoice.asTransaction(),
+				crl::guard(this, ready),
+				crl::guard(this, sent));
+		});
 	};
 	if (_sendConfirmBox) {
 		_sendConfirmBox->closeBox();
@@ -950,41 +1047,71 @@ void Window::showSendConfirmation(
 	//	// Special case transaction where we transfer all that is left.
 	//} else
 
-	if (invoice.realAmount + checkResult.sourceFees.sum() > gramsAvailable) {
-		showInvoiceError(InvoiceField::Amount);
-		return;
-	}
-
-	const auto confirmed = [=] {
-		if (invoice.address == _packedAddress) {
-			_layers->showBox(Box([=](not_null<Ui::GenericBox*> box) {
-				box->setTitle(ph::lng_wallet_same_address_title());
-				box->addRow(object_ptr<Ui::FlatLabel>(
-					box,
-					ph::lng_wallet_same_address_text(),
-					st::walletLabel));
-				box->addButton(ph::lng_wallet_same_address_proceed(), [=] {
-					box->closeBox();
-					askSendPassword(invoice, showInvoiceError);
-				});
-				box->addButton(ph::lng_wallet_cancel(), [=] {
-					box->closeBox();
-					if (_sendConfirmBox) {
-						_sendConfirmBox->closeBox();
-					}
-				});
-			}));
-		} else {
-			askSendPassword(invoice, showInvoiceError);
-		}
+	const auto checkAmount = [&](int64_t realAmount) {
+		return gramsAvailable > realAmount + checkResult.sourceFees.sum();
 	};
-	auto box = Box(
-		ConfirmTransactionBox,
-		invoice,
-		!invoice.token ? checkResult.sourceFees.sum() : invoice.realAmount,
-		confirmed);
-	_sendConfirmBox = box.data();
-	_layers->showBox(std::move(box));
+
+	auto box = v::match(invoice, [&](const TonTransferInvoice &tonTransferInvoice) -> object_ptr<Ui::GenericBox> {
+		if (!checkAmount(tonTransferInvoice.amount)) {
+			showInvoiceError(InvoiceField::Amount);
+			return nullptr;
+		}
+
+		return Box(
+			ConfirmTransactionBox<TonTransferInvoice>,
+			tonTransferInvoice,
+			checkResult.sourceFees.sum(),
+			[=, targetAddress = tonTransferInvoice.address] {
+				if (targetAddress == _packedAddress) {
+					_layers->showBox(Box([=](not_null<Ui::GenericBox*> box) {
+						box->setTitle(ph::lng_wallet_same_address_title());
+						box->addRow(object_ptr<Ui::FlatLabel>(
+							box,
+							ph::lng_wallet_same_address_text(),
+							st::walletLabel));
+						box->addButton(ph::lng_wallet_same_address_proceed(), [=] {
+							box->closeBox();
+							askSendPassword(tonTransferInvoice, showInvoiceError);
+						});
+						box->addButton(ph::lng_wallet_cancel(), [=] {
+							box->closeBox();
+							if (_sendConfirmBox) {
+								_sendConfirmBox->closeBox();
+							}
+						});
+					}));
+				} else {
+					askSendPassword(tonTransferInvoice, showInvoiceError);
+				}
+			});
+	}, [&](const TokenTransferInvoice &tokenTransferInvoice) -> object_ptr<Ui::GenericBox> {
+		if (!checkAmount(tokenTransferInvoice.realAmount)) {
+			showInvoiceError(InvoiceField::Amount);
+			return nullptr;
+		}
+
+		return Box(
+			ConfirmTransactionBox<TokenTransferInvoice>,
+			tokenTransferInvoice,
+			tokenTransferInvoice.realAmount,
+			[=] { askSendPassword(tokenTransferInvoice, showInvoiceError); });
+	}, [&](const StakeInvoice &stakeInvoice) -> object_ptr<Ui::GenericBox> {
+		if (!checkAmount(stakeInvoice.realAmount)) {
+			showInvoiceError(InvoiceField::Amount);
+			return nullptr;
+		}
+
+		return Box(
+			ConfirmTransactionBox<StakeInvoice>,
+			stakeInvoice,
+			stakeInvoice.realAmount - stakeInvoice.stake,
+			[=] { askSendPassword(stakeInvoice, showInvoiceError); });
+	});
+
+	if (box != nullptr) {
+		_sendConfirmBox = box.data();
+		_layers->showBox(std::move(box));
+	}
 }
 
 void Window::showSendingTransaction(
@@ -994,7 +1121,15 @@ void Window::showSendingTransaction(
 	if (_sendBox) {
 		_sendBox->closeBox();
 	}
-	auto box = Box(SendingTransactionBox, invoice.token, std::move(confirmed));
+
+	const auto token = v::match(invoice, [](const TokenTransferInvoice &tokenTransferInvoice) {
+		return tokenTransferInvoice.token;
+	}, [](auto&&) {
+		return Ton::TokenKind::DefaultToken;
+	});
+
+	auto box = Box(SendingTransactionBox, token, std::move(confirmed));
+
 	_sendBox = box.data();
 	_state.value(
 	) | rpl::filter([=](const Ton::WalletState &state) {
@@ -1019,12 +1154,24 @@ void Window::showSendingTransaction(
 
 void Window::showSendingDone(std::optional<Ton::Transaction> result, const PreparedInvoice &invoice) {
 	if (result) {
-		_layers->showBox(Box(SendingDoneBox, *result, invoice, [this, invoice]() {
-			refreshNow();
-			if (invoice.swapBack) {
-				_wallet->openReveal(_rawAddress, invoice.address);
-			}
-		}));
+		auto box = v::match(invoice, [&](const TonTransferInvoice &tonTransferInvoice) {
+			return Box(SendingDoneBox<TonTransferInvoice>, *result, tonTransferInvoice, [this] { refreshNow(); });
+		}, [&](const TokenTransferInvoice &tokenTransferInvoice) {
+			return Box(
+				SendingDoneBox<TokenTransferInvoice>,
+				*result,
+				tokenTransferInvoice,
+				[this, tokenTransferInvoice] {
+					refreshNow();
+					if (tokenTransferInvoice.swapBack) {
+						_wallet->openReveal(_rawAddress, tokenTransferInvoice.address);
+					}
+				});
+		}, [&](const StakeInvoice &stakeInvoice) {
+			return Box(SendingDoneBox<StakeInvoice>, *result, stakeInvoice, [this] { refreshNow(); });
+		});
+
+		_layers->showBox(std::move(box));
 	} else {
 		showSimpleError(
 			ph::lng_wallet_send_failed_title(),
@@ -1054,18 +1201,17 @@ void Window::createInvoice(Ton::TokenKind selectedToken) {
 		_packedAddress,
 		_testnet,
         selectedToken,
-		[=](const QString &link) { showInvoiceQr(selectedToken, link); },
+		[=](const QString &link) { showInvoiceQr(link); },
 		shareCallback(
 			ph::lng_wallet_invoice_copied(ph::now),
 			ph::lng_wallet_invoice_copied(ph::now),
 			ph::lng_wallet_receive_copied_qr(ph::now))));
 }
 
-void Window::showInvoiceQr(Ton::TokenKind selectedToken, const QString &link) {
+void Window::showInvoiceQr(const QString &link) {
 	_layers->showBox(Box(
 		InvoiceQrBox,
 		link,
-        selectedToken,
 		shareCallback(
 			ph::lng_wallet_invoice_copied(ph::now),
 			ph::lng_wallet_invoice_copied(ph::now),

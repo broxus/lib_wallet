@@ -15,7 +15,8 @@ struct WalletState;
 
 namespace Wallet {
 
-struct PreparedInvoice;
+struct TonTransferInvoice;
+struct TokenTransferInvoice;
 
 enum class InvoiceField {
 	Address,
@@ -23,10 +24,11 @@ enum class InvoiceField {
 	Comment,
 };
 
+template<typename T>
 void SendGramsBox(
 	not_null<Ui::GenericBox*> box,
-	const PreparedInvoice &invoice,
+	const T &invoice,
     rpl::producer<Ton::WalletState> state,
-	const Fn<void(PreparedInvoice, Fn<void(InvoiceField)> error)> &done);
+	const Fn<void(const T&, Fn<void(InvoiceField)> error)> &done);
 
 } // namespace Wallet

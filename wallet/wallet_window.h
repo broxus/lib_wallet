@@ -40,7 +40,7 @@ class Manager;
 } // namespace Create
 
 class Info;
-struct PreparedInvoice;
+struct StakeInvoice;
 enum class InvoiceField;
 class UpdateInfo;
 enum class InfoTransition;
@@ -100,8 +100,9 @@ private:
 	void setupUpdateWithInfo();
 	void setupRefreshEach();
 	void sendMoney(const PreparedInvoiceOrLink &invoice);
+	void sendStake(const StakeInvoice &invoice);
 	void confirmTransaction(
-		PreparedInvoice invoice,
+		const PreparedInvoice &invoice,
 		const Fn<void(InvoiceField)> &showInvoiceError,
 		const std::shared_ptr<bool> &guard);
 	void showSendConfirmation(
@@ -119,7 +120,7 @@ private:
 	void refreshNow();
 	void receiveTokens(Ton::TokenKind selectedToken);
 	void createInvoice(Ton::TokenKind selectedToken);
-	void showInvoiceQr(Ton::TokenKind selectedToken, const QString &link);
+	void showInvoiceQr(const QString &link);
 	void changePassword();
 	void askExportPassword();
 	void showExported(const std::vector<QString> &words);
@@ -173,6 +174,7 @@ private:
 	rpl::event_stream<InfoTransition> _infoTransitions;
 
 	QPointer<Ui::GenericBox> _sendBox;
+	QPointer<Ui::GenericBox> _sendStakeBox;
 	QPointer<Ui::GenericBox> _sendConfirmBox;
 	QPointer<Ui::GenericBox> _simpleErrorBox;
 	QPointer<Ui::GenericBox> _settingsBox;

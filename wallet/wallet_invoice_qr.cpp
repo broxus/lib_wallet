@@ -18,8 +18,17 @@ namespace Wallet {
 void InvoiceQrBox(
 		not_null<Ui::GenericBox*> box,
 		const QString &link,
-        Ton::TokenKind token,
 		const Fn<void(QImage, QString)> &share) {
+
+	const auto prepared = ParseInvoice(link);
+
+	const auto [amount, token, comment] = v::match(prepared, [](const TonTransferInvoice &tonTransferInvoice) {
+		return std::make_tuple(tonTransferInvoice.amount, Ton::TokenKind::DefaultToken, tonTransferInvoice.comment);
+	}, [](const TokenTransferInvoice &tokenTransferInvoice) {
+		return std::make_tuple(tokenTransferInvoice.amount, tokenTransferInvoice.token, QString{});
+	}, [](const StakeInvoice &) {
+		return std::make_tuple(0ll, Ton::TokenKind::DefaultToken, QString{});
+	});
 
 	box->setTitle(ph::lng_wallet_invoice_qr_title());
 	box->setStyle(st::walletBox);
@@ -29,8 +38,6 @@ void InvoiceQrBox(
 	const auto container = box->addRow(
 		object_ptr<Ui::BoxContentDivider>(box, 1),
 		st::walletInvoiceQrMargin);
-
-    auto currentToken = container->lifetime().make_state<Ton::TokenKind>();
 
     const auto button = Ui::CreateChild<Ui::AbstractButton>(container);
 
@@ -48,8 +55,8 @@ void InvoiceQrBox(
 
 	button->resize(size, size);
 
-    button->setClickedCallback([=] {
-        share(Ui::TokenQrForShare(*currentToken, link), QString());
+    button->setClickedCallback([=, token = token] {
+        share(Ui::TokenQrForShare(token, link), QString());
     });
 
     button->paintRequest(
@@ -64,32 +71,29 @@ void InvoiceQrBox(
 		button->move((width - size) / 2, st::walletInvoiceQrSkip);
 	}, button->lifetime());
 
-
-	const auto prepared = ParseInvoice(link);
-
 	AddBoxSubtitle(box, ph::lng_wallet_invoice_qr_amount());
 
 	box->addRow(
 		object_ptr<Ui::FlatLabel>(
 			box,
-			FormatAmount(prepared.amount, prepared.token).full,
+			FormatAmount(amount, token).full,
 			st::walletLabel),
 		st::walletInvoiceQrValuePadding);
 
-	if (!prepared.comment.isEmpty()) {
+	if (!comment.isEmpty()) {
 		AddBoxSubtitle(box, ph::lng_wallet_invoice_qr_comment());
 
 		box->addRow(
 			object_ptr<Ui::FlatLabel>(
 				box,
-				prepared.comment,
+				comment,
 				st::walletLabel),
 			st::walletInvoiceQrValuePadding);
 	}
 
 	box->addButton(
 		ph::lng_wallet_invoice_qr_share(),
-		[=] { share(Ui::TokenQrForShare(*currentToken, link), QString()); },
+		[=, token = token] { share(Ui::TokenQrForShare(token, link), QString()); },
 		st::walletBottomButton
 	)->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 }

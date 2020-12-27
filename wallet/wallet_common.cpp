@@ -210,22 +210,40 @@ std::optional<int64> ParseAmountString(const QString &amount, size_t decimals) {
 }
 
 PreparedInvoice ParseInvoice(QString invoice) {
-	const auto prefix = qstr("transfer/");
-	auto result = PreparedInvoice();
-	result.token = Ton::TokenKind::DefaultToken;
+	enum class InvoiceKind {
+		Transfer,
+		Stake
+	} invoiceKind;
 
-	const auto position = invoice.indexOf(prefix, 0, Qt::CaseInsensitive);
-	if (position >= 0) {
-		invoice = invoice.mid(position + prefix.size());
+	const auto transferPrefix = qstr("transfer/");
+	const auto stakePrefix = qstr("stake/");
+
+	if (const auto transferPrefixPosition = invoice.indexOf(transferPrefix, 0, Qt::CaseInsensitive);
+			transferPrefixPosition >= 0) {
+		invoice = invoice.mid(transferPrefixPosition + transferPrefix.size());
+		invoiceKind = InvoiceKind::Transfer;
 	}
+	else if (const auto stakePrefixPosition = invoice.indexOf(stakePrefix, 0, Qt::CaseInsensitive);
+			stakePrefixPosition >= 0) {
+		invoice = invoice.mid(stakePrefixPosition + stakePrefix.size());
+		invoiceKind = InvoiceKind::Stake;
+	} else {
+		invoiceKind = InvoiceKind::Transfer;
+	}
+
+	QString address{};
+	int64 amount{};
+	auto token = Ton::TokenKind::DefaultToken;
+	QString comment{};
+
 	const auto paramsPosition = invoice.indexOf('?');
 	if (paramsPosition >= 0) {
 		const auto params = qthelp::url_parse_params(
 			invoice.mid(paramsPosition + 1),
 			qthelp::UrlParamNameTransform::ToLower);
-		result.amount = params.value("amount").toULongLong();
-        result.token = Ton::tokenFromString(params.value("token"));
-        result.comment = params.value("text");
+		amount = params.value("amount").toULongLong();
+        token = Ton::tokenFromString(params.value("token"));
+        comment = params.value("text");
 	}
 
 	const auto colonPosition = invoice.indexOf(':');
@@ -233,7 +251,7 @@ PreparedInvoice ParseInvoice(QString invoice) {
 	if (colonPosition > 0) {
 		const auto hasMinus = invoice[0] == '-';
 
-		result.address = (hasMinus ? QString{ "-" } : QString{}) +
+		address = (hasMinus ? QString{ "-" } : QString{}) +
 			invoice.mid(hasMinus, colonPosition).replace(
 				QRegularExpression("[^\\d]"),
 				QString()
@@ -243,18 +261,41 @@ PreparedInvoice ParseInvoice(QString invoice) {
 				QString()
 			).mid(0, kRawAddressLength);
 	} else if (hexPrefixPosition == 0) {
-		result.address = QString{"0x"} +
+		address = QString{"0x"} +
 			invoice.mid(2, std::max(paramsPosition - hexPrefixPosition, -1)).replace(
 				QRegularExpression("[^a-fA-F0-9]"),
 				QString()
 			).mid(0, kEtheriumAddressLength);
 	} else {
-		result.address = invoice.mid(0, paramsPosition).replace(
+		address = invoice.mid(0, paramsPosition).replace(
 			QRegularExpression("[^a-zA-Z0-9_\\-]"),
 			QString()
 		).mid(0, kEncodedAddressLength);
 	}
-	return result;
+
+	switch (invoiceKind) {
+		case InvoiceKind::Transfer:
+			if (token == Ton::TokenKind::DefaultToken) {
+				return TonTransferInvoice {
+					.amount = amount,
+					.address = address,
+					.comment = comment,
+				};
+			} else {
+				return TokenTransferInvoice {
+					.token = token,
+					.amount = amount,
+					.address = address
+				};
+			}
+		case InvoiceKind::Stake:
+			return StakeInvoice {
+				.stake = amount,
+				.dePool = address
+			};
+		default:
+			Unexpected("Unknown invoice kind");
+	}
 }
 
 int64 CalculateValue(const Ton::Transaction &data) {
@@ -455,29 +496,6 @@ std::optional<Wallet::InvoiceField> ErrorInvoiceField(
 	return std::nullopt;
 }
 
-Ton::TransactionToSend TransactionFromInvoice(
-		const PreparedInvoice &invoice) {
-	auto result = Ton::TransactionToSend();
-	result.recipient = invoice.address;
-	result.amount = invoice.amount;
-	result.comment = invoice.comment;
-	result.allowSendToUninited = true;
-	result.sendUnencryptedText = invoice.sendUnencryptedText;
-	return result;
-}
-
-Ton::TokenTransactionToSend TokenTransactionFromInvoice(
-		const PreparedInvoice &invoice) {
-	auto result = Ton::TokenTransactionToSend();
-	result.token = invoice.token;
-	result.amount = invoice.amount;
-	result.realAmount = invoice.realAmount;
-	result.recipient = invoice.address;
-	result.swapBack = invoice.swapBack;
-	result.allowSendToUninited = true;
-	return result;
-}
-
 auto operator==(const SelectedAsset &a, const SelectedAsset &b) -> bool {
 	if (a.index() != b.index()) {
 		return false;
@@ -490,6 +508,32 @@ auto operator==(const SelectedAsset &a, const SelectedAsset &b) -> bool {
 		const auto &right = v::get<SelectedDePool>(b);
 		return left.address == right.address;
 	});
+}
+
+auto TonTransferInvoice::asTransaction() const -> Ton::TransactionToSend {
+	return Ton::TransactionToSend {
+		.amount = amount,
+		.recipient = address,
+		.comment = comment,
+		.allowSendToUninited = true,
+		.sendUnencryptedText = sendUnencryptedText
+	};
+}
+
+auto TokenTransferInvoice::asTransaction() const -> Ton::TokenTransactionToSend {
+	return Ton::TokenTransactionToSend {
+		.token = token,
+		.realAmount = realAmount,
+		.recipient = address,
+		.swapBack = swapBack
+	};
+}
+
+auto StakeInvoice::asTransaction() const -> Ton::StakeTransactionToSend {
+	return Ton::StakeTransactionToSend {
+		.stake = stake,
+		.depoolAddress = dePool,
+	};
 }
 
 } // namespace Wallet

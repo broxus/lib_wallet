@@ -21,7 +21,7 @@ struct TokenItem {
 
 struct DePoolItem {
 	QString address = "";
-	int64_t withdrawValue = 0;
+	int64_t total = 0;
 	int64_t reward = 0;
 };
 

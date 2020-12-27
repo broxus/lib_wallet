@@ -80,11 +80,20 @@ void SendingTransactionBox(
 	}, inner->lifetime());
 }
 
+template<typename T>
 void SendingDoneBox(
 		not_null<Ui::GenericBox*> box,
 		const Ton::Transaction &result,
-		const PreparedInvoice &invoice,
+		const T &invoice,
 		const Fn<void()> &onClose) {
+
+	constexpr auto isTonTransfer = std::is_same_v<T, TonTransferInvoice>;
+	constexpr auto isTokenTransfer = std::is_same_v<T, TokenTransferInvoice>;
+	constexpr auto isStakeTransfer = std::is_same_v<T, StakeInvoice>;
+	static_assert(isTonTransfer || isTokenTransfer || isStakeTransfer);
+
+	constexpr auto defaultToken = Ton::TokenKind::DefaultToken;
+
 	const auto inner = box->addRow(object_ptr<Ui::FixedHeightWidget>(
 		box,
 		AskPasswordBoxHeight()));
@@ -100,10 +109,8 @@ void SendingDoneBox(
 		ph::lng_wallet_sent_title(),
 		st::walletSendingTitle);
 
-	const auto isTon = !invoice.token;
-
 	Ui::FlatLabel* amountLabel = nullptr;
-	if (!isTon) {
+	if constexpr (isTokenTransfer) {
 		const auto amount = FormatAmount(invoice.amount, invoice.token).full;
 		amountLabel = Ui::CreateChild<Ui::FlatLabel>(
 			inner,
@@ -111,15 +118,21 @@ void SendingDoneBox(
 			st::walletSendingText);
 	}
 
-	const auto realAmount = FormatAmount(-CalculateValue(result), Ton::TokenKind::DefaultToken).full;
-	const auto text = Ui::CreateChild<Ui::FlatLabel>(
-		inner,
-		isTon
-			? ph::lng_wallet_grams_count_sent(realAmount, Ton::TokenKind::DefaultToken)()
-			: ph::lng_wallet_row_fees() | rpl::map([realAmount](QString &&text) {
+	const auto realAmount = FormatAmount(-CalculateValue(result), defaultToken).full;
+	Ui::FlatLabel* text = nullptr;
+	if constexpr (isTonTransfer || isStakeTransfer) {
+		text = Ui::CreateChild<Ui::FlatLabel>(
+			inner,
+			ph::lng_wallet_grams_count_sent(realAmount, defaultToken)(),
+			st::walletSendingText);
+	} else if constexpr (isTokenTransfer) {
+		Ui::CreateChild<Ui::FlatLabel>(
+			inner,
+			ph::lng_wallet_row_fees() | rpl::map([realAmount](QString &&text) {
 				return text.replace("{amount}", realAmount);
 			}),
-		st::walletSendingText);
+			st::walletSendingText);
+	}
 
 	inner->widthValue(
 	) | rpl::start_with_next([=](int width) {
@@ -150,10 +163,33 @@ void SendingDoneBox(
 			width);
 	}, inner->lifetime());
 
-	box->addButton(invoice.swapBack
+	auto isSwapBack = false;
+	if constexpr (isTokenTransfer){
+		isSwapBack = invoice.swapBack;
+	}
+
+	box->addButton(isSwapBack
 		? ph::lng_wallet_sent_close_view()
 		: ph::lng_wallet_sent_close(),
 		[=] { box->closeBox(); onClose(); });
 }
+
+template void SendingDoneBox<TonTransferInvoice>(
+	not_null<Ui::GenericBox*> box,
+	const Ton::Transaction &result,
+	const TonTransferInvoice &invoice,
+	const Fn<void()> &onClose);
+
+template void SendingDoneBox<TokenTransferInvoice>(
+	not_null<Ui::GenericBox*> box,
+	const Ton::Transaction &result,
+	const TokenTransferInvoice &invoice,
+	const Fn<void()> &onClose);
+
+template void SendingDoneBox<StakeInvoice>(
+	not_null<Ui::GenericBox*> box,
+	const Ton::Transaction &result,
+	const StakeInvoice &invoice,
+	const Fn<void()> &onClose);
 
 } // namespace Wallet

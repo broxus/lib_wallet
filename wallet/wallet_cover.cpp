@@ -115,8 +115,8 @@ void Cover::setupBalance() {
 			return (state.lockedBalance > 0)
 				? FormatAmount(state.lockedBalance, selectedToken.token, FormatFlag::Rounded).full
 				: QString();
-		}, [&](const SelectedDePool &/*selectedDePool*/) {
-			return QString();
+		}, [&](const SelectedDePool &selectedDePool) {
+			return FormatAmount(state.lockedBalance, Ton::TokenKind::DefaultToken, FormatFlag::Rounded).full;
 		});
 	});
 
@@ -177,18 +177,21 @@ void Cover::setupBalance() {
 	locked->show();
 
 	rpl::combine(
-		locked->paintRequest(),
-		_state.value()
-	) | rpl::start_with_next([=](const QRect &, const CoverState &state) {
+		locked->paintRequest()
+	) | rpl::start_with_next([=](const QRect &) {
 		auto p = QPainter(locked);
 		const auto diamondTop = 0;
 		const auto diamondLeft = locked->width() - st::walletDiamondSize;
 		Ui::PaintInlineTokenIcon(
-			state.selectedToken(),
+			_state.current().selectedToken(),
 			p,
 			diamondLeft,
 			diamondTop,
 			st::walletCoverLocked.style.font);
+	}, locked->lifetime());
+
+	_state.value() | rpl::start_with_next([=](const CoverState &) {
+		locked->update();
 	}, locked->lifetime());
 
 	std::move(
@@ -229,7 +232,7 @@ void Cover::setupControls() {
 		setupBalance();
 	}, *syncLifetime);
 
-	auto hasFunds = _state.value(
+	auto hasUnlockedFunds = _state.value(
 	) | rpl::map([](const CoverState &state) {
 		return state.unlockedBalance > 0;
 	}) | rpl::distinct_until_changed();
@@ -248,7 +251,7 @@ void Cover::setupControls() {
 	const auto receive = CreateCoverButton(
 		&_widget,
 		rpl::conditional(
-			rpl::duplicate(hasFunds),
+			rpl::duplicate(hasUnlockedFunds),
 			ph::lng_wallet_cover_receive(),
 			rpl::combine(
 				ph::lng_wallet_cover_receive_full(),
@@ -259,31 +262,51 @@ void Cover::setupControls() {
 
 	const auto send = CreateCoverButton(
 		&_widget,
-		ph::lng_wallet_cover_send(),
+		_state.value(
+		) | rpl::map([](const CoverState &state) {
+			return v::match(state.asset, [](const SelectedToken &/*selectedToken*/) {
+				return ph::lng_wallet_cover_send();
+			}, [](const SelectedDePool &/*selectedDePool*/) {
+				return ph::lng_wallet_cover_stake();
+			});
+		}) | rpl::flatten_latest(),
 		st::walletCoverSendIcon);
 	send->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 
 	rpl::combine(
+		_state.value(),
 		_widget.sizeValue(),
-		std::move(hasFunds)
-	) | rpl::start_with_next([=](QSize size, bool hasFunds) {
+		std::move(hasUnlockedFunds)
+	) | rpl::start_with_next([=](const CoverState &state, QSize size, bool hasUnlockedFunds) {
 		const auto fullWidth = st::walletCoverButtonWidthFull;
 		const auto left = (size.width() - fullWidth) / 2;
 		const auto top = size.height()
 			- st::walletCoverButtonBottom
 			- receive->height();
-		send->setVisible(hasFunds);
-		if (hasFunds) {
-			receive->resizeToWidth(st::walletCoverButtonWidth);
-			send->resizeToWidth(st::walletCoverButtonWidth);
-			send->moveToLeft(
-				left + fullWidth - send->width(),
-				top,
-				size.width());
-		} else {
-			receive->resizeToWidth(fullWidth);
-		}
+
+		const auto [showSend, showReceive] = v::match(state.asset, [&](const SelectedToken &selectedToken) {
+			return std::make_pair(hasUnlockedFunds, true);
+		}, [&](const SelectedDePool &/*selectedDePool*/) {
+			return std::make_pair(true, hasUnlockedFunds);
+		});
+
+		receive->setVisible(showReceive);
+		receive->resizeToWidth(showReceive && showSend
+			? st::walletCoverButtonWidth
+			: fullWidth);
 		receive->moveToLeft(left, top, size.width());
+
+		send->setVisible(showSend);
+		send->resizeToWidth(showReceive && showSend
+			? st::walletCoverButtonWidth
+			: fullWidth);
+		send->moveToLeft(left, top, size.width());
+
+		if (showReceive && showSend) {
+			send->moveToLeft(left + fullWidth - send->width(),
+							 top,
+							 size.width());
+		}
 	}, receive->lifetime());
 
 	receive->clicks(
@@ -315,6 +338,8 @@ rpl::producer<CoverState> MakeCoverState(
 
 		CoverState result{
 			.asset = asset.value_or(SelectedToken { .token = Ton::TokenKind::DefaultToken }),
+			.unlockedBalance = 0,
+			.lockedBalance = 0,
 			.justCreated = justCreated,
 			.useTestNetwork = useTestNetwork,
 		};
@@ -325,15 +350,16 @@ rpl::producer<CoverState> MakeCoverState(
 				result.lockedBalance = account.lockedBalance;
 			} else {
 				const auto it = data.wallet.tokenStates.find(selectedToken.token);
-				if (it == data.wallet.tokenStates.end()) {
-					result.unlockedBalance = 0;
-				} else {
+				if (it != data.wallet.tokenStates.end()) {
 					result.unlockedBalance = it->second.fullBalance;
 				}
-				result.lockedBalance = 0;
 			}
 		}, [&](const SelectedDePool &selectedDePool) {
-			// TODO: set depool balance
+			const auto it = data.wallet.dePoolParticipantStates.find(selectedDePool.address);
+			if (it != data.wallet.dePoolParticipantStates.end()) {
+				result.unlockedBalance = it->second.withdrawValue;
+				result.lockedBalance = it->second.total;
+			}
 		});
 
 		return result;

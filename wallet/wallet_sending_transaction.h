@@ -15,17 +15,16 @@ enum class TokenKind;
 
 namespace Wallet {
 
-struct PreparedInvoice;
-
 void SendingTransactionBox(
 	not_null<Ui::GenericBox*> box,
 	Ton::TokenKind token,
 	rpl::producer<> confirmed);
 
+template<typename T>
 void SendingDoneBox(
 	not_null<Ui::GenericBox*> box,
 	const Ton::Transaction &result,
-	const PreparedInvoice &invoice,
+	const T &invoice,
 	const Fn<void()> &onClose);
 
 } // namespace Wallet
