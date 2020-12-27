@@ -101,6 +101,7 @@ private:
 	void setupRefreshEach();
 	void sendMoney(const PreparedInvoiceOrLink &invoice);
 	void sendStake(const StakeInvoice &invoice);
+	void dePoolWithdraw(const WithdrawalInvoice &invoice);
 	void confirmTransaction(
 		const PreparedInvoice &invoice,
 		const Fn<void(InvoiceField)> &showInvoiceError,
@@ -174,7 +175,6 @@ private:
 	rpl::event_stream<InfoTransition> _infoTransitions;
 
 	QPointer<Ui::GenericBox> _sendBox;
-	QPointer<Ui::GenericBox> _sendStakeBox;
 	QPointer<Ui::GenericBox> _sendConfirmBox;
 	QPointer<Ui::GenericBox> _simpleErrorBox;
 	QPointer<Ui::GenericBox> _settingsBox;

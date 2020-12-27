@@ -26,7 +26,7 @@ void InvoiceQrBox(
 		return std::make_tuple(tonTransferInvoice.amount, Ton::TokenKind::DefaultToken, tonTransferInvoice.comment);
 	}, [](const TokenTransferInvoice &tokenTransferInvoice) {
 		return std::make_tuple(tokenTransferInvoice.amount, tokenTransferInvoice.token, QString{});
-	}, [](const StakeInvoice &) {
+	}, [](auto&&) {
 		return std::make_tuple(0ll, Ton::TokenKind::DefaultToken, QString{});
 	});
 

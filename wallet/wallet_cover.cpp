@@ -148,7 +148,13 @@ void Cover::setupBalance() {
 		st::walletCoverLocked);
 	const auto lockedLabel = Ui::CreateChild<Ui::FlatLabel>(
 		locked,
-		ph::lng_wallet_cover_locked(),
+		_state.value() | rpl::map([](const CoverState &state) {
+			return v::match(state.asset, [](const SelectedToken&) {
+				return ph::lng_wallet_cover_locked();
+			}, [](const SelectedDePool&) {
+				return ph::lng_wallet_cover_awaiting_withdrawal();
+			});
+		}) | rpl::flatten_latest(),
 		st::walletCoverLockedLabel);
 	rpl::combine(
 		lockedBalance->sizeValue(),
@@ -250,14 +256,20 @@ void Cover::setupControls() {
 
 	const auto receive = CreateCoverButton(
 		&_widget,
-		rpl::conditional(
-			rpl::duplicate(hasUnlockedFunds),
-			ph::lng_wallet_cover_receive(),
-			rpl::combine(
-				ph::lng_wallet_cover_receive_full(),
-				rpl::duplicate(selectedToken)
-			) | replaceTickerTag()
-		),
+		_state.value() | rpl::map([=](const CoverState &coverState) {
+			return v::match(coverState.asset, [&](const SelectedToken& selected) {
+				if (coverState.unlockedBalance > 0) {
+					return ph::lng_wallet_cover_receive();
+				} else {
+					return rpl::combine(
+						ph::lng_wallet_cover_receive_full(),
+						rpl::single(selected.token)
+					) | replaceTickerTag();
+				}
+			}, [&](const SelectedDePool &selected) {
+				return ph::lng_wallet_cover_withdraw();
+			});
+		}) | rpl::flatten_latest(),
 		st::walletCoverReceiveIcon);
 
 	const auto send = CreateCoverButton(
@@ -357,8 +369,8 @@ rpl::producer<CoverState> MakeCoverState(
 		}, [&](const SelectedDePool &selectedDePool) {
 			const auto it = data.wallet.dePoolParticipantStates.find(selectedDePool.address);
 			if (it != data.wallet.dePoolParticipantStates.end()) {
-				result.unlockedBalance = it->second.withdrawValue;
-				result.lockedBalance = it->second.total;
+				result.unlockedBalance = it->second.total;
+				result.lockedBalance = it->second.withdrawValue;
 			}
 		});
 

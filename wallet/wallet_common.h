@@ -85,10 +85,20 @@ struct StakeInvoice {
 	auto asTransaction() const -> Ton::StakeTransactionToSend;
 };
 
+struct WithdrawalInvoice {
+	int64 amount{};
+	int64 realAmount{};
+	bool all = false;
+	QString dePool{};
+
+	auto asTransaction() const -> Ton::WithdrawalTransactionToSend;
+};
+
 using PreparedInvoice = std::variant<
 	TonTransferInvoice,
 	TokenTransferInvoice,
-	StakeInvoice>;
+	StakeInvoice,
+	WithdrawalInvoice>;
 
 enum class Action {
 	Refresh,
@@ -117,6 +127,7 @@ using FormatFlags = base::flags<FormatFlag>;
 	int64 amount,
 	Ton::TokenKind token,
 	FormatFlags flags = FormatFlags());
+[[nodiscard]] QString AmountSeparator(Ton::TokenKind token = Ton::TokenKind::DefaultToken);
 [[nodiscard]] std::optional<int64> ParseAmountString(const QString &amount, size_t decimals);
 [[nodiscard]] PreparedInvoice ParseInvoice(QString invoice);
 [[nodiscard]] int64 CalculateValue(const Ton::Transaction &data);

@@ -28,10 +28,6 @@ struct FixedAddress {
 	int position = 0;
 };
 
-[[nodiscard]] QString AmountSeparator() {
-	return FormatAmount(1, Ton::TokenKind::DefaultToken).separator;
-}
-
 [[nodiscard]] FixedAddress FixAddressInput(
 		const QString &text,
 		int position) {
@@ -39,7 +35,7 @@ struct FixedAddress {
 		return tonTransferInvoice.address;
 	}, [](const TokenTransferInvoice &tokenTransferInvoice) {
 		return tokenTransferInvoice.address;
-	}, [](const StakeInvoice &) {
+	}, [](auto&&) {
 		return QString{};
 	});
 

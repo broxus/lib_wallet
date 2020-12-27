@@ -3,23 +3,14 @@
 #include "wallet/wallet_phrases.h"
 #include "wallet/wallet_common.h"
 #include "ui/widgets/input_fields.h"
-#include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
 #include "ui/inline_token_icon.h"
-#include "base/algorithm.h"
 #include "base/qt_signal_producer.h"
 #include "styles/style_wallet.h"
 #include "styles/style_layers.h"
 #include "styles/palette.h"
 
 namespace Wallet {
-namespace {
-
-[[nodiscard]] QString AmountSeparator() {
-	return FormatAmount(1, Ton::TokenKind::DefaultToken).separator;
-}
-
-} // namespace
 
 void SendStakeBox(
 		not_null<Ui::GenericBox*> box,
@@ -53,7 +44,7 @@ void SendStakeBox(
 		st::walletSendAmountPadding);
 
 	auto balanceText = rpl::combine(
-		ph::lng_wallet_send_balance(),
+		ph::lng_wallet_send_stake_balance(),
 		rpl::duplicate(availableBalance)
 	) | rpl::map([=](QString &&phrase, int64 value) {
 		return phrase.replace(

@@ -82,6 +82,7 @@ extern phrase lng_wallet_refreshed_just_now;
 extern phrase lng_wallet_cover_balance;
 extern phrase lng_wallet_cover_balance_test;
 extern phrase lng_wallet_cover_locked;
+extern phrase lng_wallet_cover_awaiting_withdrawal;
 extern phrase lng_wallet_cover_receive_full;
 extern phrase lng_wallet_cover_receive;
 extern phrase lng_wallet_cover_send;
@@ -174,13 +175,24 @@ extern phrase lng_wallet_send_stake_balance;
 extern phrase lng_wallet_send_stake_button;
 extern phrase lng_wallet_send_stake_button_amount;
 
+extern phrase lng_wallet_withdraw_title;
+extern phrase lng_wallet_withdraw_all;
+extern phrase lng_wallet_withdraw_part;
+extern phrase lng_wallet_withdraw_amount;
+extern phrase lng_wallet_withdraw_locked;
+extern phrase lng_wallet_withdraw_button_part;
+extern phrase lng_wallet_withdraw_button_all;
+extern phrase lng_wallet_withdraw_button_amount;
+
 extern phrase lng_wallet_send_failed_title;
 extern phrase lng_wallet_send_failed_text;
 
 extern phrase lng_wallet_confirm_title;
 extern phrase lng_wallet_confirm_text;
+extern phrase lng_wallet_confirm_withdrawal_text;
 extern phrase lng_wallet_confirm_fee;
 extern phrase lng_wallet_confirm_send;
+extern phrase lng_wallet_confirm_withdrawal;
 extern phrase lng_wallet_confirm_warning;
 
 extern phrase lng_wallet_same_address_title;
@@ -236,12 +248,13 @@ extern Fn<phrase(QDate)> lng_wallet_short_date;
 extern Fn<phrase(QTime)> lng_wallet_short_time;
 extern Fn<phrase(QString, Ton::TokenKind)> lng_wallet_grams_count;
 extern Fn<phrase(QString, Ton::TokenKind)> lng_wallet_grams_count_sent;
+extern Fn<phrase(QString)> lng_wallet_grams_count_withdrawn;
 
 } // namespace ph
 
 namespace Wallet {
 
-inline constexpr auto kPhrasesCount = 181;
+inline constexpr auto kPhrasesCount = 192;
 
 void SetPhrases(
 	ph::details::phrase_value_array<kPhrasesCount> data,

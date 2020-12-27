@@ -80,6 +80,7 @@ phrase lng_wallet_refreshed_just_now = "updated just now";
 phrase lng_wallet_cover_balance = "Your balance";
 phrase lng_wallet_cover_balance_test = "Your test balance";
 phrase lng_wallet_cover_locked = "locked";
+phrase lng_wallet_cover_awaiting_withdrawal = "awaiting withdrawal";
 phrase lng_wallet_cover_receive_full = "Receive {ticker}";
 phrase lng_wallet_cover_receive = "Receive";
 phrase lng_wallet_cover_send = "Send";
@@ -172,13 +173,24 @@ phrase lng_wallet_send_stake_balance = "Balance: {amount}";
 phrase lng_wallet_send_stake_button = "Send stake";
 phrase lng_wallet_send_stake_button_amount = "Stake {amount}";
 
+phrase lng_wallet_withdraw_title = "Withdraw";
+phrase lng_wallet_withdraw_all = "All";
+phrase lng_wallet_withdraw_part = "Part";
+phrase lng_wallet_withdraw_amount = "Amount";
+phrase lng_wallet_withdraw_locked = "Locked: {amount}";
+phrase lng_wallet_withdraw_button_part = "Withdraw Part";
+phrase lng_wallet_withdraw_button_all = "Withdraw All";
+phrase lng_wallet_withdraw_button_amount = "Withdraw {amount}";
+
 phrase lng_wallet_send_failed_title = "Sending failed";
 phrase lng_wallet_send_failed_text = "Could not perform the transaction. Please check your wallet's balance and try again.";
 
 phrase lng_wallet_confirm_title = "Confirmation";
 phrase lng_wallet_confirm_text = "Do you want to send **{grams}** to:";
+phrase lng_wallet_confirm_withdrawal_text = "Do you want to withdraw **{grams}** from:";
 phrase lng_wallet_confirm_fee = "Fee: ~{grams}";
 phrase lng_wallet_confirm_send = "Send {ticker}";
+phrase lng_wallet_confirm_withdrawal = "Withdraw";
 phrase lng_wallet_confirm_warning = "**Note:** your comment \xC2\xAB{comment}\xC2\xBB **will not be encrypted**.";
 
 phrase lng_wallet_same_address_title = "Warning";
@@ -299,6 +311,12 @@ Fn<phrase(QString, Ton::TokenKind)> lng_wallet_grams_count_sent = [](QString tex
 	return text + " " + Ton::toString(token) + ((text == "1")
 		? " has been sent."
 		: " have been sent.");
+};
+
+Fn<phrase(QString)> lng_wallet_grams_count_withdrawn = [](QString text) {
+	return text + " " + Ton::toString(Ton::TokenKind::DefaultToken) + ((text == "1")
+		? " was requested for withdrawal."
+		: " were requested for withdrawal.");
 };
 
 } // namespace ph

@@ -173,6 +173,10 @@ FormattedAmount FormatAmount(int64 amount, Ton::TokenKind token, FormatFlags fla
 	return result;
 }
 
+[[nodiscard]] QString AmountSeparator(Ton::TokenKind token) {
+	return FormatAmount(1, token).separator;
+}
+
 std::optional<int64> ParseAmountString(const QString &amount, size_t decimals) {
 	const auto trimmed = amount.trimmed();
 	const auto separator = QString(QLocale::system().decimalPoint());
@@ -532,6 +536,14 @@ auto TokenTransferInvoice::asTransaction() const -> Ton::TokenTransactionToSend 
 auto StakeInvoice::asTransaction() const -> Ton::StakeTransactionToSend {
 	return Ton::StakeTransactionToSend {
 		.stake = stake,
+		.depoolAddress = dePool,
+	};
+}
+
+auto WithdrawalInvoice::asTransaction() const -> Ton::WithdrawalTransactionToSend {
+	return Ton::WithdrawalTransactionToSend {
+		.amount = amount,
+		.all = all,
 		.depoolAddress = dePool,
 	};
 }
