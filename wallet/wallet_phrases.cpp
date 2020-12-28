@@ -121,7 +121,7 @@ phrase lng_wallet_decrypt_failed = "Decryption failed :(";
 
 phrase lng_wallet_view_title = "Transaction";
 phrase lng_wallet_view_ordinary_stake = "Ordinary Stake";
-phrase lng_wallet_view_round_complete = "Round Complete";
+phrase lng_wallet_view_round_complete = "Round Reward";
 phrase lng_wallet_view_transaction_fee = "{amount} transaction fee";
 phrase lng_wallet_view_storage_fee = "{amount} storage fee";
 phrase lng_wallet_view_sender = "Sender";
@@ -193,8 +193,8 @@ phrase lng_wallet_withdraw_all = "All";
 phrase lng_wallet_withdraw_part = "Part";
 phrase lng_wallet_withdraw_amount = "Amount";
 phrase lng_wallet_withdraw_locked = "Locked: {amount}";
-phrase lng_wallet_withdraw_button_part = "Withdraw Part";
-phrase lng_wallet_withdraw_button_all = "Withdraw All";
+phrase lng_wallet_withdraw_button_part = "Withdraw part";
+phrase lng_wallet_withdraw_button_all = "Withdraw all";
 phrase lng_wallet_withdraw_button_amount = "Withdraw {amount}";
 
 phrase lng_wallet_send_failed_title = "Sending failed";

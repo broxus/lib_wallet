@@ -168,7 +168,7 @@ void DePoolWithdrawBox(
 					&Ui::InputField::changed
 				)
 			),
-			withdrawalType->changes()
+			withdrawalType->value()
 		)
 	) | rpl::map([=](rpl::empty_value, const WithdrawalType &type) -> rpl::producer<QString> {
 		const auto text = amount->getLastText();

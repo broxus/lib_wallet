@@ -183,13 +183,17 @@ void refreshTimeTexts(
 [[nodiscard]] TransactionLayout prepareLayout(
 	const Ton::Transaction &data,
 	const Ton::DePoolTransaction &dePoolTransaction) {
-	const auto value = v::match(
+	const auto [value, fee] = v::match(
 		dePoolTransaction,
-		[](const Ton::DePoolOrdinaryStakeTransaction &dePoolOrdinaryStakeTransaction) {
-			return dePoolOrdinaryStakeTransaction.stake;
+		[&](const Ton::DePoolOrdinaryStakeTransaction &dePoolOrdinaryStakeTransaction) {
+			return std::make_pair(
+				dePoolOrdinaryStakeTransaction.stake,
+				-CalculateValue(data) - dePoolOrdinaryStakeTransaction.stake + data.otherFee);
 		},
-		[](const Ton::DePoolOnRoundCompleteTransaction &dePoolOnRoundCompleteTransaction) {
-			return dePoolOnRoundCompleteTransaction.reward;
+		[&](const Ton::DePoolOnRoundCompleteTransaction &dePoolOnRoundCompleteTransaction) {
+			return std::make_pair(
+				dePoolOnRoundCompleteTransaction.reward,
+				data.otherFee);
 		});
 
 	const auto token = Ton::TokenKind::DefaultToken;
@@ -221,10 +225,9 @@ void refreshTimeTexts(
 	result.comment = Ui::Text::String(st::walletAddressWidthMin);
 	result.comment.setText(st::defaultTextStyle, {}, _textPlainOptions);
 
-	const auto fee = FormatAmount(-CalculateValue(data), Ton::TokenKind::DefaultToken).full;
 	result.fees.setText(
 		st::defaultTextStyle,
-		ph::lng_wallet_row_fees(ph::now).replace("{amount}", fee));
+		ph::lng_wallet_row_fees(ph::now).replace("{amount}", FormatAmount(fee, Ton::TokenKind::DefaultToken).full));
 	result.token = token;
 
 	result.flags = Flag(0)

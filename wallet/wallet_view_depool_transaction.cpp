@@ -75,7 +75,7 @@ object_ptr<Ui::RpWidget> CreateSummary(
 
 	const auto balance = result->lifetime().make_state<Ui::AmountLabel>(
 		result.data(),
-		rpl::single(FormatAmount(value, defaultToken, FormatFlag::Signed)),
+		rpl::single(FormatAmount(value, defaultToken)),
 		st::walletTransactionValue);
 
 	const auto otherFee = Ui::CreateChild<Ui::FlatLabel>(
