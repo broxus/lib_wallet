@@ -110,6 +110,8 @@ PRIVATE
     wallet/wallet_top_bar.h
     wallet/wallet_update_info.cpp
     wallet/wallet_update_info.h
+    wallet/wallet_view_depool_transaction.cpp
+    wallet/wallet_view_depool_transaction.h
     wallet/wallet_view_transaction.cpp
     wallet/wallet_view_transaction.h
     wallet/wallet_window.cpp

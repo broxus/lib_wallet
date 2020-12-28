@@ -162,21 +162,21 @@ void Info::setupControls(Data &&data) {
 		MakeEmptyHistoryState(rpl::duplicate(state), data.justCreated),
 		data.share);
 
-	const auto dePoolInfo = _widget->lifetime().make_state<DePoolInfo>(
-		tonHistoryWrapper,
-		MakeDePoolInfoState(
-			rpl::duplicate(state),
-			_selectedAsset.value() | rpl::map([](const std::optional<SelectedAsset> &selectedAsset) {
-				if (!selectedAsset.has_value()) {
-					return QString{};
-				}
-				return v::match(*selectedAsset, [](const SelectedDePool &selectedDePool) {
-					return selectedDePool.address;
-				}, [](auto&&) {
-					return QString{};
-				});
-			}))
-		);
+	//	const auto dePoolInfo = _widget->lifetime().make_state<DePoolInfo>(
+	//		tonHistoryWrapper,
+	//		MakeDePoolInfoState(
+	//			rpl::duplicate(state),
+	//			_selectedAsset.value() | rpl::map([](const std::optional<SelectedAsset> &selectedAsset) {
+	//				if (!selectedAsset.has_value()) {
+	//					return QString{};
+	//				}
+	//				return v::match(*selectedAsset, [](const SelectedDePool &selectedDePool) {
+	//					return selectedDePool.address;
+	//				}, [](auto&&) {
+	//					return QString{};
+	//				});
+	//			}))
+	//		);
 
 	// register layout relations
 
@@ -194,28 +194,36 @@ void Info::setupControls(Data &&data) {
 		_scroll->sizeValue(),
 		assetsList->heightValue(),
 		history->heightValue(),
+		//dePoolInfo->heightValue(),
 		_selectedAsset.value()
-	) | rpl::start_with_next([=](QSize size, int tokensListHeight, int historyHeight, std::optional<SelectedAsset> asset) {
+	) | rpl::start_with_next([=](
+			QSize size,
+			int tokensListHeight,
+			int historyHeight,
+			//int dePoolInfoHeight,
+			std::optional<SelectedAsset> asset) {
 		if (asset.has_value()) {
+			const auto [contentHeight, historyVisible, dePoolInfoVisible] =
+				v::match(*asset, [&](const SelectedToken &selectedToken) {
+					return std::make_tuple(historyHeight, historyHeight == 0, false);
+				}, [&](const SelectedDePool &selectedDePool) {
+					//return std::make_tuple(dePoolInfoHeight, false, true);
+					return std::make_tuple(historyHeight, historyHeight == 0, false);
+				});
+
 			const auto innerHeight = std::max(
 				size.height(),
-				cover->height() + historyHeight);
+				cover->height() + contentHeight);
 			_inner->setGeometry({0, 0, size.width(), innerHeight});
 
 			const auto coverHeight = st::walletCoverHeight;
 
 			cover->setGeometry(QRect(0, 0, size.width(), coverHeight));
 			emptyHistory->setGeometry(QRect(0, coverHeight, size.width(), size.height() - coverHeight));
-			dePoolInfo->setGeometry(QRect(0, coverHeight, size.width(), size.height() - coverHeight));
-
-			const auto [historyVisible, dePoolInfoVisible] = v::match(*asset, [&](const SelectedToken &selectedToken) {
-				return std::make_pair(historyHeight == 0, false);
-			}, [&](const SelectedDePool &selectedDePool) {
-				return std::make_pair(false, true);
-			});
+			//dePoolInfo->setGeometry(QRect(0, coverHeight, size.width(), size.height() - coverHeight));
 
 			emptyHistory->setVisible(historyVisible);
-			dePoolInfo->setVisible(dePoolInfoVisible);
+			//dePoolInfo->setVisible(dePoolInfoVisible);
 
 			tonHistoryWrapper->setGeometry(QRect(0, 0, size.width(), innerHeight));
 			history->updateGeometry({0, st::walletCoverHeight}, size.width());

@@ -1,0 +1,158 @@
+#include "wallet_view_depool_transaction.h"
+
+#include "wallet/wallet_common.h"
+#include "wallet/wallet_phrases.h"
+#include "ui/amount_label.h"
+#include "ui/address_label.h"
+#include "ui/lottie_widget.h"
+#include "ui/wrap/padding_wrap.h"
+#include "ui/widgets/buttons.h"
+#include "ui/text/text_utilities.h"
+#include "ton/ton_state.h"
+#include "base/unixtime.h"
+#include "styles/style_layers.h"
+#include "styles/style_wallet.h"
+#include "styles/palette.h"
+#include "ton/ton_wallet.h"
+
+#include <QtCore/QDateTime>
+#include <QtGui/QtEvents>
+
+namespace Wallet {
+
+namespace {
+
+std::optional<Ton::DePoolTransaction> TryGetDePoolTransaction(
+		const Ton::Transaction &data) {
+	const auto incoming = !data.incoming.source.isEmpty();
+
+	if (incoming) {
+		auto parsedTransaction = Ton::Wallet::ParseDePoolTransaction(
+			data.incoming.message, incoming);
+		if (parsedTransaction.has_value()) {
+			return *parsedTransaction;
+		}
+	} else {
+		for (const auto &out : data.outgoing) {
+			auto stakeTransaction = Ton::Wallet::ParseDePoolTransaction(out.message, incoming);
+			if (!stakeTransaction.has_value()) {
+				break;
+			}
+			return *stakeTransaction;
+		}
+	}
+
+	return std::nullopt;
+}
+
+template<typename T>
+object_ptr<Ui::RpWidget> CreateSummary(
+		not_null<Ui::RpWidget*> parent,
+		const Ton::Transaction &data,
+		const T& dePoolTransaction) {
+	const auto isOnRoundComplete = std::is_same_v<T, Ton::DePoolOnRoundCompleteTransaction>;
+	const auto isStakeTransaction = std::is_same_v<T, Ton::DePoolOrdinaryStakeTransaction>;
+	static_assert(isOnRoundComplete || isStakeTransaction);
+
+	const auto defaultToken = Ton::TokenKind::DefaultToken;
+
+	const auto feeSkip = st::walletTransactionFeeSkip;
+	const auto height = st::walletTransactionSummaryHeight
+						+ st::normalFont->height + feeSkip;
+	auto result = object_ptr<Ui::FixedHeightWidget>(
+		parent,
+		height);
+
+	int64 value{};
+	int64 fee{};
+	if constexpr (isStakeTransaction) {
+		value = dePoolTransaction.stake;
+		fee = -CalculateValue(data) - value + data.otherFee;
+	} else if constexpr (isOnRoundComplete) {
+		value = dePoolTransaction.reward;
+		fee = data.otherFee;
+	}
+
+	const auto balance = result->lifetime().make_state<Ui::AmountLabel>(
+		result.data(),
+		rpl::single(FormatAmount(value, defaultToken, FormatFlag::Signed)),
+		st::walletTransactionValue);
+
+	const auto otherFee = Ui::CreateChild<Ui::FlatLabel>(
+		result.data(),
+		ph::lng_wallet_view_transaction_fee(ph::now).replace(
+			"{amount}",
+			FormatAmount(fee, defaultToken).full),
+		st::walletTransactionFee);
+
+	rpl::combine(
+		result->widthValue(),
+		balance->widthValue(),
+		otherFee->widthValue()
+	) | rpl::start_with_next([=](int width, int bwidth, int) {
+		auto top = st::walletTransactionValueTop;
+
+		if (balance) {
+			balance->move((width - bwidth) / 2, top);
+			top += balance->height() + feeSkip;
+		}
+		if (otherFee) {
+			otherFee->move((width - otherFee->width()) / 2, top);
+		}
+	}, result->lifetime());
+
+	return result;
+}
+
+} // namespace
+
+void ViewDePoolTransactionBox(
+		not_null<Ui::GenericBox*> box,
+		const Ton::Transaction &data,
+		const Fn<void(QImage, QString)> &share) {
+	const auto dePoolTransaction = TryGetDePoolTransaction(data);
+
+	box->setStyle(st::walletNoButtonsBox);
+	box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
+
+	const auto id = data.id;
+	const auto address = ExtractAddress(data);
+
+	if (dePoolTransaction.has_value()) {
+		v::match(*dePoolTransaction, [&](const Ton::DePoolOnRoundCompleteTransaction &onRoundCompleteTransaction) {
+			box->setTitle(ph::lng_wallet_view_round_complete());
+			box->addRow(CreateSummary(box, data, onRoundCompleteTransaction));
+		}, [&](const Ton::DePoolOrdinaryStakeTransaction &ordinaryStakeTransaction) {
+			box->setTitle(ph::lng_wallet_view_ordinary_stake());
+			box->addRow(CreateSummary(box, data, ordinaryStakeTransaction));
+		});
+	} else {
+		box->setTitle(ph::lng_wallet_view_title());
+	}
+
+	AddBoxSubtitle(box, ph::lng_wallet_view_depool());
+
+	box->addRow(
+		object_ptr<Ui::RpWidget>::fromRaw(Ui::CreateAddressLabel(
+			box,
+			address,
+			st::walletTransactionAddress,
+			[=] { share(QImage(), address); })),
+		{
+			st::boxRowPadding.left(),
+			st::boxRowPadding.top(),
+			st::boxRowPadding.right(),
+			st::walletTransactionDateTop,
+		});
+
+	AddBoxSubtitle(box, ph::lng_wallet_view_date());
+	box->addRow(
+		object_ptr<Ui::FlatLabel>(
+			box,
+			base::unixtime::parse(
+				data.time
+			).toString(Qt::DefaultLocaleLongDate),
+			st::walletLabel));
+}
+
+} // namespace Wallet

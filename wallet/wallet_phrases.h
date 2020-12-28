@@ -82,7 +82,6 @@ extern phrase lng_wallet_refreshed_just_now;
 extern phrase lng_wallet_cover_balance;
 extern phrase lng_wallet_cover_balance_test;
 extern phrase lng_wallet_cover_locked;
-extern phrase lng_wallet_cover_awaiting_withdrawal;
 extern phrase lng_wallet_cover_reward;
 extern phrase lng_wallet_cover_receive_full;
 extern phrase lng_wallet_cover_receive;
@@ -123,9 +122,12 @@ extern phrase lng_wallet_click_to_decrypt;
 extern phrase lng_wallet_decrypt_failed;
 
 extern phrase lng_wallet_view_title;
+extern phrase lng_wallet_view_ordinary_stake;
+extern phrase lng_wallet_view_round_complete;
 extern phrase lng_wallet_view_transaction_fee;
 extern phrase lng_wallet_view_storage_fee;
 extern phrase lng_wallet_view_sender;
+extern phrase lng_wallet_view_depool;
 extern phrase lng_wallet_view_recipient;
 extern phrase lng_wallet_view_date;
 extern phrase lng_wallet_view_comment;
@@ -267,7 +269,7 @@ extern Fn<phrase(QString)> lng_wallet_grams_count_withdrawn;
 
 namespace Wallet {
 
-inline constexpr auto kPhrasesCount = 204;
+inline constexpr auto kPhrasesCount = 206;
 
 void SetPhrases(
 	ph::details::phrase_value_array<kPhrasesCount> data,

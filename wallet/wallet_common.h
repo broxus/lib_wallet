@@ -115,6 +115,11 @@ enum class InfoTransition {
 	Back
 };
 
+enum class ViewRequestType {
+	Ordinary,
+	DePool
+};
+
 enum class FormatFlag {
 	Signed = 0x01,
 	Rounded = 0x02,

@@ -63,7 +63,6 @@ private:
 	rpl::event_stream<Ton::TransactionId> _preloadRequests;
 	rpl::event_stream<Ton::Transaction> _viewRequests;
 	rpl::event_stream<Ton::Transaction> _decryptRequests;
-
 };
 
 } // namespace Wallet

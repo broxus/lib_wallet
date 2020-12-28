@@ -180,6 +180,61 @@ void refreshTimeTexts(
 	return result;
 }
 
+[[nodiscard]] TransactionLayout prepareLayout(
+	const Ton::Transaction &data,
+	const Ton::DePoolTransaction &dePoolTransaction) {
+	const auto value = v::match(
+		dePoolTransaction,
+		[](const Ton::DePoolOrdinaryStakeTransaction &dePoolOrdinaryStakeTransaction) {
+			return dePoolOrdinaryStakeTransaction.stake;
+		},
+		[](const Ton::DePoolOnRoundCompleteTransaction &dePoolOnRoundCompleteTransaction) {
+			return dePoolOnRoundCompleteTransaction.reward;
+		});
+
+	const auto token = Ton::TokenKind::DefaultToken;
+
+	const auto amount = FormatAmount(-value, token, FormatFlag::Signed | FormatFlag::Rounded);
+
+	const auto incoming = !data.incoming.source.isEmpty();
+	const auto pending = (data.id.lt == 0);
+	const auto address = ExtractAddress(data);
+	const auto addressPartWidth = [&](int from, int length = -1) {
+		return addressStyle().font->width(address.mid(from, length));
+	};
+
+	auto result = TransactionLayout();
+	result.serverTime = data.time;
+	result.amountGrams.setText(st::walletRowGramsStyle, amount.gramsString);
+	result.amountNano.setText(
+		st::walletRowNanoStyle,
+		amount.separator + amount.nanoString);
+	result.address = Ui::Text::String(
+		addressStyle(),
+		address,
+		_defaultOptions,
+		st::walletAddressWidthMin);
+	result.addressWidth = (addressStyle().font->spacew / 2) + std::max(
+		addressPartWidth(0, address.size() / 2),
+		addressPartWidth(address.size() / 2));
+	result.addressHeight = addressStyle().font->height * 2;
+	result.comment = Ui::Text::String(st::walletAddressWidthMin);
+	result.comment.setText(st::defaultTextStyle, {}, _textPlainOptions);
+
+	const auto fee = FormatAmount(-CalculateValue(data), Ton::TokenKind::DefaultToken).full;
+	result.fees.setText(
+		st::defaultTextStyle,
+		ph::lng_wallet_row_fees(ph::now).replace("{amount}", fee));
+	result.token = token;
+
+	result.flags = Flag(0)
+		| (incoming ? Flag::Incoming : Flag(0))
+		| (pending ? Flag::Pending : Flag(0));
+
+	refreshTimeTexts(result);
+	return result;
+}
+
 } // namespace
 
 class HistoryRow final {
@@ -210,6 +265,7 @@ public:
 	void setVisible(bool visible);
 	[[nodiscard]] bool isVisible() const;
 	void attachTokenTransaction(std::optional<Ton::TokenTransaction> &&tokenTransaction);
+	void attachDePoolTransaction(std::optional<Ton::DePoolTransaction> &&dePoolTransaction);
 
 	void paint(Painter &p, int x, int y);
 	void paintDate(Painter &p, int x, int y);
@@ -221,6 +277,7 @@ private:
 
 	Ton::Transaction _transaction;
 	std::optional<Ton::TokenTransaction> _tokenTransaction;
+	std::optional<Ton::DePoolTransaction> _dePoolTransaction;
 	TransactionLayout _layout;
 	int _top = 0;
 	int _width = 0;
@@ -347,8 +404,22 @@ void HistoryRow::attachTokenTransaction(std::optional<Ton::TokenTransaction> &&t
 		return;
 	}
 	_tokenTransaction = std::move(tokenTransaction);
+	_dePoolTransaction.reset();
 	if (_tokenTransaction.has_value()) {
 		_layout = prepareLayout(_transaction, *_tokenTransaction);
+	} else {
+		_layout = prepareLayout(_transaction, {}, false);
+	}
+}
+
+void HistoryRow::attachDePoolTransaction(std::optional<Ton::DePoolTransaction> &&dePoolTransaction) {
+	if (_dePoolTransaction.has_value() == dePoolTransaction.has_value()) {
+		return;
+	}
+	_dePoolTransaction = std::move(dePoolTransaction);
+	_tokenTransaction.reset();
+	if (_dePoolTransaction.has_value()) {
+		_layout = prepareLayout(_transaction, *_dePoolTransaction);
 	} else {
 		_layout = prepareLayout(_transaction, {}, false);
 	}
@@ -944,12 +1015,17 @@ void History::computeInitTransactionId() {
 }
 
 void History::refreshShowDates() {
-	const auto tokenContractAddress = _tokenContractAddress.current().isEmpty()
-		? QString{}
-		: Ton::Wallet::ConvertIntoRaw(_tokenContractAddress.current());
 	const auto selectedAsset = _selectedAsset.current();
 
-	auto filterTransaction = [selectedAsset, tokenContractAddress](decltype(_rows.front())& row) {
+	const auto targetAddress = v::match(selectedAsset, [this](const SelectedToken&) {
+		return _tokenContractAddress.current().isEmpty()
+			? QString{}
+			: Ton::Wallet::ConvertIntoRaw(_tokenContractAddress.current());
+	}, [](const SelectedDePool &selectedDePool) {
+		return Ton::Wallet::ConvertIntoRaw(selectedDePool.address);
+	});
+
+	auto filterTransaction = [selectedAsset, targetAddress](decltype(_rows.front())& row) {
 		const auto &transaction = row->transaction();
 
 		v::match(selectedAsset, [&](const SelectedToken &selectedToken) {
@@ -960,7 +1036,7 @@ void History::refreshShowDates() {
 			}
 
 			for (const auto& out : transaction.outgoing) {
-				if (Ton::Wallet::ConvertIntoRaw(out.destination) != tokenContractAddress) {
+				if (Ton::Wallet::ConvertIntoRaw(out.destination) != targetAddress) {
 					continue;
 				}
 
@@ -976,7 +1052,32 @@ void History::refreshShowDates() {
 
 			row->setVisible(false);
 		}, [&](const SelectedDePool &selectedDePool) {
-			// TODO: filter depool
+			const auto incoming = !transaction.incoming.source.isEmpty();
+
+			if (incoming && Ton::Wallet::ConvertIntoRaw(transaction.incoming.source) == targetAddress) {
+				auto parsedTransaction = Ton::Wallet::ParseDePoolTransaction(
+					transaction.incoming.message, incoming);
+				if (parsedTransaction.has_value()) {
+					row->attachDePoolTransaction(std::move(parsedTransaction));
+					row->setVisible(true);
+					return;
+				}
+			} else if (!incoming) {
+				for (const auto &out : transaction.outgoing) {
+					if (Ton::Wallet::ConvertIntoRaw(out.destination) != targetAddress) {
+						continue;
+					}
+
+					auto stakeTransaction = Ton::Wallet::ParseDePoolTransaction(out.message, incoming);
+					if (!stakeTransaction.has_value()) {
+						break;
+					}
+
+					row->attachDePoolTransaction(std::move(stakeTransaction));
+					row->setVisible(true);
+					return;
+				}
+			}
 
 			row->setVisible(false);
 		});

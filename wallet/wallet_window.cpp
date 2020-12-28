@@ -10,6 +10,7 @@
 #include "wallet/wallet_common.h"
 #include "wallet/wallet_info.h"
 #include "wallet/wallet_view_transaction.h"
+#include "wallet/wallet_view_depool_transaction.h"
 #include "wallet/wallet_receive_tokens.h"
 #include "wallet/wallet_create_invoice.h"
 #include "wallet/wallet_invoice_qr.h"
@@ -513,39 +514,41 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
 			.current()
 			.value_or(SelectedToken::defaultToken());
 
-		if (!v::is<SelectedToken>(selectedAsset)) {
-			return;
-		}
-		auto selectedToken = v::get<SelectedToken>(selectedAsset);
+		v::match(selectedAsset, [&](const SelectedToken &selectedToken) {
+			const auto send = [=](const QString &address) {
+				if (selectedToken.token == Ton::TokenKind::DefaultToken) {
+					sendMoney(TonTransferInvoice{
+						.address = address,
+					});
+				} else {
+					sendMoney(TokenTransferInvoice{
+						.token = selectedToken.token,
+						.address = address,
+					});
+				}
+			};
 
-		const auto send = [=](const QString &address) {
-			if (selectedToken.token == Ton::TokenKind::DefaultToken) {
-				sendMoney(TonTransferInvoice{
-					.address = address,
-				});
-			} else {
-				sendMoney(TokenTransferInvoice{
-					.token = selectedToken.token,
-					.address = address,
-				});
-			}
-		};
+			const auto reveal = [=](const QString &address) {
+				_wallet->openReveal(_rawAddress, address);
+			};
 
-		const auto reveal = [=](const QString &address) {
-			_wallet->openReveal(_rawAddress, address);
-		};
-
-		_layers->showBox(Box(
-			ViewTransactionBox,
-			std::move(data),
-			Ton::Wallet::ConvertIntoRaw(_tokenContractAddress.current()),
-			selectedToken.token,
-			_collectEncryptedRequests.events(),
-			_decrypted.events(),
-			shareAddressCallback(),
-			[=] { decryptEverything(publicKey); },
-			send,
-			reveal));
+			_layers->showBox(Box(
+				ViewTransactionBox,
+				std::move(data),
+				Ton::Wallet::ConvertIntoRaw(_tokenContractAddress.current()),
+				selectedToken.token,
+				_collectEncryptedRequests.events(),
+				_decrypted.events(),
+				shareAddressCallback(),
+				[=] { decryptEverything(publicKey); },
+				send,
+				reveal));
+		}, [&](const SelectedDePool& selectedDePool) {
+			_layers->showBox(Box(
+				ViewDePoolTransactionBox,
+				std::move(data),
+				shareAddressCallback()));
+		});
 	}, _info->lifetime());
 
 	_info->decryptRequests(

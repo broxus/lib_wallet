@@ -6,18 +6,14 @@
 //
 #include "wallet/wallet_cover.h"
 
-#include "wallet/wallet_common.h"
 #include "wallet/wallet_phrases.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
 #include "ui/amount_label.h"
 #include "ui/lottie_widget.h"
 #include "ui/inline_token_icon.h"
-#include "ton/ton_state.h"
 #include "styles/style_wallet.h"
 #include "styles/palette.h"
-
-#include <iostream>
 
 namespace Wallet {
 namespace {
@@ -47,68 +43,6 @@ not_null<Ui::RoundButton*> CreateCoverButton(
 		label->move((outer - width) / 2, st::walletCoverButton.textTop);
 	}, label->lifetime());
 	return result;
-}
-
-not_null<Ui::RpWidget*> CreateBalanceSubtitle(
-		not_null<Ui::RpWidget*> parent,
-		rpl::producer<QString>&& text,
-		rpl::producer<QString>&& value,
-		rpl::producer<Ton::TokenKind>&& selectedToken) {
-	const auto locked = Ui::CreateChild<Ui::RpWidget>(parent.get());
-
-	const auto token = locked->lifetime().make_state<rpl::variable<Ton::TokenKind>>(Ton::TokenKind::DefaultToken);
-
-	const auto lockedBalance = Ui::CreateChild<Ui::FlatLabel>(
-		locked,
-		rpl::duplicate(value),
-		st::walletCoverLocked);
-
-	const auto lockedLabel = Ui::CreateChild<Ui::FlatLabel>(
-		locked,
-		std::forward<rpl::producer<QString>>(text),
-		st::walletCoverLockedLabel);
-
-	rpl::combine(
-		lockedBalance->sizeValue(),
-		lockedLabel->sizeValue()
-	) | rpl::start_with_next([=](QSize balance, QSize label) {
-		locked->resize(balance.width()
-			+ st::walletDiamondSize
-			+ st::walletCoverLocked.style.font->spacew
-			+ label.width(),
-			std::max(balance.height(), label.height()));
-		lockedBalance->moveToRight(st::walletDiamondSize, 0);
-		lockedLabel->moveToLeft(0, 0);
-	}, locked->lifetime());
-
-	rpl::combine(
-		locked->paintRequest()
-	) | rpl::start_with_next([=](const QRect &) {
-		auto p = QPainter(locked);
-		const auto diamondTop = 0;
-		const auto diamondLeft = locked->width() - st::walletDiamondSize;
-		Ui::PaintInlineTokenIcon(
-			token->current(),
-			p,
-			diamondLeft,
-			diamondTop,
-			st::walletCoverLocked.style.font);
-	}, locked->lifetime());
-
-	std::forward<rpl::producer<Ton::TokenKind>>(
-		selectedToken
-	) | rpl::start_with_next([=](Ton::TokenKind tokenKind) {
-		*token = tokenKind;
-		locked->repaint();
-	}, locked->lifetime());
-
-	std::forward<rpl::producer<QString>>(
-		value
-	) | rpl::start_with_next([=](const QString text) {
-		locked->setVisible(!text.isEmpty());
-	}, locked->lifetime());
-
-	return locked;
 }
 
 } // namespace
@@ -180,18 +114,17 @@ void Cover::setupBalance() {
 				? FormatAmount(state.lockedBalance, selectedToken.token, FormatFlag::Rounded).full
 				: QString();
 		}, [&](const SelectedDePool &selectedDePool) {
-			return FormatAmount(state.lockedBalance, defaultToken, FormatFlag::Rounded).full;
+			const auto lockedBalance = FormatAmount(state.lockedBalance, defaultToken, FormatFlag::Rounded).full;
+			const auto reward = FormatAmount(state.reward, defaultToken, FormatFlag::Rounded).full;
+			return QString{"%1 / %2"}.arg(lockedBalance, reward);
 		});
 	});
 
-	auto rewardAmount = _state.value(
-	) | rpl::map([defaultToken](const CoverState &state) {
-		return v::match(state.asset, [&](const SelectedDePool &selectedDePool) {
-			return FormatAmount(state.reward, defaultToken, FormatFlag::Rounded).full;
-		}, [](auto&&) {
-			return QString{};
+	const auto optionalSome = [] {
+		return rpl::map([](auto &&text) -> std::optional<std::decay_t<decltype(text)>> {
+			return text;
 		});
-	});
+	};
 
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		&_widget,
@@ -213,20 +146,77 @@ void Cover::setupBalance() {
 	}, label->lifetime());
 	label->show();
 
-	const auto locked = CreateBalanceSubtitle(
-		&_widget,
+	const auto locked = Ui::CreateChild<Ui::RpWidget>(&_widget);
+
+	const auto token = locked->lifetime().make_state<rpl::variable<Ton::TokenKind>>(defaultToken);
+
+	const auto lockedLabel = Ui::CreateChild<Ui::FlatLabel>(
+		locked,
 		_state.value() | rpl::map([](const CoverState &state) {
 			return v::match(state.asset, [](const SelectedToken&) {
 				return ph::lng_wallet_cover_locked();
 			}, [](const SelectedDePool&) {
-				return ph::lng_wallet_cover_awaiting_withdrawal();
+				return ph::lng_wallet_cover_reward();
 			});
 		}) | rpl::flatten_latest(),
+		st::walletCoverLockedLabel);
+
+	const auto lockedBalance = Ui::CreateChild<Ui::FlatLabel>(
+		locked,
 		rpl::duplicate(lockedAmount),
-		_state.value(
-		) | rpl::map([](const CoverState &state) {
-			return state.selectedToken();
-		}) | rpl::distinct_until_changed());
+		st::walletCoverLocked);
+
+	const auto rewardBalance = Ui::CreateChild<Ui::FlatLabel>(
+		&_widget,
+		rpl::duplicate(lockedAmount),
+		st::walletCoverLocked);
+
+	rpl::combine(
+		_state.value(),
+		lockedBalance->sizeValue(),
+		lockedLabel->sizeValue()
+	) | rpl::start_with_next([=](const CoverState& state, QSize balance, QSize label) {
+		const auto [isDePool, showSubtitle] = v::match(state.asset, [&](const SelectedToken& selectedToken) {
+			if (selectedToken.token != token->current()) {
+				*token = selectedToken.token;
+			}
+			return std::make_pair(false, state.lockedBalance != 0);
+		}, [&](const SelectedDePool&) {
+			return std::make_pair(true, true);
+		});
+
+		lockedLabel->setVisible(true);
+		lockedBalance->setVisible(!isDePool);
+		rewardBalance->setVisible(isDePool);
+		locked->setVisible(showSubtitle);
+
+		locked->resize(
+			(!isDePool
+				? balance.width()
+				: 0)
+			+ st::walletDiamondSize
+			+ st::walletCoverLocked.style.font->spacew
+			+ label.width(),
+			std::max(balance.height(), label.height()));
+		lockedBalance->moveToRight(st::walletDiamondSize, 0);
+		lockedLabel->moveToLeft(0, 0);
+	}, locked->lifetime());
+
+	rpl::combine(
+		locked->paintRequest()
+	) | rpl::start_with_next([=](const QRect &) {
+		auto p = QPainter(locked);
+		const auto diamondTop = 0;
+		const auto diamondLeft = locked->width() - st::walletDiamondSize;
+		if (lockedBalance->isVisible()) {
+			Ui::PaintInlineTokenIcon(
+				token->current(),
+				p,
+				diamondLeft,
+				diamondTop,
+				st::walletCoverLocked.style.font);
+		}
+	}, locked->lifetime());
 
 	std::move(lockedAmount) | rpl::map([](const QString &text) {
 		return text.isEmpty();
@@ -235,16 +225,10 @@ void Cover::setupBalance() {
 		label->setVisible(showLabel);
 	}, label->lifetime());
 
-	const auto reward = CreateBalanceSubtitle(
-		&_widget,
-		ph::lng_wallet_cover_reward(),
-		std::move(rewardAmount),
-		rpl::single(defaultToken));
-
 	rpl::combine(
 		_widget.sizeValue(),
 		locked->widthValue(),
-		reward->widthValue()
+		rewardBalance->widthValue()
 	) | rpl::start_with_next([=](QSize size, int lockedWidth, int rewardWidth) {
 		const auto blockTop = (size.height()
 			+ st::walletTopBarHeight
@@ -253,7 +237,7 @@ void Cover::setupBalance() {
 			(size.width() - lockedWidth) / 2,
 			blockTop + st::walletCoverLabelTop,
 			size.width());
-		reward->moveToLeft(
+		rewardBalance->moveToLeft(
 			(size.width() - rewardWidth) / 2,
 			blockTop + st::walletCoverLabelSecondaryTop,
 			size.width());

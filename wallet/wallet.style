@@ -336,17 +336,18 @@ walletEmptyHistoryAddress: FlatLabel(walletAddressLabel) {
 	align: align(center);
 }
 
-dePoolInfoTitlePadding: margins(0px, 8px, 0px, 4px);
+dePoolInfoTitlePadding: margins(20px, 8px, 0px, 4px);
 dePoolInfoTitle: FlatLabel(defaultFlatLabel) {
 	style: semiboldTextStyle;
 }
-dePoolInfoEmptyPadding: margins(0px, 8px, 0px, 11px);
+dePoolInfoEmptyPadding: margins(20px, 8px, 0px, 11px);
 dePoolInfoEmpty: FlatLabel(defaultFlatLabel) {
     textFg: windowSubTextFg;
     style: TextStyle(defaultTextStyle) {
         font: font(14px);
     }
 }
+dePoolInfoIdOffset: 50px;
 
 walletRowsSkip: 8px;
 walletRowDateSkip: 32px;

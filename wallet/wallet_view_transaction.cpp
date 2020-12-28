@@ -23,7 +23,6 @@
 
 #include <QtCore/QDateTime>
 #include <QtGui/QtEvents>
-#include <iostream>
 
 namespace Wallet {
 namespace {
