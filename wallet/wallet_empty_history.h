@@ -36,7 +36,6 @@ private:
 
 	Ui::RpWidget _widget;
 	Fn<void(QImage, QString)> _share;
-
 };
 
 [[nodiscard]] rpl::producer<EmptyHistoryState> MakeEmptyHistoryState(

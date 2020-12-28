@@ -74,6 +74,8 @@ PRIVATE
     wallet/wallet_create_invoice.h
     wallet/wallet_delete.cpp
     wallet/wallet_delete.h
+    wallet/wallet_depool_info.cpp
+    wallet/wallet_depool_info.h
     wallet/wallet_depool_withdraw.cpp
     wallet/wallet_depool_withdraw.h
     wallet/wallet_empty_history.cpp

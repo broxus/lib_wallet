@@ -12,6 +12,7 @@
 #include "wallet/wallet_empty_history.h"
 #include "wallet/wallet_history.h"
 #include "wallet/wallet_assets_list.h"
+#include "wallet/wallet_depool_info.h"
 #include "ui/rp_widget.h"
 #include "ui/lottie_widget.h"
 #include "ui/widgets/labels.h"
@@ -161,6 +162,22 @@ void Info::setupControls(Data &&data) {
 		MakeEmptyHistoryState(rpl::duplicate(state), data.justCreated),
 		data.share);
 
+	const auto dePoolInfo = _widget->lifetime().make_state<DePoolInfo>(
+		tonHistoryWrapper,
+		MakeDePoolInfoState(
+			rpl::duplicate(state),
+			_selectedAsset.value() | rpl::map([](const std::optional<SelectedAsset> &selectedAsset) {
+				if (!selectedAsset.has_value()) {
+					return QString{};
+				}
+				return v::match(*selectedAsset, [](const SelectedDePool &selectedDePool) {
+					return selectedDePool.address;
+				}, [](auto&&) {
+					return QString{};
+				});
+			}))
+		);
+
 	// register layout relations
 
 	// set scroll height to full page
@@ -188,9 +205,17 @@ void Info::setupControls(Data &&data) {
 			const auto coverHeight = st::walletCoverHeight;
 
 			cover->setGeometry(QRect(0, 0, size.width(), coverHeight));
-			const auto contentGeometry = QRect(0, coverHeight, size.width(), size.height() - coverHeight);
-			emptyHistory->setGeometry(contentGeometry);
-			emptyHistory->setVisible(historyHeight == 0);
+			emptyHistory->setGeometry(QRect(0, coverHeight, size.width(), size.height() - coverHeight));
+			dePoolInfo->setGeometry(QRect(0, coverHeight, size.width(), size.height() - coverHeight));
+
+			const auto [historyVisible, dePoolInfoVisible] = v::match(*asset, [&](const SelectedToken &selectedToken) {
+				return std::make_pair(historyHeight == 0, false);
+			}, [&](const SelectedDePool &selectedDePool) {
+				return std::make_pair(false, true);
+			});
+
+			emptyHistory->setVisible(historyVisible);
+			dePoolInfo->setVisible(dePoolInfoVisible);
 
 			tonHistoryWrapper->setGeometry(QRect(0, 0, size.width(), innerHeight));
 			history->updateGeometry({0, st::walletCoverHeight}, size.width());

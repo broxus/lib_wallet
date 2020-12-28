@@ -79,8 +79,9 @@ phrase lng_wallet_refreshed_just_now = "updated just now";
 
 phrase lng_wallet_cover_balance = "Your balance";
 phrase lng_wallet_cover_balance_test = "Your test balance";
-phrase lng_wallet_cover_locked = "locked";
-phrase lng_wallet_cover_awaiting_withdrawal = "awaiting withdrawal";
+phrase lng_wallet_cover_locked = "Locked";
+phrase lng_wallet_cover_awaiting_withdrawal = "Awaiting withdrawal";
+phrase lng_wallet_cover_reward = "Reward";
 phrase lng_wallet_cover_receive_full = "Receive {ticker}";
 phrase lng_wallet_cover_receive = "Receive";
 phrase lng_wallet_cover_send = "Send";
@@ -96,6 +97,18 @@ phrase lng_wallet_tokens_list_swap = "Swap Tokens";
 phrase lng_wallet_empty_history_title = "Wallet Created";
 phrase lng_wallet_empty_history_welcome = "Welcome";
 phrase lng_wallet_empty_history_address = "Your wallet address";
+
+phrase lng_wallet_depool_info_title = "DePool Added";
+phrase lng_wallet_depool_info_stakes_title = "Stakes";
+phrase lng_wallet_depool_info_vestings_title = "Vestings";
+phrase lng_wallet_depool_info_locks_title = "Locks";
+phrase lng_wallet_depool_info_empty = "None";
+phrase lng_wallet_depool_info_id = "#{amount}:";
+phrase lng_wallet_depool_info_remaining_amount = "Remaining amount: {amount}";
+phrase lng_wallet_depool_info_last_withdrawal_time = "Last withdrawal time: {amount}";
+phrase lng_wallet_depool_info_withdrawal_period = "Withdrawal period: {amount}";
+phrase lng_wallet_depool_info_withdrawal_value = "Withdrawal value: {amount}";
+phrase lng_wallet_depool_info_owner = "Owner:";
 
 phrase lng_wallet_row_from = "from:";
 phrase lng_wallet_row_swap_back_to = "swap back to:";

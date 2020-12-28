@@ -83,6 +83,7 @@ extern phrase lng_wallet_cover_balance;
 extern phrase lng_wallet_cover_balance_test;
 extern phrase lng_wallet_cover_locked;
 extern phrase lng_wallet_cover_awaiting_withdrawal;
+extern phrase lng_wallet_cover_reward;
 extern phrase lng_wallet_cover_receive_full;
 extern phrase lng_wallet_cover_receive;
 extern phrase lng_wallet_cover_send;
@@ -98,6 +99,18 @@ extern phrase lng_wallet_tokens_list_swap;
 extern phrase lng_wallet_empty_history_title;
 extern phrase lng_wallet_empty_history_welcome;
 extern phrase lng_wallet_empty_history_address;
+
+extern phrase lng_wallet_depool_info_title;
+extern phrase lng_wallet_depool_info_stakes_title;
+extern phrase lng_wallet_depool_info_vestings_title;
+extern phrase lng_wallet_depool_info_locks_title;
+extern phrase lng_wallet_depool_info_empty;
+extern phrase lng_wallet_depool_info_id;
+extern phrase lng_wallet_depool_info_remaining_amount;
+extern phrase lng_wallet_depool_info_last_withdrawal_time;
+extern phrase lng_wallet_depool_info_withdrawal_period;
+extern phrase lng_wallet_depool_info_withdrawal_value;
+extern phrase lng_wallet_depool_info_owner;
 
 extern phrase lng_wallet_row_from;
 extern phrase lng_wallet_row_swap_back_to;
@@ -254,7 +267,7 @@ extern Fn<phrase(QString)> lng_wallet_grams_count_withdrawn;
 
 namespace Wallet {
 
-inline constexpr auto kPhrasesCount = 192;
+inline constexpr auto kPhrasesCount = 204;
 
 void SetPhrases(
 	ph::details::phrase_value_array<kPhrasesCount> data,
