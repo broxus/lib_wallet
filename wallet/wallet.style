@@ -517,6 +517,8 @@ walletSendBalanceLabel: FlatLabel(defaultFlatLabel) {
 walletSendAmountPadding: margins(22px, 4px, 22px, 12px);
 walletSendCommentPadding: margins(22px, 0px, 22px, 18px);
 
+walletSendStakeWarningPadding: margins(22px, 7px, 22px, 16px);
+
 walletPasscodeHeight: 190px;
 walletPasscodeLottieSize: 100px;
 walletPasscodeLottieTop: 8px;

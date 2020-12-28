@@ -187,6 +187,7 @@ extern phrase lng_wallet_send_button_swap_back_amount;
 extern phrase lng_wallet_send_stake_title;
 extern phrase lng_wallet_send_stake_amount;
 extern phrase lng_wallet_send_stake_balance;
+extern phrase lng_wallet_send_stake_warning;
 extern phrase lng_wallet_send_stake_button;
 extern phrase lng_wallet_send_stake_button_amount;
 
@@ -269,7 +270,7 @@ extern Fn<phrase(QString)> lng_wallet_grams_count_withdrawn;
 
 namespace Wallet {
 
-inline constexpr auto kPhrasesCount = 206;
+inline constexpr auto kPhrasesCount = 207;
 
 void SetPhrases(
 	ph::details::phrase_value_array<kPhrasesCount> data,

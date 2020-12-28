@@ -185,6 +185,7 @@ phrase lng_wallet_send_button_swap_back_amount = "Swap Back {amount}";
 phrase lng_wallet_send_stake_title = "Send stake";
 phrase lng_wallet_send_stake_amount = "Amount";
 phrase lng_wallet_send_stake_balance = "Balance: {amount}";
+phrase lng_wallet_send_stake_warning = "The staking mechanism is currently at the testing stage, do not use the amount that you cannot lose.";
 phrase lng_wallet_send_stake_button = "Send stake";
 phrase lng_wallet_send_stake_button_amount = "Stake {amount}";
 

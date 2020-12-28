@@ -43,6 +43,13 @@ void SendStakeBox(
 			rpl::single(defaultToken))),
 		st::walletSendAmountPadding);
 
+	box->addRow(
+		object_ptr<Ui::FlatLabel>(
+			box,
+			ph::lng_wallet_send_stake_warning(),
+			st::walletSendAbout),
+		st::walletSendStakeWarningPadding);
+
 	auto balanceText = rpl::combine(
 		ph::lng_wallet_send_stake_balance(),
 		rpl::duplicate(availableBalance)
