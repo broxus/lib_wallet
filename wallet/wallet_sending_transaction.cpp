@@ -121,7 +121,9 @@ void SendingDoneBox(
 		const auto amount = FormatAmount(invoice.amount, defaultToken).full;
 		amountLabel = Ui::CreateChild<Ui::FlatLabel>(
 			inner,
-			ph::lng_wallet_grams_count_withdrawn(amount)(),
+			invoice.all
+				? ph::lng_wallet_sending_all_stake()
+				: ph::lng_wallet_grams_count_withdrawn(amount)(),
 			st::walletSendingText);
 	}
 

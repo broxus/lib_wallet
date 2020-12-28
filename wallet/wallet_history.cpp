@@ -84,7 +84,7 @@ void refreshTimeTexts(
 
 [[nodiscard]] TransactionLayout prepareLayout(
 		const Ton::Transaction &data,
-		Fn<void()> decrypt,
+		const Fn<void()> &decrypt,
 		bool isInitTransaction) {
 	const auto service = IsServiceTransaction(data);
 	const auto encrypted = IsEncryptedMessage(data) && decrypt;
@@ -267,6 +267,7 @@ public:
 
 	void setVisible(bool visible);
 	[[nodiscard]] bool isVisible() const;
+	void clearAdditionalData();
 	void attachTokenTransaction(std::optional<Ton::TokenTransaction> &&tokenTransaction);
 	void attachDePoolTransaction(std::optional<Ton::DePoolTransaction> &&dePoolTransaction);
 
@@ -281,6 +282,8 @@ private:
 	Ton::Transaction _transaction;
 	std::optional<Ton::TokenTransaction> _tokenTransaction;
 	std::optional<Ton::DePoolTransaction> _dePoolTransaction;
+	Fn<void()> _decrypt;
+	bool _isInitTransaction;
 	TransactionLayout _layout;
 	int _top = 0;
 	int _width = 0;
@@ -299,7 +302,9 @@ HistoryRow::HistoryRow(
 	Fn<void()> decrypt,
 	bool isInitTransaction)
 : _transaction(transaction)
-, _layout(prepareLayout(transaction, std::move(decrypt), isInitTransaction)) {
+, _decrypt(decrypt)
+, _isInitTransaction(isInitTransaction)
+, _layout(prepareLayout(transaction, _decrypt, _isInitTransaction)) {
 }
 
 Ton::TransactionId HistoryRow::id() const {
@@ -400,6 +405,12 @@ void HistoryRow::setVisible(bool visible) {
 
 bool HistoryRow::isVisible() const {
 	return _height > 0;
+}
+
+void HistoryRow::clearAdditionalData() {
+	_tokenTransaction.reset();
+	_dePoolTransaction.reset();
+	_layout = prepareLayout(_transaction, _decrypt, _isInitTransaction);
 }
 
 void HistoryRow::attachTokenTransaction(std::optional<Ton::TokenTransaction> &&tokenTransaction) {
@@ -1034,7 +1045,7 @@ void History::refreshShowDates() {
 		v::match(selectedAsset, [&](const SelectedToken &selectedToken) {
 			if (selectedToken.token == Ton::TokenKind::DefaultToken) {
 				row->setVisible(true);
-				row->attachTokenTransaction(std::nullopt);
+				row->clearAdditionalData();
 				return;
 			}
 

@@ -222,6 +222,7 @@ extern phrase lng_wallet_passcode_incorrect;
 
 extern phrase lng_wallet_sending_title;
 extern phrase lng_wallet_sending_text;
+extern phrase lng_wallet_sending_all_stake;
 
 extern phrase lng_wallet_sent_title;
 extern phrase lng_wallet_sent_close;
@@ -270,7 +271,7 @@ extern Fn<phrase(QString)> lng_wallet_grams_count_withdrawn;
 
 namespace Wallet {
 
-inline constexpr auto kPhrasesCount = 207;
+inline constexpr auto kPhrasesCount = 208;
 
 void SetPhrases(
 	ph::details::phrase_value_array<kPhrasesCount> data,

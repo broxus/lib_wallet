@@ -913,7 +913,7 @@ void Window::dePoolWithdraw(const WithdrawalInvoice &invoice) {
 			total = it->second.total;
 		}
 
-		if (invoice.amount > total || invoice.amount <= 0) {
+		if (!invoice.all && (invoice.amount > total || invoice.amount <= 0)) {
 			showError(DePoolWithdrawField::Amount);
 		} else {
 			confirmTransaction(

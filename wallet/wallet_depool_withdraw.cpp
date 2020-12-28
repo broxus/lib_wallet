@@ -150,8 +150,6 @@ void DePoolWithdrawBox(
 		}
 		collected.dePool = prepared->dePool;
 
-		printf("AAAA: %lld, %d, %s\n", collected.amount, collected.all, collected.dePool.toStdString().c_str());
-
 		done(collected, showError);
 	};
 

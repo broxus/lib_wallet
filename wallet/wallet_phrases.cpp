@@ -220,6 +220,7 @@ phrase lng_wallet_passcode_incorrect = "Incorrect password.";
 
 phrase lng_wallet_sending_title = "Sending {ticker}";
 phrase lng_wallet_sending_text = "Please wait a few seconds for your\ntransaction to be processed...";
+phrase lng_wallet_sending_all_stake = "All stake was requested for withdrawal.";
 
 phrase lng_wallet_sent_title = "Done!";
 phrase lng_wallet_sent_close = "Close";
