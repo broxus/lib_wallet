@@ -123,7 +123,7 @@ void Info::setupControls(Data &&data) {
 
 	assetsList->openRequests(
 	) | rpl::start_with_next([=](AssetItem item) {
-		_selectedAsset = std::move(mapAssetItem(item));
+		_selectedAsset = mapAssetItem(item);
 	}, assetsList->lifetime());
 
 	assetsList->gateOpenRequests(
