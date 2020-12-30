@@ -108,7 +108,7 @@ void Cover::setupBalance() {
 	}, balance->lifetime());
 
 	auto lockedAmount = _state.value(
-	) | rpl::map([defaultToken](const CoverState &state) {
+	) | rpl::map([=](const CoverState &state) {
 		return v::match(state.asset, [&](const SelectedToken &selectedToken) {
 			return (state.lockedBalance > 0)
 				? FormatAmount(state.lockedBalance, selectedToken.token, FormatFlag::Rounded).full
@@ -119,12 +119,6 @@ void Cover::setupBalance() {
 			return QString{"%1 / %2"}.arg(lockedBalance, reward);
 		});
 	});
-
-	const auto optionalSome = [] {
-		return rpl::map([](auto &&text) -> std::optional<std::decay_t<decltype(text)>> {
-			return text;
-		});
-	};
 
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		&_widget,
@@ -290,8 +284,8 @@ void Cover::setupControls() {
 
 	const auto receive = CreateCoverButton(
 		&_widget,
-		_state.value() | rpl::map([=](const CoverState &coverState) {
-			return v::match(coverState.asset, [&](const SelectedToken& selected) {
+		_state.value() | rpl::map([=](const CoverState &coverState) -> rpl::producer<QString> {
+			return v::match(coverState.asset, [&](const SelectedToken& selected) -> rpl::producer<QString> {
 				if (coverState.unlockedBalance > 0) {
 					return ph::lng_wallet_cover_receive();
 				} else {
@@ -300,7 +294,7 @@ void Cover::setupControls() {
 						rpl::single(selected.token)
 					) | replaceTickerTag();
 				}
-			}, [&](const SelectedDePool &selected) {
+			}, [&](const SelectedDePool &selected) -> rpl::producer<QString> {
 				return ph::lng_wallet_cover_withdraw();
 			});
 		}) | rpl::flatten_latest(),
