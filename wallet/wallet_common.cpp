@@ -46,7 +46,7 @@ std::optional<int64> ParseAmountFraction(QString trimmed, size_t decimals) {
 		trimmed.append('0');
 	}
 	auto zeros = 0;
-	for (const auto ch : trimmed) {
+	for (const auto &ch : trimmed) {
 		if (ch == '0') {
 			++zeros;
 		} else {
