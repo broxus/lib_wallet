@@ -112,7 +112,9 @@ extern phrase lng_wallet_depool_info_withdrawal_value;
 extern phrase lng_wallet_depool_info_owner;
 
 extern phrase lng_wallet_row_from;
+extern phrase lng_wallet_row_reward_from;
 extern phrase lng_wallet_row_swap_back_to;
+extern phrase lng_wallet_row_ordinary_stake_to;
 extern phrase lng_wallet_row_to;
 extern phrase lng_wallet_row_init;
 extern phrase lng_wallet_row_service;
@@ -271,7 +273,7 @@ extern Fn<phrase(QString)> lng_wallet_grams_count_withdrawn;
 
 namespace Wallet {
 
-inline constexpr auto kPhrasesCount = 208;
+inline constexpr auto kPhrasesCount = 210;
 
 void SetPhrases(
 	ph::details::phrase_value_array<kPhrasesCount> data,

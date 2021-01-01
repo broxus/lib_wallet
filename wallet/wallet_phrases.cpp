@@ -110,7 +110,9 @@ phrase lng_wallet_depool_info_withdrawal_value = "Withdrawal value: {amount}";
 phrase lng_wallet_depool_info_owner = "Owner:";
 
 phrase lng_wallet_row_from = "from:";
+phrase lng_wallet_row_reward_from = "reward from:";
 phrase lng_wallet_row_swap_back_to = "swap back to:";
+phrase lng_wallet_row_ordinary_stake_to = "ordinary stake to:";
 phrase lng_wallet_row_to = "to:";
 phrase lng_wallet_row_init = "Wallet initialization";
 phrase lng_wallet_row_service = "Empty transaction";

@@ -36,6 +36,8 @@ enum class Flag : uchar {
 	Service = 0x08,
 	Initialization = 0x10,
 	SwapBack = 0x20,
+	DePoolReward = 0x40,
+	DePoolStake = 0x80,
 };
 inline constexpr bool is_flag_type(Flag) { return true; };
 using Flags = base::flags<Flag>;
@@ -183,22 +185,24 @@ void refreshTimeTexts(
 [[nodiscard]] TransactionLayout prepareLayout(
 	const Ton::Transaction &data,
 	const Ton::DePoolTransaction &dePoolTransaction) {
-	const auto [value, fee] = v::match(
+	const auto [value, fee, flags] = v::match(
 		dePoolTransaction,
 		[&](const Ton::DePoolOrdinaryStakeTransaction &dePoolOrdinaryStakeTransaction) {
-			return std::make_pair(
-				dePoolOrdinaryStakeTransaction.stake,
-				-CalculateValue(data) - dePoolOrdinaryStakeTransaction.stake + data.otherFee);
+			return std::make_tuple(
+				-dePoolOrdinaryStakeTransaction.stake,
+				-CalculateValue(data) - dePoolOrdinaryStakeTransaction.stake + data.otherFee,
+				Flag::DePoolStake);
 		},
 		[&](const Ton::DePoolOnRoundCompleteTransaction &dePoolOnRoundCompleteTransaction) {
-			return std::make_pair(
+			return std::make_tuple(
 				dePoolOnRoundCompleteTransaction.reward,
-				data.otherFee);
+				data.otherFee,
+				Flag::DePoolReward);
 		});
 
 	const auto token = Ton::TokenKind::DefaultToken;
 
-	const auto amount = FormatAmount(-value, token, FormatFlag::Signed | FormatFlag::Rounded);
+	const auto amount = FormatAmount(value, token, FormatFlag::Signed | FormatFlag::Rounded);
 
 	const auto incoming = !data.incoming.source.isEmpty();
 	const auto pending = (data.id.lt == 0);
@@ -232,7 +236,8 @@ void refreshTimeTexts(
 
 	result.flags = Flag(0)
 		| (incoming ? Flag::Incoming : Flag(0))
-		| (pending ? Flag::Pending : Flag(0));
+		| (pending ? Flag::Pending : Flag(0))
+		| flags;
 
 	refreshTimeTexts(result);
 	return result;
@@ -479,6 +484,9 @@ void HistoryRow::paint(Painter &p, int x, int y) {
 		const auto incoming = (_layout.flags & Flag::Incoming);
 		const auto swapBack = (_layout.flags & Flag::SwapBack);
 
+		const auto reward = (_layout.flags & Flag::DePoolReward);
+		const auto stake = (_layout.flags & Flag::DePoolStake);
+
 		p.setPen(incoming ? st::boxTextFgGood : st::boxTextFgError);
 		_layout.amountGrams.draw(p, x, y, avail);
 
@@ -506,10 +514,14 @@ void HistoryRow::paint(Painter &p, int x, int y) {
 			labelLeft,
 			labelTop + st::normalFont->ascent,
 			(incoming
-				? ph::lng_wallet_row_from(ph::now)
+				? reward
+					? ph::lng_wallet_row_reward_from(ph::now)
+					: ph::lng_wallet_row_from(ph::now)
 				: swapBack
 					? ph::lng_wallet_row_swap_back_to(ph::now)
-					: ph::lng_wallet_row_to(ph::now)));
+					: stake
+						? ph::lng_wallet_row_ordinary_stake_to(ph::now)
+						: ph::lng_wallet_row_to(ph::now)));
 
 		const auto timeTop = labelTop;
 		const auto timeLeft = x + avail - _layout.time.maxWidth();
