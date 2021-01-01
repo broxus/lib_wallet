@@ -1473,8 +1473,6 @@ void Window::showSwitchTestNetworkWarning(const Ton::Settings &settings) {
 }
 
 void Window::showBlockchainNameWarning(const Ton::Settings &settings) {
-	Expects(settings.useTestNetwork);
-
 	showSettingsWithLogoutWarning(
 		settings,
 		ph::lng_wallet_warning_blockchain_name());

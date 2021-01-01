@@ -333,21 +333,24 @@ void SettingsBox(
 			box,
 			object_ptr<Ui::VerticalLayout>(box)),
 		QMargins()
-	)->setDuration(0)->toggleOn(rpl::single(settings.useTestNetwork));
+	);
 	const auto nameContainer = nameWrap->entity();
 	const auto name = nameContainer->add(
 		object_ptr<Ui::InputField>(
 			nameContainer,
 			st::walletInput,
 			rpl::single(QString()),
-			settings.test.blockchainName),
+			settings.main.blockchainName),
 		st::boxRowPadding);
+	nameWrap->show(anim::type::instant);
 
 	net->setChangedCallback([=](int test) {
 		const auto &now = settings.net(test);
 		*modified = now.config;
 		*downloadOn = !now.useCustomConfig;
-		nameWrap->toggle(test, anim::type::instant);
+		name->setText(test == 1
+			? settings.test.blockchainName
+			: settings.main.blockchainName);
 		url->entity()->setText(now.configUrl);
 	});
 
@@ -364,9 +367,7 @@ void SettingsBox(
 	const auto collectSettings = [=] {
 		auto result = settings;
 		auto &change = result.net();
-		if (result.useTestNetwork) {
-			change.blockchainName = name->getLastText().trimmed();
-		}
+		change.blockchainName = name->getLastText().trimmed();
 		change.useCustomConfig = custom->toggled();
 		if (change.useCustomConfig) {
 			change.config = *modified;
