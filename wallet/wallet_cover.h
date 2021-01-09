@@ -24,6 +24,7 @@ struct CoverState {
 	int64 reward = 0;
 	bool justCreated = false;
 	bool useTestNetwork = false;
+	bool reinvest = false;
 
 	auto selectedToken() const -> Ton::TokenKind;
 };

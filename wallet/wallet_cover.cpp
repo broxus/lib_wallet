@@ -295,7 +295,11 @@ void Cover::setupControls() {
 					) | replaceTickerTag();
 				}
 			}, [&](const SelectedDePool &selected) -> rpl::producer<QString> {
-				return ph::lng_wallet_cover_withdraw();
+				if (coverState.lockedBalance > 0 || !coverState.reinvest) {
+					return ph::lng_wallet_cover_cancel_withdrawal();
+				} else {
+					return ph::lng_wallet_cover_withdraw();
+				}
 			});
 		}) | rpl::flatten_latest(),
 		st::walletCoverReceiveIcon);
@@ -401,6 +405,7 @@ rpl::producer<CoverState> MakeCoverState(
 				result.unlockedBalance = it->second.total;
 				result.lockedBalance = it->second.withdrawValue;
 				result.reward = it->second.reward;
+				result.reinvest = it->second.reinvest;
 			}
 		});
 

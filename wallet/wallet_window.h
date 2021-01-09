@@ -102,6 +102,7 @@ private:
 	void sendMoney(const PreparedInvoiceOrLink &invoice);
 	void sendStake(const StakeInvoice &invoice);
 	void dePoolWithdraw(const WithdrawalInvoice &invoice);
+	void dePoolCancelWithdrawal(const CancelWithdrawalInvoice &invoice);
 	void confirmTransaction(
 		const PreparedInvoice &invoice,
 		const Fn<void(InvoiceField)> &showInvoiceError,

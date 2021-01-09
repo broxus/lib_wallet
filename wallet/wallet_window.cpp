@@ -17,6 +17,7 @@
 #include "wallet/wallet_send_grams.h"
 #include "wallet/wallet_send_stake.h"
 #include "wallet/wallet_depool_withdraw.h"
+#include "wallet/wallet_depool_cancel_withdrawal.h"
 #include "wallet/wallet_enter_passcode.h"
 #include "wallet/wallet_change_passcode.h"
 #include "wallet/wallet_confirm_transaction.h"
@@ -489,12 +490,20 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
 					receiveTokens(selectedToken.token);
 				},
 				[&](const SelectedDePool &selectedDePool) {
-					dePoolWithdraw(WithdrawalInvoice {
-						.amount = 0,
-						.dePool = selectedDePool.address
-					});
+					auto state = _state.current();
+					const auto it = state.dePoolParticipantStates.find(selectedDePool.address);
+					if (it != state.dePoolParticipantStates.end() && (it->second.withdrawValue > 0 || !it->second.reinvest)) {
+						dePoolCancelWithdrawal(CancelWithdrawalInvoice {
+							.dePool = selectedDePool.address
+						});
+					} else {
+						dePoolWithdraw(WithdrawalInvoice {
+							.amount = 0,
+							.dePool = selectedDePool.address
+						});
+					}
 				});
-			 return;
+			return;
 		case Action::ChangePassword: changePassword(); return;
 		case Action::ShowSettings: showSettings(); return;
 		case Action::LogOut: logoutWithConfirmation(); return;
@@ -935,6 +944,27 @@ void Window::dePoolWithdraw(const WithdrawalInvoice &invoice) {
 	_layers->showBox(std::move(box));
 }
 
+void Window::dePoolCancelWithdrawal(const CancelWithdrawalInvoice &invoice) {
+	if (_sendBox) {
+		_sendBox->closeBox();
+	}
+
+	const auto checking = std::make_shared<bool>();
+	const auto send = [this, checking](const CancelWithdrawalInvoice &invoice) {
+		confirmTransaction(
+			invoice,
+			[=](InvoiceField) {},
+			checking);
+	};
+
+	auto box = Box(
+		DePoolCancelWithdrawalBox,
+		invoice,
+		send);
+	_sendBox = box.data();
+	_layers->showBox(std::move(box));
+}
+
 void Window::confirmTransaction(
 		const PreparedInvoice &invoice,
 		const Fn<void(InvoiceField)> &showInvoiceError,
@@ -977,6 +1007,8 @@ void Window::confirmTransaction(
 			stakeInvoice.realAmount = stakeInvoice.stake + 500'000'000;
 		}, [&](WithdrawalInvoice &withdrawalInvoice) {
 			withdrawalInvoice.realAmount = 500'000'000;
+		}, [&](CancelWithdrawalInvoice &cancelWithdrawalInvoice) {
+			// stay same
 		});
 
 		showSendConfirmation(
@@ -1004,6 +1036,11 @@ void Window::confirmTransaction(
 		_wallet->checkWithdraw(
 			_wallet->publicKeys().front(),
 			withdrawalInvoice.asTransaction(),
+			crl::guard(_sendBox.data(), done));
+	}, [&](const CancelWithdrawalInvoice &cancelWithdrawalInvoice) {
+		_wallet->checkCancelWithdraw(
+			_wallet->publicKeys().front(),
+			cancelWithdrawalInvoice.asTransaction(),
 			crl::guard(_sendBox.data(), done));
 	});
 }
@@ -1077,6 +1114,13 @@ void Window::askSendPassword(
 				publicKey,
 				passcode,
 				withdrawalInvoice.asTransaction(),
+				crl::guard(this, ready),
+				crl::guard(this, sent));
+		}, [&](const CancelWithdrawalInvoice &cancelWithdrawalInvoice) {
+			_wallet->cancelWithdrawal(
+				publicKey,
+				passcode,
+				cancelWithdrawalInvoice.asTransaction(),
 				crl::guard(this, ready),
 				crl::guard(this, sent));
 		});
@@ -1175,6 +1219,18 @@ void Window::showSendConfirmation(
 			withdrawalInvoice,
 			withdrawalInvoice.realAmount,
 			[=] { askSendPassword(withdrawalInvoice, showInvoiceError); });
+	}, [&](const CancelWithdrawalInvoice &cancelWithdrawalInvoice) -> object_ptr<Ui::GenericBox> {
+		const auto realAmount = Ton::CancelWithdrawalTransactionToSend::depoolFee;
+		if (!checkAmount(realAmount)) {
+			showInvoiceError(InvoiceField::Amount);
+			return nullptr;
+		}
+
+		return Box(
+			ConfirmTransactionBox<CancelWithdrawalInvoice>,
+			cancelWithdrawalInvoice,
+			realAmount,
+			[=] { askSendPassword(cancelWithdrawalInvoice, showInvoiceError); });
 	});
 
 	if (box != nullptr) {
@@ -1240,6 +1296,12 @@ void Window::showSendingDone(std::optional<Ton::Transaction> result, const Prepa
 			return Box(SendingDoneBox<StakeInvoice>, *result, stakeInvoice, [this] { refreshNow(); });
 		}, [&](const WithdrawalInvoice &withdrawalInvoice) {
 			return Box(SendingDoneBox<WithdrawalInvoice>, *result, withdrawalInvoice, [this] { refreshNow(); });
+		}, [&](const CancelWithdrawalInvoice &cancelWithdrawalInvoice) {
+			return Box(
+				SendingDoneBox<CancelWithdrawalInvoice>,
+				*result,
+				cancelWithdrawalInvoice,
+				[this] { refreshNow(); });
 		});
 
 		_layers->showBox(std::move(box));

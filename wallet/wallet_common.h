@@ -94,11 +94,18 @@ struct WithdrawalInvoice {
 	auto asTransaction() const -> Ton::WithdrawalTransactionToSend;
 };
 
+struct CancelWithdrawalInvoice {
+	QString dePool{};
+
+	auto asTransaction() const -> Ton::CancelWithdrawalTransactionToSend;
+};
+
 using PreparedInvoice = std::variant<
 	TonTransferInvoice,
 	TokenTransferInvoice,
 	StakeInvoice,
-	WithdrawalInvoice>;
+	WithdrawalInvoice,
+	CancelWithdrawalInvoice>;
 
 enum class Action {
 	Refresh,

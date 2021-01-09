@@ -548,4 +548,10 @@ auto WithdrawalInvoice::asTransaction() const -> Ton::WithdrawalTransactionToSen
 	};
 }
 
+auto CancelWithdrawalInvoice::asTransaction() const -> Ton::CancelWithdrawalTransactionToSend {
+	return Ton::CancelWithdrawalTransactionToSend {
+		.depoolAddress = dePool,
+	};
+}
+
 } // namespace Wallet

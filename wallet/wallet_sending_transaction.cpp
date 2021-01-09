@@ -90,8 +90,9 @@ void SendingDoneBox(
 	constexpr auto isTonTransfer = std::is_same_v<T, TonTransferInvoice>;
 	constexpr auto isTokenTransfer = std::is_same_v<T, TokenTransferInvoice>;
 	constexpr auto isStakeTransfer = std::is_same_v<T, StakeInvoice>;
-	constexpr auto isWidthdrawal = std::is_same_v<T, WithdrawalInvoice>;
-	static_assert(isTonTransfer || isTokenTransfer || isStakeTransfer || isWidthdrawal);
+	constexpr auto isWithdrawal = std::is_same_v<T, WithdrawalInvoice>;
+	constexpr auto isCancelWithdrawal = std::is_same_v<T, CancelWithdrawalInvoice>;
+	static_assert(isTonTransfer || isTokenTransfer || isStakeTransfer || isWithdrawal || isCancelWithdrawal);
 
 	constexpr auto defaultToken = Ton::TokenKind::DefaultToken;
 
@@ -117,7 +118,7 @@ void SendingDoneBox(
 			inner,
 			ph::lng_wallet_grams_count_sent(amount, invoice.token)(),
 			st::walletSendingText);
-	} else if constexpr (isWidthdrawal) {
+	} else if constexpr (isWithdrawal) {
 		const auto amount = FormatAmount(invoice.amount, defaultToken).full;
 		amountLabel = Ui::CreateChild<Ui::FlatLabel>(
 			inner,
@@ -125,17 +126,22 @@ void SendingDoneBox(
 				? ph::lng_wallet_sending_all_stake()
 				: ph::lng_wallet_grams_count_withdrawn(amount)(),
 			st::walletSendingText);
+	} else if constexpr (isCancelWithdrawal) {
+		amountLabel = Ui::CreateChild<Ui::FlatLabel>(
+			inner,
+			ph::lng_wallet_sent_cancel_withdrawal(),
+			st::walletSendingText);
 	}
 
 	const auto realAmount = FormatAmount(-CalculateValue(result), defaultToken).full;
 	Ui::FlatLabel* text = nullptr;
-	if constexpr (isTonTransfer || isStakeTransfer || isWidthdrawal) {
+	if constexpr (isTonTransfer || isStakeTransfer || isWithdrawal || isCancelWithdrawal) {
 		text = Ui::CreateChild<Ui::FlatLabel>(
 			inner,
 			ph::lng_wallet_grams_count_sent(realAmount, defaultToken)(),
 			st::walletSendingText);
 	} else if constexpr (isTokenTransfer) {
-		Ui::CreateChild<Ui::FlatLabel>(
+		text = Ui::CreateChild<Ui::FlatLabel>(
 			inner,
 			ph::lng_wallet_row_fees() | rpl::map([realAmount](QString &&text) {
 				return text.replace("{amount}", realAmount);
@@ -163,13 +169,15 @@ void SendingDoneBox(
 				width);
 		}
 
-		text->moveToLeft(
-			(width - text->width()) / 2,
-			st::walletSendingTextTop
-			+ ((amountLabel == nullptr)
-				? 0
-				: text->height()),
-			width);
+		if (text != nullptr) {
+			text->moveToLeft(
+				(width - text->width()) / 2,
+				st::walletSendingTextTop
+				+ ((amountLabel == nullptr)
+				   ? 0
+				   : text->height()),
+				width);
+		}
 	}, inner->lifetime());
 
 	auto isSwapBack = false;
@@ -205,6 +213,12 @@ template void SendingDoneBox(
 	not_null<Ui::GenericBox*> box,
 	const Ton::Transaction &result,
 	const WithdrawalInvoice &invoice,
+	const Fn<void()> &onClose);
+
+template void SendingDoneBox(
+	not_null<Ui::GenericBox*> box,
+	const Ton::Transaction &result,
+	const CancelWithdrawalInvoice &invoice,
 	const Fn<void()> &onClose);
 
 } // namespace Wallet

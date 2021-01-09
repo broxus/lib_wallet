@@ -83,6 +83,7 @@ phrase lng_wallet_cover_locked = "Locked";
 phrase lng_wallet_cover_reward = "Withdrawing / Reward";
 phrase lng_wallet_cover_receive_full = "Receive {ticker}";
 phrase lng_wallet_cover_receive = "Receive";
+phrase lng_wallet_cover_cancel_withdrawal = "Cancel";
 phrase lng_wallet_cover_send = "Send";
 phrase lng_wallet_cover_stake = "Stake";
 phrase lng_wallet_cover_withdraw = "Withdraw";
@@ -200,15 +201,21 @@ phrase lng_wallet_withdraw_button_part = "Withdraw part";
 phrase lng_wallet_withdraw_button_all = "Withdraw all";
 phrase lng_wallet_withdraw_button_amount = "Withdraw {amount}";
 
+phrase lng_wallet_cancel_withdrawal_title = "Cancel withdrawal";
+phrase lng_wallet_cancel_withdrawal_description = "It will reset withdrawal amount and enable reinvestment.";
+phrase lng_wallet_cancel_withdrawal_button = "Confirm";
+
 phrase lng_wallet_send_failed_title = "Sending failed";
 phrase lng_wallet_send_failed_text = "Could not perform the transaction. Please check your wallet's balance and try again.";
 
 phrase lng_wallet_confirm_title = "Confirmation";
 phrase lng_wallet_confirm_text = "Do you want to send **{grams}** to:";
 phrase lng_wallet_confirm_withdrawal_text = "Do you want to withdraw **{grams}** from:";
+phrase lng_wallet_confirm_cancel_withdrawal_text = "Do you want to cancel withdrawal from:";
 phrase lng_wallet_confirm_fee = "Fee: ~{grams}";
 phrase lng_wallet_confirm_send = "Send {ticker}";
 phrase lng_wallet_confirm_withdrawal = "Withdraw";
+phrase lng_wallet_confirm_cancel_withdrawal = "Confirm";
 phrase lng_wallet_confirm_warning = "**Note:** your comment \xC2\xAB{comment}\xC2\xBB **will not be encrypted**.";
 
 phrase lng_wallet_same_address_title = "Warning";
@@ -225,6 +232,7 @@ phrase lng_wallet_sending_text = "Please wait a few seconds for your\ntransactio
 phrase lng_wallet_sending_all_stake = "All stake was requested for withdrawal.";
 
 phrase lng_wallet_sent_title = "Done!";
+phrase lng_wallet_sent_cancel_withdrawal = "Withdrawal cancelled";
 phrase lng_wallet_sent_close = "Close";
 phrase lng_wallet_sent_close_view = "View";
 
