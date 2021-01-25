@@ -54,7 +54,7 @@ object_ptr<Ui::RpWidget> CreateSummary(
 	const auto isStakeTransaction = std::is_same_v<T, Ton::DePoolOrdinaryStakeTransaction>;
 	static_assert(isOnRoundComplete || isStakeTransaction);
 
-	const auto defaultToken = Ton::TokenKind::DefaultToken;
+	const auto defaultToken = Ton::Symbol::DefaultToken;
 
 	const auto feeSkip = st::walletTransactionFeeSkip;
 	const auto height = st::walletTransactionSummaryHeight

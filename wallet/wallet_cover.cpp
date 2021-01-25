@@ -47,11 +47,11 @@ not_null<Ui::RoundButton*> CreateCoverButton(
 
 } // namespace
 
-auto CoverState::selectedToken() const -> Ton::TokenKind {
+auto CoverState::selectedToken() const -> Ton::Currency {
 	return v::match(asset, [](const SelectedToken &selectedToken) {
 		return selectedToken.token;
 	}, [&](const SelectedDePool &/*selectedDePool*/) {
-		return Ton::TokenKind::DefaultToken;
+		return Ton::Currency::DefaultToken;
 	});
 }
 
@@ -82,7 +82,7 @@ rpl::lifetime &Cover::lifetime() {
 }
 
 void Cover::setupBalance() {
-	const auto defaultToken = Ton::TokenKind::DefaultToken;
+	const auto defaultToken = Ton::Currency::DefaultToken;
 
 	auto amount = _state.value(
 	) | rpl::map([](const CoverState &state) {
@@ -142,7 +142,7 @@ void Cover::setupBalance() {
 
 	const auto locked = Ui::CreateChild<Ui::RpWidget>(&_widget);
 
-	const auto token = locked->lifetime().make_state<rpl::variable<Ton::TokenKind>>(defaultToken);
+	const auto token = locked->lifetime().make_state<rpl::variable<Ton::Currency>>(defaultToken);
 
 	const auto lockedLabel = Ui::CreateChild<Ui::FlatLabel>(
 		locked,
@@ -277,8 +277,8 @@ void Cover::setupControls() {
     }) | rpl::distinct_until_changed();
 
     const auto replaceTickerTag = [] {
-        return rpl::map([=](QString &&text, const std::optional<Ton::TokenKind> &selectedToken) {
-            return text.replace("{ticker}", Ton::toString(selectedToken.value_or(Ton::TokenKind::DefaultToken)));
+        return rpl::map([=](QString &&text, const std::optional<Ton::Currency> &selectedToken) {
+            return text.replace("{ticker}", Ton::toString(selectedToken.value_or(Ton::Currency::DefaultToken)));
         });
     };
 
@@ -381,7 +381,7 @@ rpl::producer<CoverState> MakeCoverState(
 		const auto &account = data.wallet.account;
 
 		CoverState result{
-			.asset = asset.value_or(SelectedToken { .token = Ton::TokenKind::DefaultToken }),
+			.asset = asset.value_or(SelectedToken { .token = Ton::Currency::DefaultToken }),
 			.unlockedBalance = 0,
 			.lockedBalance = 0,
 			.reward = 0,
@@ -390,13 +390,13 @@ rpl::producer<CoverState> MakeCoverState(
 		};
 
 		v::match(result.asset, [&](const SelectedToken &selectedToken) {
-			if (selectedToken.token == Ton::TokenKind::DefaultToken) {
+			if (selectedToken.token == Ton::Currency::DefaultToken) {
 				result.unlockedBalance = account.fullBalance - account.lockedBalance;
 				result.lockedBalance = account.lockedBalance;
 			} else {
 				const auto it = data.wallet.tokenStates.find(selectedToken.token);
 				if (it != data.wallet.tokenStates.end()) {
-					result.unlockedBalance = it->second.fullBalance;
+					result.unlockedBalance = it->second.balance;
 				}
 			}
 		}, [&](const SelectedDePool &selectedDePool) {

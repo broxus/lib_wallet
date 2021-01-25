@@ -10,7 +10,7 @@
 
 namespace Ton {
 struct Transaction;
-enum class TokenKind;
+enum class Currency;
 } // namespace Ton
 
 namespace Wallet {
@@ -19,7 +19,7 @@ void ViewTransactionBox(
 	not_null<Ui::GenericBox*> box,
 	Ton::Transaction &&data,
 	const QString& tokenContractAddress,
-	Ton::TokenKind selectedToken,
+	Ton::Currency selectedToken,
 	rpl::producer<not_null<std::vector<Ton::Transaction>*>> collectEncrypted,
 	rpl::producer<not_null<const std::vector<Ton::Transaction>*>> decrypted,
 	const Fn<void(QImage, QString)> &share,

@@ -12,7 +12,7 @@ class QDate;
 class QTime;
 
 namespace Ton {
-enum class TokenKind;
+enum class Currency;
 } // namespace Ton
 
 namespace ph {
@@ -273,8 +273,8 @@ extern phrase lng_wallet_downloaded;
 extern Fn<phrase(int)> lng_wallet_refreshed_minutes_ago;
 extern Fn<phrase(QDate)> lng_wallet_short_date;
 extern Fn<phrase(QTime)> lng_wallet_short_time;
-extern Fn<phrase(QString, Ton::TokenKind)> lng_wallet_grams_count;
-extern Fn<phrase(QString, Ton::TokenKind)> lng_wallet_grams_count_sent;
+extern Fn<phrase(QString, Ton::Currency)> lng_wallet_grams_count;
+extern Fn<phrase(QString, Ton::Currency)> lng_wallet_grams_count_sent;
 extern Fn<phrase(QString)> lng_wallet_grams_count_withdrawn;
 
 } // namespace ph

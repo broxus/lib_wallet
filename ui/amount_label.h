@@ -10,44 +10,41 @@
 
 namespace style {
 struct WalletAmountLabel;
-} // namespace style
+}  // namespace style
 
 namespace Wallet {
 struct FormattedAmount;
-} // namespace Wallet
+}  // namespace Wallet
 
 namespace Ton {
-enum class TokenKind;
-} // namespace Ton
+class Symbol;
+}  // namespace Ton
 
 namespace Ui {
 
 class LottieAnimation;
 
 class AmountLabel final {
-public:
-	AmountLabel(
-		not_null<QWidget*> parent,
-		rpl::producer<Wallet::FormattedAmount> amount,
-		const style::WalletAmountLabel &st);
-	~AmountLabel();
+ public:
+  AmountLabel(not_null<QWidget *> parent, rpl::producer<Wallet::FormattedAmount> amount,
+              const style::WalletAmountLabel &st);
+  ~AmountLabel();
 
-	rpl::producer<int> widthValue() const;
-	int height() const;
-	void move(int x, int y);
+  rpl::producer<int> widthValue() const;
+  int height() const;
+  void move(int x, int y);
 
-	[[nodiscard]] rpl::lifetime &lifetime();
+  [[nodiscard]] rpl::lifetime &lifetime();
 
-private:
-	const style::WalletAmountLabel &_st;
-	Ui::FlatLabel _large;
-	Ui::FlatLabel _small;
-	rpl::producer<Ton::TokenKind> _token;
-	std::unique_ptr<LottieAnimation> _diamond;
-    std::unique_ptr<Ui::FixedHeightWidget> _tokenIcon;
+ private:
+  const style::WalletAmountLabel &_st;
+  Ui::FlatLabel _large;
+  Ui::FlatLabel _small;
+  rpl::producer<Ton::Symbol> _token;
+  std::unique_ptr<LottieAnimation> _diamond;
+  std::unique_ptr<Ui::FixedHeightWidget> _tokenIcon;
 
-	rpl::lifetime _lifetime;
-
+  rpl::lifetime _lifetime;
 };
 
-} // namespace Ui
+}  // namespace Ui

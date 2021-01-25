@@ -52,7 +52,7 @@ struct TransactionLayout {
 	Ui::Text::String address;
 	Ui::Text::String comment;
 	Ui::Text::String fees;
-	Ton::TokenKind token = Ton::TokenKind::DefaultToken;
+	Ton::Symbol token = Ton::Symbol::DefaultToken;
 	int addressWidth = 0;
 	int addressHeight = 0;
 	Flags flags = Flags();
@@ -92,7 +92,7 @@ void refreshTimeTexts(
 	const auto encrypted = IsEncryptedMessage(data) && decrypt;
 	const auto amount = FormatAmount(
 		service ? (-data.fee) : CalculateValue(data),
-		Ton::TokenKind::DefaultToken,
+		Ton::Symbol::DefaultToken,
 		FormatFlag::Signed | FormatFlag::Rounded);
 	const auto incoming = !data.incoming.source.isEmpty();
 	const auto pending = (data.id.lt == 0);
@@ -122,7 +122,7 @@ void refreshTimeTexts(
 		(encrypted ? QString() : ExtractMessage(data)),
 		_textPlainOptions);
 	if (data.fee) {
-		const auto fee = FormatAmount(data.fee, Ton::TokenKind::DefaultToken).full;
+		const auto fee = FormatAmount(data.fee, Ton::Symbol::DefaultToken).full;
 		result.fees.setText(
 			st::defaultTextStyle,
 			ph::lng_wallet_row_fees(ph::now).replace("{amount}", fee));
@@ -170,7 +170,7 @@ void refreshTimeTexts(
 	result.comment = Ui::Text::String(st::walletAddressWidthMin);
 	result.comment.setText(st::defaultTextStyle, {}, _textPlainOptions);
 
-	const auto fee = FormatAmount(-CalculateValue(transaction), Ton::TokenKind::DefaultToken).full;
+	const auto fee = FormatAmount(-CalculateValue(transaction), Ton::Symbol::DefaultToken).full;
 	result.fees.setText(
 		st::defaultTextStyle,
 		ph::lng_wallet_row_fees(ph::now).replace("{amount}", fee));
@@ -200,7 +200,7 @@ void refreshTimeTexts(
 				Flag::DePoolReward);
 		});
 
-	const auto token = Ton::TokenKind::DefaultToken;
+	const auto token = Ton::Symbol::DefaultToken;
 
 	const auto amount = FormatAmount(value, token, FormatFlag::Signed | FormatFlag::Rounded);
 
@@ -231,7 +231,7 @@ void refreshTimeTexts(
 
 	result.fees.setText(
 		st::defaultTextStyle,
-		ph::lng_wallet_row_fees(ph::now).replace("{amount}", FormatAmount(fee, Ton::TokenKind::DefaultToken).full));
+		ph::lng_wallet_row_fees(ph::now).replace("{amount}", FormatAmount(fee, Ton::Symbol::DefaultToken).full));
 	result.token = token;
 
 	result.flags = Flag(0)
@@ -650,7 +650,7 @@ History::History(
 	rpl::producer<not_null<const std::vector<Ton::Transaction>*>> updateDecrypted,
 	rpl::producer<std::optional<SelectedAsset>> selectedAsset)
 : _widget(parent)
-, _selectedAsset(SelectedToken { .token = Ton::TokenKind::Ton }) {
+, _selectedAsset(SelectedToken { .token = Ton::Symbol::Ton }) {
 	setupContent(std::move(state), std::move(loaded), std::move(selectedAsset));
 
 	base::unixtime::updates(
@@ -1055,7 +1055,7 @@ void History::refreshShowDates() {
 		const auto &transaction = row->transaction();
 
 		v::match(selectedAsset, [&](const SelectedToken &selectedToken) {
-			if (selectedToken.token == Ton::TokenKind::DefaultToken) {
+			if (selectedToken.token == Ton::Symbol::DefaultToken) {
 				row->setVisible(true);
 				row->clearAdditionalData();
 				return;

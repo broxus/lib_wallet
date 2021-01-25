@@ -94,7 +94,7 @@ void ConfirmTransactionBox(
 	constexpr auto isCancelWithdrawal = std::is_same_v<T, CancelWithdrawalInvoice>;
 	static_assert(isTonTransfer || isTokenTransfer || isStakeTransfer || isWithdrawal || isCancelWithdrawal);
 
-	auto token = Ton::TokenKind::DefaultToken;
+	auto token = Ton::Symbol::DefaultToken;
 	if constexpr (isTokenTransfer) {
 		token = invoice.token;
 	}
@@ -150,10 +150,10 @@ void ConfirmTransactionBox(
 			st::windowBgOver->c)),
 		st::walletConfirmationAddressPadding);
 
-	const auto feeParsed = FormatAmount(fee, Ton::TokenKind::DefaultToken).full;
+	const auto feeParsed = FormatAmount(fee, Ton::Symbol::DefaultToken).full;
 	auto feeText = rpl::combine(
 		ph::lng_wallet_confirm_fee(),
-		ph::lng_wallet_grams_count(feeParsed, Ton::TokenKind::DefaultToken)()
+		ph::lng_wallet_grams_count(feeParsed, Ton::Symbol::DefaultToken)()
 	) | rpl::map([=](QString &&text, const QString &grams) {
 		return text.replace("{grams}", grams);
 	});
@@ -194,7 +194,7 @@ void ConfirmTransactionBox(
 		}
 	}, box->lifetime());
 
-	const auto replaceTickerTag = [](const Ton::TokenKind &selectedToken) {
+	const auto replaceTickerTag = [](const Ton::Symbol &selectedToken) {
 		return rpl::map([selectedToken](QString &&text) {
 			return text.replace("{ticker}", Ton::toString(selectedToken));
 		});

@@ -12,7 +12,7 @@
 
 namespace Ton {
 struct WalletViewerState;
-enum class TokenKind;
+enum class Currency;
 } // namespace Ton
 
 namespace Wallet {
@@ -26,7 +26,7 @@ struct CoverState {
 	bool useTestNetwork = false;
 	bool reinvest = false;
 
-	auto selectedToken() const -> Ton::TokenKind;
+	auto selectedToken() const -> Ton::Currency;
 };
 
 class Cover final {

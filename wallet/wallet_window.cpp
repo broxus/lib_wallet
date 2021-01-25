@@ -114,8 +114,8 @@ void Window::startWallet() {
 	_tokenContractAddress = _wallet->settings().net().tokenContractAddress;
 
 	_wallet->updates() | rpl::start_with_next([this](const Ton::Update &update) {
-		if (v::is<Ton::TokenContractAddressChanged>(update.data)) {
-			auto& event = v::get<Ton::TokenContractAddressChanged>(update.data);
+		if (v::is<Ton::NewRootTokenContract>(update.data)) {
+			auto& event = v::get<Ton::NewRootTokenContract>(update.data);
 			_tokenContractAddress = event.newTokenContractAddress;
 		}
 	}, _window->lifetime());
@@ -468,7 +468,7 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
 			v::match(
 				_selectedAsset.current().value_or(SelectedToken::defaultToken()),
 				[&](const SelectedToken &selectedToken) {
-					if (selectedToken.token == Ton::TokenKind::DefaultToken) {
+					if (selectedToken.token == Ton::Symbol::DefaultToken) {
 						sendMoney(TonTransferInvoice{});
 					} else {
 						sendMoney(TokenTransferInvoice {
@@ -525,7 +525,7 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
 
 		v::match(selectedAsset, [&](const SelectedToken &selectedToken) {
 			const auto send = [=](const QString &address) {
-				if (selectedToken.token == Ton::TokenKind::DefaultToken) {
+				if (selectedToken.token == Ton::Symbol::DefaultToken) {
 					sendMoney(TonTransferInvoice{
 						.address = address,
 					});
@@ -802,9 +802,9 @@ void Window::sendMoney(const PreparedInvoiceOrLink& invoice) {
 		return;
 	}
 
-	constexpr auto defaultToken = Ton::TokenKind::DefaultToken;
+	constexpr auto defaultToken = Ton::Symbol::DefaultToken;
 
-	auto available = [=](Ton::TokenKind token) -> int64_t {
+	auto available = [=](Ton::Symbol token) -> int64_t {
 		const auto currentState = _state.current();
 		const auto account = currentState.account;
 
@@ -813,7 +813,7 @@ void Window::sendMoney(const PreparedInvoiceOrLink& invoice) {
 		} else {
 			auto it = currentState.tokenStates.find(token);
 			if (it != currentState.tokenStates.end()) {
-				return it->second.fullBalance;
+				return it->second.balance;
 			} else {
 				return 0ll;
 			}
@@ -1250,7 +1250,7 @@ void Window::showSendingTransaction(
 	const auto token = v::match(invoice, [](const TokenTransferInvoice &tokenTransferInvoice) {
 		return tokenTransferInvoice.token;
 	}, [](auto&&) {
-		return Ton::TokenKind::DefaultToken;
+		return Ton::Symbol::DefaultToken;
 	});
 
 	auto box = Box(SendingTransactionBox, token, std::move(confirmed));
@@ -1317,7 +1317,7 @@ void Window::showSendingDone(std::optional<Ton::Transaction> result, const Prepa
 	}
 }
 
-void Window::receiveTokens(Ton::TokenKind tokenKind) {
+void Window::receiveTokens(Ton::Symbol tokenKind) {
 	_layers->showBox(Box(
 		ReceiveTokensBox,
 		_packedAddress,
@@ -1328,7 +1328,7 @@ void Window::receiveTokens(Ton::TokenKind tokenKind) {
 		[=] { _wallet->openGate(_rawAddress, tokenKind); }));
 }
 
-void Window::createInvoice(Ton::TokenKind selectedToken) {
+void Window::createInvoice(Ton::Symbol selectedToken) {
 	_layers->showBox(Box(
 		CreateInvoiceBox,
 		_packedAddress,

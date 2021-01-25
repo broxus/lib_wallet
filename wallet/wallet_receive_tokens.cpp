@@ -25,7 +25,7 @@ void ReceiveTokensBox(
 		not_null<Ui::GenericBox*> box,
 		const QString &packedAddress,
 		const QString &rawAddress,
-		Ton::TokenKind token,
+		Ton::Currency token,
 		const Fn<void()> &createInvoice,
 		const Fn<void(QImage, QString)> &share,
 		const Fn<void()> &swap) {
@@ -139,7 +139,7 @@ void ReceiveTokensBox(
 		createInvoice();
 	});
 
-	const QString submitText = token == Ton::TokenKind::DefaultToken
+	const QString submitText = token == Ton::Currency::DefaultToken
 		? ph::lng_wallet_receive_share(ph::now)
 		: ph::lng_wallet_receive_swap(ph::now).replace("{ticker}", Ton::toString(token));
 
@@ -147,7 +147,7 @@ void ReceiveTokensBox(
 	box->addButton(
 		rpl::single(submitText),
 		[=] {
-			if (token == Ton::TokenKind::DefaultToken) {
+			if (token == Ton::Currency::DefaultToken) {
 				share(QImage(), TransferLink(packedAddress, token));
 			} else {
 				swap();

@@ -28,7 +28,7 @@ namespace Wallet {
 namespace {
 
 struct TokenTransaction {
-	Ton::TokenKind token;
+	Ton::Currency token;
 	QString recipient;
 	int64 amount;
 	bool isSwapBack;
@@ -37,7 +37,7 @@ struct TokenTransaction {
 std::optional<TokenTransaction> TryGetTokenTransaction(
 		const Ton::Transaction &data,
 		const QString &tokenContractAddress,
-		Ton::TokenKind selectedToken) {
+		Ton::Currency selectedToken) {
 	for (const auto& out : data.outgoing) {
 		if (Ton::Wallet::ConvertIntoRaw(out.destination) == tokenContractAddress) {
 			auto transaction = Ton::Wallet::ParseTokenTransaction(out.message);
@@ -75,7 +75,7 @@ object_ptr<Ui::RpWidget> CreateSummary(
 	const auto isTokenTransaction = tokenTransaction.has_value();
 	const auto token = isTokenTransaction
 		? tokenTransaction->token
-		: Ton::TokenKind::DefaultToken;
+		: Ton::Currency::DefaultToken;
 
 	const auto showTransactionFee = isTokenTransaction || data.otherFee > 0;
 	const auto showStorageFee = !isTokenTransaction && data.storageFee;
@@ -113,7 +113,7 @@ object_ptr<Ui::RpWidget> CreateSummary(
 					isTokenTransaction
 						? -CalculateValue(data)
 						: data.otherFee,
-					Ton::TokenKind::DefaultToken).full),
+					Ton::Currency::DefaultToken).full),
 			st::walletTransactionFee)
 		: nullptr;
 
@@ -122,7 +122,7 @@ object_ptr<Ui::RpWidget> CreateSummary(
 			result.data(),
 			ph::lng_wallet_view_storage_fee(ph::now).replace(
 				"{amount}",
-				FormatAmount(data.storageFee, Ton::TokenKind::DefaultToken).full),
+				FormatAmount(data.storageFee, Ton::Currency::DefaultToken).full),
 			st::walletTransactionFee)
 		: nullptr;
 
@@ -204,7 +204,7 @@ void ViewTransactionBox(
 		not_null<Ui::GenericBox*> box,
 		Ton::Transaction &&data,
 		const QString& tokenContractAddress,
-		Ton::TokenKind selectedToken,
+		Ton::Currency selectedToken,
 		rpl::producer<
 			not_null<std::vector<Ton::Transaction>*>> collectEncrypted,
 		rpl::producer<

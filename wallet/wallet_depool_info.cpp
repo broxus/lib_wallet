@@ -34,7 +34,7 @@ rpl::producer<QString> ReplaceAmount(rpl::producer<QString>&& text, rpl::produce
 	) | rpl::map([](QString &&item, int64 value) {
 		return item.replace(
 			"{amount}",
-			FormatAmount(value, Ton::TokenKind::DefaultToken).full);
+			FormatAmount(value, Ton::Currency::DefaultToken).full);
 	});
 }
 
@@ -50,7 +50,7 @@ StakeLayout PrepareOrdinaryStakeLayout(int64 id, int64 amount) {
 
 	const auto formattedAmount = FormatAmount(
 		amount,
-		Ton::TokenKind::DefaultToken,
+		Ton::Currency::DefaultToken,
 		FormatFlag::Signed | FormatFlag::Rounded);
 
 	result.amountGrams.setText(st::walletRowGramsStyle, formattedAmount.gramsString);
@@ -95,7 +95,7 @@ InvestParamsLayout PrepareInvestParamsLayout(bool first, int64 id, const Ton::In
 
 	const auto remainingAmount = FormatAmount(
 		investParams.remainingAmount,
-		Ton::TokenKind::DefaultToken,
+		Ton::Currency::DefaultToken,
 		FormatFlag::Signed | FormatFlag::Rounded);
 	result.remainingAmountGrams.setText(st::walletRowGramsStyle, remainingAmount.gramsString);
 	result.remainingAmountNano.setText(st::walletRowNanoStyle, remainingAmount.separator + remainingAmount.nanoString);
@@ -120,7 +120,7 @@ InvestParamsLayout PrepareInvestParamsLayout(bool first, int64 id, const Ton::In
 
 	const auto withdrawalValue = FormatAmount(
 		investParams.withdrawalValue,
-		Ton::TokenKind::DefaultToken,
+		Ton::Currency::DefaultToken,
 		FormatFlag::Signed | FormatFlag::Rounded);
 	result.withdrawalValueGrams.setText(st::walletRowGramsStyle, withdrawalValue.gramsString);
 	result.withdrawalValueNano.setText(st::walletRowNanoStyle, withdrawalValue.separator + withdrawalValue.nanoString);
@@ -184,7 +184,7 @@ public:
 		const auto diamondLeft = nanoLeft
 								 + _layout.amountNano.maxWidth()
 								 + st::normalFont->spacew;
-		Ui::PaintInlineTokenIcon(Ton::TokenKind::DefaultToken, p, diamondLeft, diamondTop, st::normalFont);
+		Ui::PaintInlineTokenIcon(Ton::Currency::DefaultToken, p, diamondLeft, diamondTop, st::normalFont);
 	}
 
 private:
@@ -250,7 +250,7 @@ public:
 		const auto diamondLeft = nanoLeft
 								 + _layout.remainingAmountNano.maxWidth()
 								 + st::normalFont->spacew;
-		Ui::PaintInlineTokenIcon(Ton::TokenKind::DefaultToken, p, diamondLeft, diamondTop, st::normalFont);
+		Ui::PaintInlineTokenIcon(Ton::Currency::DefaultToken, p, diamondLeft, diamondTop, st::normalFont);
 	}
 
 private:

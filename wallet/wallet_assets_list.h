@@ -14,7 +14,7 @@ struct WalletViewerState;
 namespace Wallet {
 
 struct TokenItem {
-	Ton::TokenKind token = Ton::TokenKind::DefaultToken;
+	Ton::Currency token = Ton::Currency::DefaultToken;
 	QString address = "";
 	int64_t balance = 0;
 };

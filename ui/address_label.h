@@ -12,21 +12,18 @@ class QString;
 namespace style {
 struct FlatLabel;
 struct TextStyle;
-} // namespace style
+}  // namespace style
 
 namespace Ui {
 
 class RpWidget;
 class FlatLabel;
 
-[[nodiscard]] style::TextStyle ComputeAddressStyle(
-	const style::TextStyle &parent);
+[[nodiscard]] style::TextStyle ComputeAddressStyle(const style::TextStyle &parent);
 
-[[nodiscard]] not_null<RpWidget*> CreateAddressLabel(
-	not_null<RpWidget*> parent,
-	const QString &text,
-	const style::FlatLabel &st,
-	Fn<void()> onClickOverride = nullptr,
-	std::optional<QColor> bg = std::nullopt);
+[[nodiscard]] not_null<RpWidget *> CreateAddressLabel(not_null<RpWidget *> parent, const QString &text,
+                                                      const style::FlatLabel &st,
+                                                      const Fn<void()> &onClickOverride = nullptr,
+                                                      const std::optional<QColor> &bg = std::nullopt);
 
-} // namespace Ui
+}  // namespace Ui

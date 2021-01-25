@@ -18,7 +18,7 @@ class DropdownMenu;
 namespace Ton {
 struct WalletViewerState;
 struct Update;
-enum class TokenKind;
+enum class Currency;
 } // namespace Ton
 
 namespace Wallet {

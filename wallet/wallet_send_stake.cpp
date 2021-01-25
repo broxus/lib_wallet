@@ -18,7 +18,7 @@ void SendStakeBox(
 		rpl::producer<Ton::WalletState> state,
 		const Fn<void(StakeInvoice, Fn<void(StakeInvoiceField)> error)> &done) {
 
-	constexpr auto defaultToken = Ton::TokenKind::DefaultToken;
+	constexpr auto defaultToken = Ton::Currency::DefaultToken;
 
 	const auto prepared = box->lifetime().make_state<StakeInvoice>(invoice);
 
@@ -60,7 +60,7 @@ void SendStakeBox(
 	});
 
 	const auto diamondLabel = Ui::CreateInlineTokenIcon(
-		rpl::single(Ton::TokenKind::DefaultToken),
+		rpl::single(Ton::Currency::DefaultToken),
 		subtitle->parentWidget(),
 		0,
 		0,
@@ -161,7 +161,7 @@ void SendStakeBox(
 	});
 
 	Ui::Connect(amount, &Ui::InputField::submitted, [=] {
-		if (ParseAmountString(amount->getLastText(), Ton::countDecimals(Ton::TokenKind::DefaultToken))) {
+		if (ParseAmountString(amount->getLastText(), Ton::countDecimals(Ton::Currency::DefaultToken))) {
 			amount->showError();
 		} else {
 			submit();

@@ -23,11 +23,11 @@ void InvoiceQrBox(
 	const auto prepared = ParseInvoice(link);
 
 	const auto [amount, token, comment] = v::match(prepared, [](const TonTransferInvoice &tonTransferInvoice) {
-		return std::make_tuple(tonTransferInvoice.amount, Ton::TokenKind::DefaultToken, tonTransferInvoice.comment);
+		return std::make_tuple(tonTransferInvoice.amount, Ton::Currency::DefaultToken, tonTransferInvoice.comment);
 	}, [](const TokenTransferInvoice &tokenTransferInvoice) {
 		return std::make_tuple(tokenTransferInvoice.amount, tokenTransferInvoice.token, QString{});
 	}, [](auto&&) {
-		return std::make_tuple(0ll, Ton::TokenKind::DefaultToken, QString{});
+		return std::make_tuple(0ll, Ton::Currency::DefaultToken, QString{});
 	});
 
 	box->setTitle(ph::lng_wallet_invoice_qr_title());

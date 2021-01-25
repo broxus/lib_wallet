@@ -120,8 +120,8 @@ private:
 		rpl::producer<> confirmed);
 	void showSendingDone(std::optional<Ton::Transaction> result, const PreparedInvoice &invoice);
 	void refreshNow();
-	void receiveTokens(Ton::TokenKind selectedToken);
-	void createInvoice(Ton::TokenKind selectedToken);
+	void receiveTokens(Ton::Currency selectedToken);
+	void createInvoice(Ton::Currency selectedToken);
 	void showInvoiceQr(const QString &link);
 	void changePassword();
 	void askExportPassword();

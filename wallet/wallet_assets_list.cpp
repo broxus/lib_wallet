@@ -42,7 +42,7 @@ auto addressPartWidth(const QString &address, int from, int length = -1) {
 	const auto [title, token, address, balance] = v::match(data, [](const TokenItem &item) {
 		return std::make_tuple(Ton::toString(item.token), item.token, item.address, item.balance);
 	}, [](const DePoolItem &item) {
-		return std::make_tuple(QString{"DePool"}, Ton::TokenKind::Ton, item.address, item.total);
+		return std::make_tuple(QString{"DePool"}, Ton::Currency::Ton, item.address, item.total);
 	});
 
 	const auto formattedBalance = FormatAmount(std::max(balance, int64_t{}), token);
@@ -358,7 +358,7 @@ rpl::producer<AssetsListState> MakeTokensListState(
 			AssetsListState result{};
 
 			result.items.emplace_back(TokenItem {
-				.token = Ton::TokenKind::DefaultToken,
+				.token = Ton::Currency::DefaultToken,
 				.address = data.wallet.address,
 				.balance = unlockedTonBalance,
 			});
@@ -375,7 +375,7 @@ rpl::producer<AssetsListState> MakeTokensListState(
 				result.items.emplace_back(TokenItem {
 					.token = token,
 					.address = data.wallet.address,
-					.balance = state.fullBalance,
+					.balance = state.balance,
 				});
 			}
 			return result;

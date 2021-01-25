@@ -30,7 +30,7 @@ constexpr auto kShowCloseDelay = 10 * crl::time(1000);
 
 void SendingTransactionBox(
 		not_null<Ui::GenericBox*> box,
-		Ton::TokenKind token,
+		Ton::Currency token,
 		rpl::producer<> confirmed) {
 	const auto inner = box->addRow(object_ptr<Ui::FixedHeightWidget>(
 		box,
@@ -94,7 +94,7 @@ void SendingDoneBox(
 	constexpr auto isCancelWithdrawal = std::is_same_v<T, CancelWithdrawalInvoice>;
 	static_assert(isTonTransfer || isTokenTransfer || isStakeTransfer || isWithdrawal || isCancelWithdrawal);
 
-	constexpr auto defaultToken = Ton::TokenKind::DefaultToken;
+	constexpr auto defaultToken = Ton::Currency::DefaultToken;
 
 	const auto inner = box->addRow(object_ptr<Ui::FixedHeightWidget>(
 		box,

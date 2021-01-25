@@ -10,14 +10,14 @@
 
 namespace Ton {
 struct Transaction;
-enum class TokenKind;
+enum class Currency;
 } // namespace Ton
 
 namespace Wallet {
 
 void SendingTransactionBox(
 	not_null<Ui::GenericBox*> box,
-	Ton::TokenKind token,
+	Ton::Currency token,
 	rpl::producer<> confirmed);
 
 template<typename T>

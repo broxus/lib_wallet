@@ -9,7 +9,7 @@
 #include "ui/layers/generic_box.h"
 
 namespace Ton {
-enum class TokenKind;
+enum class Currency;
 struct WalletState;
 } // namespace Ton
 

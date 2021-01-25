@@ -62,7 +62,7 @@ void SendGramsBox(
 	constexpr auto isTokenTransfer = std::is_same_v<T, TokenTransferInvoice>;
 	static_assert(isTonTransfer || isTokenTransfer);
 
-	auto token = Ton::TokenKind::DefaultToken;
+	auto token = Ton::Currency::DefaultToken;
 	if constexpr (isTokenTransfer) {
 		token = invoice.token;
 	}
@@ -76,7 +76,7 @@ void SendGramsBox(
 		} else if constexpr (isTokenTransfer) {
 			const auto it = state.tokenStates.find(token);
 			if (it != state.tokenStates.end()) {
-				return it->second.fullBalance;
+				return it->second.balance;
 			} else {
 				return int64{};
 			}
@@ -242,7 +242,7 @@ void SendGramsBox(
 		st::walletBottomButton
 	)->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 
-	const auto checkFunds = [=](const QString &amount, Ton::TokenKind token) {
+	const auto checkFunds = [=](const QString &amount, Ton::Currency token) {
 		if (const auto value = ParseAmountString(amount, Ton::countDecimals(token))) {
 			const auto insufficient = (*value > std::max(*funds, 0LL));
 			balanceLabel->setTextColorOverride(insufficient

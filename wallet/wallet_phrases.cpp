@@ -330,18 +330,18 @@ Fn<phrase(QTime)> lng_wallet_short_time = [](QTime time) {
 	return time.toString(Qt::SystemLocaleShortDate);
 };
 
-Fn<phrase(QString, Ton::TokenKind)> lng_wallet_grams_count = [](QString text, Ton::TokenKind token) {
+Fn<phrase(QString, Ton::Currency)> lng_wallet_grams_count = [](QString text, Ton::Currency token) {
 	return text + " " + Ton::toString(token);
 };
 
-Fn<phrase(QString, Ton::TokenKind)> lng_wallet_grams_count_sent = [](QString text, Ton::TokenKind token) {
+Fn<phrase(QString, Ton::Currency)> lng_wallet_grams_count_sent = [](QString text, Ton::Currency token) {
 	return text + " " + Ton::toString(token) + ((text == "1")
 		? " has been sent."
 		: " have been sent.");
 };
 
 Fn<phrase(QString)> lng_wallet_grams_count_withdrawn = [](QString text) {
-	return text + " " + Ton::toString(Ton::TokenKind::DefaultToken) + ((text == "1")
+	return text + " " + Ton::toString(Ton::Currency::DefaultToken) + ((text == "1")
 		? " was requested for withdrawal."
 		: " were requested for withdrawal.");
 };
@@ -355,7 +355,7 @@ void SetPhrases(
 		Fn<rpl::producer<QString>(int)> wallet_refreshed_minutes_ago,
 		Fn<rpl::producer<QString>(QDate)> wallet_short_date,
 		Fn<rpl::producer<QString>(QTime)> wallet_short_time,
-		Fn<rpl::producer<QString>(QString, Ton::TokenKind)> wallet_grams_count) {
+		Fn<rpl::producer<QString>(QString, Ton::Currency)> wallet_grams_count) {
 	ph::details::set_values(std::move(data));
 	ph::lng_wallet_refreshed_minutes_ago = [=](int minutes) {
 		return ph::phrase{ wallet_refreshed_minutes_ago(minutes) };
@@ -366,7 +366,7 @@ void SetPhrases(
 	ph::lng_wallet_short_time = [=](QTime date) {
 		return ph::phrase{ wallet_short_time(date) };
 	};
-	ph::lng_wallet_grams_count = [=](QString text, Ton::TokenKind token) {
+	ph::lng_wallet_grams_count = [=](QString text, Ton::Currency token) {
 		return ph::phrase{ wallet_grams_count(text, token) };
 	};
 }

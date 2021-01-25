@@ -70,7 +70,7 @@ std::optional<int64> ParseAmountFraction(QString trimmed, size_t decimals) {
 		const QString &text,
 		int position,
 		size_t decimals) {
-	const auto separator = FormatAmount(1, Ton::TokenKind::DefaultToken).separator;
+	const auto separator = FormatAmount(1, Ton::Currency::DefaultToken).separator;
 
 	auto result = FixedAmount{ text, position };
 	if (text.isEmpty()) {
@@ -122,7 +122,7 @@ std::optional<int64> ParseAmountFraction(QString trimmed, size_t decimals) {
 
 } // namespace
 
-FormattedAmount FormatAmount(int64 amount, Ton::TokenKind token, FormatFlags flags) {
+FormattedAmount FormatAmount(int64 amount, Ton::Currency token, FormatFlags flags) {
 	const auto decimals = Ton::countDecimals(token);
 	const auto one = ipow(10, decimals);
 
@@ -173,7 +173,7 @@ FormattedAmount FormatAmount(int64 amount, Ton::TokenKind token, FormatFlags fla
 	return result;
 }
 
-[[nodiscard]] QString AmountSeparator(Ton::TokenKind token) {
+[[nodiscard]] QString AmountSeparator(Ton::Currency token) {
 	return FormatAmount(1, token).separator;
 }
 
@@ -237,7 +237,7 @@ PreparedInvoice ParseInvoice(QString invoice) {
 
 	QString address{};
 	int64 amount{};
-	auto token = Ton::TokenKind::DefaultToken;
+	auto token = Ton::Currency::DefaultToken;
 	QString comment{};
 
 	const auto paramsPosition = invoice.indexOf('?');
@@ -279,7 +279,7 @@ PreparedInvoice ParseInvoice(QString invoice) {
 
 	switch (invoiceKind) {
 		case InvoiceKind::Transfer:
-			if (token == Ton::TokenKind::DefaultToken) {
+			if (token == Ton::Currency::DefaultToken) {
 				return TonTransferInvoice {
 					.amount = amount,
 					.address = address,
@@ -351,7 +351,7 @@ QString ExtractMessage(const Ton::Transaction &data) {
 
 QString TransferLink(
 		const QString &address,
-		Ton::TokenKind token,
+		Ton::Currency token,
 		int64 amount,
 		const QString &comment) {
 	const auto base = QString{ "https://freeton.broxus.com" };
@@ -391,7 +391,7 @@ not_null<Ui::InputField*> CreateAmountInput(
 		not_null<QWidget*> parent,
 		rpl::producer<QString> placeholder,
 		int64 amount,
-		rpl::producer<Ton::TokenKind> token) {
+		rpl::producer<Ton::Currency> token) {
 
 	const auto result = Ui::CreateChild<Ui::InputField>(
 		parent.get(),
@@ -399,11 +399,11 @@ not_null<Ui::InputField*> CreateAmountInput(
 		Ui::InputField::Mode::SingleLine,
 		placeholder);
 
-	auto tokenState = result->lifetime().make_state<Ton::TokenKind>(Ton::TokenKind::DefaultToken);
+	auto tokenState = result->lifetime().make_state<Ton::Currency>(Ton::Currency::DefaultToken);
 
 	rpl::duplicate(
 		token
-	) | rpl::start_with_next([=](Ton::TokenKind value) {
+	) | rpl::start_with_next([=](Ton::Currency value) {
 		*tokenState = value;
 	}, result->lifetime());
 

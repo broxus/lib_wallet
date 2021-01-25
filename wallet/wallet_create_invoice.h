@@ -16,7 +16,7 @@ void CreateInvoiceBox(
 	not_null<Ui::GenericBox*> box,
 	const QString &address,
 	bool testnet,
-    Ton::TokenKind token,
+    Ton::Currency token,
 	const Fn<void(QString)> &generateQr,
 	const Fn<void(QImage, QString)> &share);
 
