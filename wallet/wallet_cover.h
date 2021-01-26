@@ -13,50 +13,47 @@
 namespace Ton {
 struct WalletViewerState;
 enum class Currency;
-} // namespace Ton
+}  // namespace Ton
 
 namespace Wallet {
 
 struct CoverState {
-	SelectedAsset asset;
-	int64 unlockedBalance = 0;
-	int64 lockedBalance = 0;
-	int64 reward = 0;
-	bool justCreated = false;
-	bool useTestNetwork = false;
-	bool reinvest = false;
+  SelectedAsset asset;
+  int64 unlockedBalance = 0;
+  int64 lockedBalance = 0;
+  int64 reward = 0;
+  bool justCreated = false;
+  bool useTestNetwork = false;
+  bool reinvest = false;
 
-	auto selectedToken() const -> Ton::Currency;
+  auto selectedToken() const -> Ton::Symbol;
 };
 
 class Cover final {
-public:
-	Cover(not_null<Ui::RpWidget*> parent, rpl::producer<CoverState> state);
+ public:
+  Cover(not_null<Ui::RpWidget *> parent, rpl::producer<CoverState> state);
 
-	void setGeometry(QRect geometry);
-	[[nodiscard]] int height() const;
+  void setGeometry(QRect geometry);
+  [[nodiscard]] int height() const;
 
-	[[nodiscard]] rpl::producer<> sendRequests() const;
-	[[nodiscard]] rpl::producer<> receiveRequests() const;
+  [[nodiscard]] rpl::producer<> sendRequests() const;
+  [[nodiscard]] rpl::producer<> receiveRequests() const;
 
-	[[nodiscard]] rpl::lifetime &lifetime();
+  [[nodiscard]] rpl::lifetime &lifetime();
 
-private:
-	void setupControls();
-	void setupBalance();
+ private:
+  void setupControls();
+  void setupBalance();
 
-	Ui::RpWidget _widget;
+  Ui::RpWidget _widget;
 
-	rpl::variable<CoverState> _state;
-	rpl::event_stream<> _sendRequests;
-	rpl::event_stream<> _receiveRequests;
-
+  rpl::variable<CoverState> _state;
+  rpl::event_stream<> _sendRequests;
+  rpl::event_stream<> _receiveRequests;
 };
 
-[[nodiscard]] rpl::producer<CoverState> MakeCoverState(
-	rpl::producer<Ton::WalletViewerState> state,
-	rpl::producer<std::optional<SelectedAsset>> selectedAsset,
-	bool justCreated,
-	bool useTestNetwork);
+[[nodiscard]] rpl::producer<CoverState> MakeCoverState(rpl::producer<Ton::WalletViewerState> state,
+                                                       rpl::producer<std::optional<SelectedAsset>> selectedAsset,
+                                                       bool justCreated, bool useTestNetwork);
 
-} // namespace Wallet
+}  // namespace Wallet

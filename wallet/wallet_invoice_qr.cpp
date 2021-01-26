@@ -15,87 +15,72 @@
 
 namespace Wallet {
 
-void InvoiceQrBox(
-		not_null<Ui::GenericBox*> box,
-		const QString &link,
-		const Fn<void(QImage, QString)> &share) {
+void InvoiceQrBox(not_null<Ui::GenericBox *> box, const QString &link, const Fn<void(QImage, QString)> &share) {
+  const auto prepared = ParseInvoice(link);
 
-	const auto prepared = ParseInvoice(link);
+  const auto [amount, symbol, comment] = v::match(
+      prepared,
+      [](const TonTransferInvoice &tonTransferInvoice) {
+        return std::make_tuple(tonTransferInvoice.amount, Ton::Symbol::ton(), tonTransferInvoice.comment);
+      },
+      [](const TokenTransferInvoice &tokenTransferInvoice) {
+        return std::make_tuple(tokenTransferInvoice.amount, tokenTransferInvoice.token, QString{});
+      },
+      [](auto &&) { return std::make_tuple(0ll, Ton::Symbol::ton(), QString{}); });
 
-	const auto [amount, token, comment] = v::match(prepared, [](const TonTransferInvoice &tonTransferInvoice) {
-		return std::make_tuple(tonTransferInvoice.amount, Ton::Currency::DefaultToken, tonTransferInvoice.comment);
-	}, [](const TokenTransferInvoice &tokenTransferInvoice) {
-		return std::make_tuple(tokenTransferInvoice.amount, tokenTransferInvoice.token, QString{});
-	}, [](auto&&) {
-		return std::make_tuple(0ll, Ton::Currency::DefaultToken, QString{});
-	});
+  box->setTitle(ph::lng_wallet_invoice_qr_title());
+  box->setStyle(st::walletBox);
 
-	box->setTitle(ph::lng_wallet_invoice_qr_title());
-	box->setStyle(st::walletBox);
+  box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
 
-	box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
+  const auto container = box->addRow(object_ptr<Ui::BoxContentDivider>(box, 1), st::walletInvoiceQrMargin);
 
-	const auto container = box->addRow(
-		object_ptr<Ui::BoxContentDivider>(box, 1),
-		st::walletInvoiceQrMargin);
+  const auto button = Ui::CreateChild<Ui::AbstractButton>(container);
 
-    const auto button = Ui::CreateChild<Ui::AbstractButton>(container);
+  auto qr = button->lifetime().make_state<QImage>();
+  *qr = Ui::TokenQr(symbol, link, st::walletInvoiceQrPixel,
+                    st::boxWidth - st::boxRowPadding.left() - st::boxRowPadding.right());
 
-    auto qr = button->lifetime().make_state<QImage>();
-	*qr = Ui::TokenQr(
-		token,
-		link,
-		st::walletInvoiceQrPixel,
-		st::boxWidth - st::boxRowPadding.left() - st::boxRowPadding.right());
+  const int size = qr->width() / style::DevicePixelRatio();
+  const auto height = st::walletInvoiceQrSkip * 2 + size;
 
-	const int size = qr->width() / style::DevicePixelRatio();
-	const auto height = st::walletInvoiceQrSkip * 2 + size;
+  container->setFixedHeight(height);
 
-	container->setFixedHeight(height);
+  button->resize(size, size);
 
-	button->resize(size, size);
+  button->setClickedCallback([=, symbol = symbol] { share(Ui::TokenQrForShare(symbol, link), QString()); });
 
-    button->setClickedCallback([=, token = token] {
-        share(Ui::TokenQrForShare(token, link), QString());
-    });
+  button->paintRequest()  //
+      | rpl::start_with_next(
+            [=] {
+              const auto size = qr->width() / style::DevicePixelRatio();
+              QPainter(button).drawImage(QRect(0, 0, size, size), *qr);
+            },
+            button->lifetime());
 
-    button->paintRequest(
-	) | rpl::start_with_next([=] {
-        const auto size = qr->width() / style::DevicePixelRatio();
-		QPainter(button).drawImage(QRect(0, 0, size, size), *qr);
-	}, button->lifetime());
+  container->widthValue()  //
+      | rpl::start_with_next(
+            [=](int width) {
+              const auto size = qr->width() / style::DevicePixelRatio();
+              button->move((width - size) / 2, st::walletInvoiceQrSkip);
+            },
+            button->lifetime());
 
-	container->widthValue(
-	) | rpl::start_with_next([=](int width) {
-        const auto size = qr->width() / style::DevicePixelRatio();
-		button->move((width - size) / 2, st::walletInvoiceQrSkip);
-	}, button->lifetime());
+  AddBoxSubtitle(box, ph::lng_wallet_invoice_qr_amount());
 
-	AddBoxSubtitle(box, ph::lng_wallet_invoice_qr_amount());
+  box->addRow(object_ptr<Ui::FlatLabel>(box, FormatAmount(amount, symbol).full, st::walletLabel),
+              st::walletInvoiceQrValuePadding);
 
-	box->addRow(
-		object_ptr<Ui::FlatLabel>(
-			box,
-			FormatAmount(amount, token).full,
-			st::walletLabel),
-		st::walletInvoiceQrValuePadding);
+  if (!comment.isEmpty()) {
+    AddBoxSubtitle(box, ph::lng_wallet_invoice_qr_comment());
 
-	if (!comment.isEmpty()) {
-		AddBoxSubtitle(box, ph::lng_wallet_invoice_qr_comment());
+    box->addRow(object_ptr<Ui::FlatLabel>(box, comment, st::walletLabel), st::walletInvoiceQrValuePadding);
+  }
 
-		box->addRow(
-			object_ptr<Ui::FlatLabel>(
-				box,
-				comment,
-				st::walletLabel),
-			st::walletInvoiceQrValuePadding);
-	}
-
-	box->addButton(
-		ph::lng_wallet_invoice_qr_share(),
-		[=, token = token] { share(Ui::TokenQrForShare(token, link), QString()); },
-		st::walletBottomButton
-	)->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+  box->addButton(
+         ph::lng_wallet_invoice_qr_share(),
+         [=, symbol = symbol] { share(Ui::TokenQrForShare(symbol, link), QString()); }, st::walletBottomButton)
+      ->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 }
 
-} // namespace Wallet
+}  // namespace Wallet

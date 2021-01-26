@@ -6,37 +6,34 @@
 namespace Wallet {
 
 struct DePoolInfoState {
-	QString address;
-	Ton::DePoolParticipantState participantState;
+  QString address;
+  Ton::DePoolParticipantState participantState;
 };
 
 class StakeRow;
 
 class DePoolInfo final {
-public:
-	DePoolInfo(
-		not_null<Ui::RpWidget*> parent,
-		rpl::producer<DePoolInfoState> state);
-	~DePoolInfo();
+ public:
+  DePoolInfo(not_null<Ui::RpWidget *> parent, rpl::producer<DePoolInfoState> state);
+  ~DePoolInfo();
 
-	void setGeometry(QRect geometry);
-	auto geometry() const -> const QRect&;
-	[[nodiscard]] auto heightValue() -> rpl::producer<int>;
+  void setGeometry(QRect geometry);
+  auto geometry() const -> const QRect &;
+  [[nodiscard]] auto heightValue() -> rpl::producer<int>;
 
-	void setVisible(bool visible);
+  void setVisible(bool visible);
 
-	[[nodiscard]] rpl::lifetime &lifetime();
+  [[nodiscard]] rpl::lifetime &lifetime();
 
-private:
-	void setupControls(rpl::producer<DePoolInfoState> &&state);
+ private:
+  void setupControls(rpl::producer<DePoolInfoState> &&state);
 
-	Ui::RpWidget _widget;
-	rpl::variable<int> _height;
-	std::vector<std::unique_ptr<StakeRow>> _stakeRows;
+  Ui::RpWidget _widget;
+  rpl::variable<int> _height;
+  std::vector<std::unique_ptr<StakeRow>> _stakeRows;
 };
 
-[[nodiscard]] rpl::producer<DePoolInfoState> MakeDePoolInfoState(
-	rpl::producer<Ton::WalletViewerState> state,
-	rpl::producer<QString> selectedDePool);
+[[nodiscard]] rpl::producer<DePoolInfoState> MakeDePoolInfoState(rpl::producer<Ton::WalletViewerState> state,
+                                                                 rpl::producer<QString> selectedDePool);
 
-} // namespace Wallet
+}  // namespace Wallet

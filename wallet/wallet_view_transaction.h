@@ -10,21 +10,15 @@
 
 namespace Ton {
 struct Transaction;
-enum class Currency;
-} // namespace Ton
+class Symbol;
+}  // namespace Ton
 
 namespace Wallet {
 
-void ViewTransactionBox(
-	not_null<Ui::GenericBox*> box,
-	Ton::Transaction &&data,
-	const QString& tokenContractAddress,
-	Ton::Currency selectedToken,
-	rpl::producer<not_null<std::vector<Ton::Transaction>*>> collectEncrypted,
-	rpl::producer<not_null<const std::vector<Ton::Transaction>*>> decrypted,
-	const Fn<void(QImage, QString)> &share,
-	const Fn<void()> &decryptComment,
-	const Fn<void(QString)> &send,
-	const Fn<void(QString)> &reveal);
+void ViewTransactionBox(not_null<Ui::GenericBox *> box, Ton::Transaction &&data, const Ton::Symbol &selectedToken,
+                        rpl::producer<not_null<std::vector<Ton::Transaction> *>> collectEncrypted,
+                        rpl::producer<not_null<const std::vector<Ton::Transaction> *>> decrypted,
+                        const Fn<void(QImage, QString)> &share, const Fn<void()> &decryptComment,
+                        const Fn<void(QString)> &send, const Fn<void(QString)> &reveal);
 
-} // namespace Wallet
+}  // namespace Wallet

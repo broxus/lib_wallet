@@ -9,20 +9,20 @@ class Painter;
 
 namespace Ton {
 struct WalletViewerState;
-} // namespace Ton
+}  // namespace Ton
 
 namespace Wallet {
 
 struct TokenItem {
-	Ton::Currency token = Ton::Currency::DefaultToken;
-	QString address = "";
-	int64_t balance = 0;
+  Ton::Symbol token = Ton::Symbol::ton();
+  QString address = "";
+  int64_t balance = 0;
 };
 
 struct DePoolItem {
-	QString address = "";
-	int64_t total = 0;
-	int64_t reward = 0;
+  QString address = "";
+  int64_t total = 0;
+  int64_t reward = 0;
 };
 
 using AssetItem = std::variant<TokenItem, DePoolItem>;
@@ -31,41 +31,40 @@ bool operator==(const AssetItem &a, const AssetItem &b);
 bool operator!=(const AssetItem &a, const AssetItem &b);
 
 struct AssetsListState {
-	std::vector<AssetItem> items;
+  std::vector<AssetItem> items;
 };
 
 class AssetsListRow;
 
 class AssetsList final {
-public:
-	AssetsList(not_null<Ui::RpWidget*> parent, rpl::producer<AssetsListState> state);
-	~AssetsList();
+ public:
+  AssetsList(not_null<Ui::RpWidget *> parent, rpl::producer<AssetsListState> state);
+  ~AssetsList();
 
-	void setGeometry(QRect geometry);
+  void setGeometry(QRect geometry);
 
-	[[nodiscard]] rpl::producer<AssetItem> openRequests() const;
-	[[nodiscard]] rpl::producer<> gateOpenRequests() const;
-	[[nodiscard]] rpl::producer<int> heightValue() const;
+  [[nodiscard]] rpl::producer<AssetItem> openRequests() const;
+  [[nodiscard]] rpl::producer<> gateOpenRequests() const;
+  [[nodiscard]] rpl::producer<int> heightValue() const;
 
-	[[nodiscard]] rpl::lifetime &lifetime();
+  [[nodiscard]] rpl::lifetime &lifetime();
 
-private:
-	void setupContent(rpl::producer<AssetsListState> &&state);
+ private:
+  void setupContent(rpl::producer<AssetsListState> &&state);
 
-	void refreshItemValues(const AssetsListState &data);
-	bool mergeListChanged(AssetsListState &&data);
+  void refreshItemValues(const AssetsListState &data);
+  bool mergeListChanged(AssetsListState &&data);
 
-	Ui::RpWidget _widget;
+  Ui::RpWidget _widget;
 
-	std::vector<std::unique_ptr<AssetsListRow>> _rows;
-	std::vector<std::unique_ptr<Ui::RoundButton>> _buttons;
-	rpl::variable<int> _height;
+  std::vector<std::unique_ptr<AssetsListRow>> _rows;
+  std::vector<std::unique_ptr<Ui::RoundButton>> _buttons;
+  rpl::variable<int> _height;
 
-	rpl::event_stream<AssetItem> _openRequests;
-	rpl::event_stream<> _gateOpenRequests;
+  rpl::event_stream<AssetItem> _openRequests;
+  rpl::event_stream<> _gateOpenRequests;
 };
 
-[[nodiscard]] rpl::producer<AssetsListState> MakeTokensListState(
-	rpl::producer<Ton::WalletViewerState> state);
+[[nodiscard]] rpl::producer<AssetsListState> MakeTokensListState(rpl::producer<Ton::WalletViewerState> state);
 
-} // namespace Wallet
+}  // namespace Wallet

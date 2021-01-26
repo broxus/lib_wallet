@@ -10,17 +10,12 @@
 
 namespace Ton {
 enum class Currency;
-} // namespace Ton
+}  // namespace Ton
 
 namespace Wallet {
 
-void ReceiveTokensBox(
-	not_null<Ui::GenericBox*> box,
-	const QString &packedAddress,
-	const QString &rawAddress,
-	Ton::Currency token,
-	const Fn<void()> &createInvoice,
-	const Fn<void(QImage, QString)> &share,
-	const Fn<void()> &swap);
+void ReceiveTokensBox(not_null<Ui::GenericBox *> box, const QString &packedAddress, const QString &rawAddress,
+                      const Ton::Symbol &token, const Fn<void()> &createInvoice, const Fn<void(QImage, QString)> &share,
+                      const Fn<void()> &swap);
 
-} // namespace Wallet
+}  // namespace Wallet

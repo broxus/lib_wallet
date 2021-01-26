@@ -10,11 +10,7 @@
 
 namespace Wallet {
 
-void ChangePasscodeBox(
-	not_null<Ui::GenericBox *> box,
-	const Fn<void(
-		QByteArray &&old,
-		QByteArray &&now,
-		const Fn<void(QString)> &error)> &submit);
+void ChangePasscodeBox(not_null<Ui::GenericBox *> box,
+                       const Fn<void(QByteArray &&old, QByteArray &&now, const Fn<void(QString)> &error)> &submit);
 
-} // namespace Wallet
+}  // namespace Wallet

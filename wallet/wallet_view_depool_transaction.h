@@ -8,9 +8,7 @@ struct Transaction;
 
 namespace Wallet {
 
-void ViewDePoolTransactionBox(
-	not_null<Ui::GenericBox*> box,
-	const Ton::Transaction &data,
-	const Fn<void(QImage, QString)> &share);
+void ViewDePoolTransactionBox(not_null<Ui::GenericBox *> box, const Ton::Transaction &data,
+                              const Fn<void(QImage, QString)> &share);
 
-} // namespace Wallet
+}  // namespace Wallet

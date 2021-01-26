@@ -9,37 +9,37 @@
 namespace Wallet {
 
 struct UpdateProgress {
-	int64 already = 0;
-	int64 size = 0;
+  int64 already = 0;
+  int64 size = 0;
 };
 
 enum class UpdateState {
-	None,
-	Download,
-	Ready,
+  None,
+  Download,
+  Ready,
 };
 
 class UpdateInfo {
-public:
-	[[nodiscard]] virtual rpl::producer<> checking() = 0;
-	[[nodiscard]] virtual rpl::producer<> isLatest() = 0;
-	[[nodiscard]] virtual rpl::producer<UpdateProgress> progress() = 0;
-	[[nodiscard]] virtual rpl::producer<> failed() = 0;
-	[[nodiscard]] virtual rpl::producer<> ready() = 0;
+ public:
+  [[nodiscard]] virtual rpl::producer<> checking() = 0;
+  [[nodiscard]] virtual rpl::producer<> isLatest() = 0;
+  [[nodiscard]] virtual rpl::producer<UpdateProgress> progress() = 0;
+  [[nodiscard]] virtual rpl::producer<> failed() = 0;
+  [[nodiscard]] virtual rpl::producer<> ready() = 0;
 
-	[[nodiscard]] virtual UpdateState state() = 0;
-	[[nodiscard]] virtual int64 already() = 0;
-	[[nodiscard]] virtual int64 size() = 0;
+  [[nodiscard]] virtual UpdateState state() = 0;
+  [[nodiscard]] virtual int64 already() = 0;
+  [[nodiscard]] virtual int64 size() = 0;
 
-	virtual void toggle(bool enabled) = 0;
-	virtual void test() = 0;
-	virtual void check() = 0;
-	virtual void install() = 0;
+  virtual void toggle(bool enabled) = 0;
+  virtual void test() = 0;
+  virtual void check() = 0;
+  virtual void install() = 0;
 
-	[[nodiscard]] virtual bool toggled() = 0;
-	[[nodiscard]] virtual int currentVersion() = 0;
+  [[nodiscard]] virtual bool toggled() = 0;
+  [[nodiscard]] virtual int currentVersion() = 0;
 
-	virtual ~UpdateInfo() = default;
+  virtual ~UpdateInfo() = default;
 };
 
-} // namespace Wallet
+}  // namespace Wallet

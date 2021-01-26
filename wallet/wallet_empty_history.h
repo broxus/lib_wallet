@@ -10,36 +10,33 @@
 
 namespace Ton {
 struct WalletViewerState;
-} // namespace Ton
+}  // namespace Ton
 
 namespace Wallet {
 
 struct EmptyHistoryState {
-	QString address;
-	bool justCreated = false;
+  QString address;
+  bool justCreated = false;
 };
 
 class EmptyHistory final {
-public:
-	EmptyHistory(
-		not_null<Ui::RpWidget*> parent,
-		rpl::producer<EmptyHistoryState> state,
-		Fn<void(QImage, QString)> share);
+ public:
+  EmptyHistory(not_null<Ui::RpWidget *> parent, rpl::producer<EmptyHistoryState> state,
+               Fn<void(QImage, QString)> share);
 
-	void setGeometry(QRect geometry);
-	void setVisible(bool visible);
+  void setGeometry(QRect geometry);
+  void setVisible(bool visible);
 
-	[[nodiscard]] rpl::lifetime &lifetime();
+  [[nodiscard]] rpl::lifetime &lifetime();
 
-private:
-	void setupControls(rpl::producer<EmptyHistoryState> &&state);
+ private:
+  void setupControls(rpl::producer<EmptyHistoryState> &&state);
 
-	Ui::RpWidget _widget;
-	Fn<void(QImage, QString)> _share;
+  Ui::RpWidget _widget;
+  Fn<void(QImage, QString)> _share;
 };
 
-[[nodiscard]] rpl::producer<EmptyHistoryState> MakeEmptyHistoryState(
-	rpl::producer<Ton::WalletViewerState> state,
-	bool justCreated);
+[[nodiscard]] rpl::producer<EmptyHistoryState> MakeEmptyHistoryState(rpl::producer<Ton::WalletViewerState> state,
+                                                                     bool justCreated);
 
-} // namespace Wallet
+}  // namespace Wallet

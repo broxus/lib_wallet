@@ -23,242 +23,185 @@ namespace {
 constexpr auto kMsInMinute = 60 * crl::time(1000);
 
 [[nodiscard]] auto ToTopBarState(const std::optional<SelectedAsset> &selectedAsset, bool refreshing = false) {
-	return rpl::map([=](QString &&text) {
-		return TopBarState{ std::move(text), refreshing, selectedAsset };
-	});
+  return rpl::map([=](QString &&text) { return TopBarState{std::move(text), refreshing, selectedAsset}; });
 }
 
-[[nodiscard]] rpl::producer<TopBarState> MakeTopBarStateRefreshing(
-		const std::optional<SelectedAsset> &selectedAsset) {
-	return ph::lng_wallet_refreshing() | ToTopBarState(selectedAsset, true);
+[[nodiscard]] rpl::producer<TopBarState> MakeTopBarStateRefreshing(const std::optional<SelectedAsset> &selectedAsset) {
+  return ph::lng_wallet_refreshing() | ToTopBarState(selectedAsset, true);
 }
 
 [[nodiscard]] rpl::producer<int> MakeRefreshedMinutesAgo(crl::time when) {
-	return rpl::make_producer<int>([=](const auto &consumer) {
-		auto result = rpl::lifetime();
-		const auto timer = result.make_state<base::Timer>();
-		const auto putNext = [=] {
-			const auto elapsed = crl::now() - when;
-			const auto minutes = int(elapsed / kMsInMinute);
-			const auto next = kMsInMinute * (minutes + 1) - elapsed;
-			if (consumer.put_next_copy(minutes)) {
-				timer->callOnce(next);
-			}
-		};
-		timer->setCallback(putNext);
-		putNext();
-		return result;
-	});
+  return rpl::make_producer<int>([=](const auto &consumer) {
+    auto result = rpl::lifetime();
+    const auto timer = result.make_state<base::Timer>();
+    const auto putNext = [=] {
+      const auto elapsed = crl::now() - when;
+      const auto minutes = int(elapsed / kMsInMinute);
+      const auto next = kMsInMinute * (minutes + 1) - elapsed;
+      if (consumer.put_next_copy(minutes)) {
+        timer->callOnce(next);
+      }
+    };
+    timer->setCallback(putNext);
+    putNext();
+    return result;
+  });
 }
 
-[[nodiscard]] rpl::producer<TopBarState> MakeTopBarStateRefreshed(
-		const std::optional<SelectedAsset> &selectedAsset,
-		crl::time when) {
-	return MakeRefreshedMinutesAgo(
-		when
-	) | rpl::map([](int minutes) {
-		return minutes
-			? ph::lng_wallet_refreshed_minutes_ago(minutes)()
-			: ph::lng_wallet_refreshed_just_now();
-	}) | rpl::flatten_latest(
-	) | ToTopBarState(selectedAsset);
+[[nodiscard]] rpl::producer<TopBarState> MakeTopBarStateRefreshed(const std::optional<SelectedAsset> &selectedAsset,
+                                                                  crl::time when) {
+  return MakeRefreshedMinutesAgo(when)  //
+         | rpl::map([](int minutes) {
+             return minutes ? ph::lng_wallet_refreshed_minutes_ago(minutes)() : ph::lng_wallet_refreshed_just_now();
+           })                     //
+         | rpl::flatten_latest()  //
+         | ToTopBarState(selectedAsset);
 }
 
-[[nodiscard]] rpl::producer<TopBarState> MakeNonSyncTopBarState(
-		const Ton::WalletViewerState &state,
-		const std::optional<SelectedAsset> &selectedAsset) {
-	if (state.refreshing || !state.lastRefresh) {
-		return MakeTopBarStateRefreshing(selectedAsset);
-	}
-	return MakeTopBarStateRefreshed(selectedAsset, state.lastRefresh);
+[[nodiscard]] rpl::producer<TopBarState> MakeNonSyncTopBarState(const Ton::WalletViewerState &state,
+                                                                const std::optional<SelectedAsset> &selectedAsset) {
+  if (state.refreshing || !state.lastRefresh) {
+    return MakeTopBarStateRefreshing(selectedAsset);
+  }
+  return MakeTopBarStateRefreshed(selectedAsset, state.lastRefresh);
 }
 
-} // namespace
+}  // namespace
 
-TopBar::TopBar(
-	not_null<Ui::RpWidget*> parent,
-	rpl::producer<TopBarState> state)
-: _widgetParent(parent)
-, _widget(parent) {
-	parent->widthValue(
-	) | rpl::start_with_next([=](int width) {
-		_widget.setGeometry(0, 0, width, st::walletTopBarHeight);
-	}, lifetime());
+TopBar::TopBar(not_null<Ui::RpWidget *> parent, rpl::producer<TopBarState> state)
+    : _widgetParent(parent), _widget(parent) {
+  parent->widthValue()  //
+      | rpl::start_with_next([=](int width) { _widget.setGeometry(0, 0, width, st::walletTopBarHeight); }, lifetime());
 
-	setupControls(std::move(state));
+  setupControls(std::move(state));
 }
 
 rpl::producer<Action> TopBar::actionRequests() const {
-	return _actionRequests.events();
+  return _actionRequests.events();
 }
 
 rpl::lifetime &TopBar::lifetime() {
-	return _widget.lifetime();
+  return _widget.lifetime();
 }
 
 void TopBar::setupControls(rpl::producer<TopBarState> &&state) {
-	auto text = rpl::duplicate(
-		state
-	) | rpl::map([](const TopBarState &state) {
-		return state.text;
-	});
+  auto text = rpl::duplicate(state) | rpl::map([](const TopBarState &state) { return state.text; });
 
-	const auto broxus = Ui::CreateChild<Ui::IconButton>(
-		&_widget,
-		st::walletTopBroxusButton);
-	broxus->setEnabled(false);
+  const auto broxus = Ui::CreateChild<Ui::IconButton>(&_widget, st::walletTopBroxusButton);
+  broxus->setEnabled(false);
 
-	const auto back = Ui::CreateChild<Ui::IconButton>(
-		&_widget,
-		st::walletTopBackButton);
-	back->clicks(
-	) | rpl::map([] {
-		return Action::Back;
-	}) | rpl::start_to_stream(_actionRequests, back->lifetime());
+  const auto back = Ui::CreateChild<Ui::IconButton>(&_widget, st::walletTopBackButton);
+  back->clicks() | rpl::map([] { return Action::Back; }) | rpl::start_to_stream(_actionRequests, back->lifetime());
 
-	const auto refresh = Ui::CreateChild<Ui::IconButton>(
-		&_widget,
-		st::walletTopRefreshButton);
-	refresh->clicks(
-	) | rpl::map([] {
-		return Action::Refresh;
-	}) | rpl::start_to_stream(_actionRequests, refresh->lifetime());
+  const auto refresh = Ui::CreateChild<Ui::IconButton>(&_widget, st::walletTopRefreshButton);
+  refresh->clicks() | rpl::map([] { return Action::Refresh; }) |
+      rpl::start_to_stream(_actionRequests, refresh->lifetime());
 
-	const auto label = Ui::CreateChild<Ui::FlatLabel>(
-		&_widget,
-		std::move(text),
-		st::walletTopLabel);
+  const auto label = Ui::CreateChild<Ui::FlatLabel>(&_widget, std::move(text), st::walletTopLabel);
 
-	const auto menu = Ui::CreateChild<Ui::IconButton>(
-		&_widget,
-		st::walletTopMenuButton);
-	menu->setClickedCallback([=] { showMenu(menu); });
+  const auto menu = Ui::CreateChild<Ui::IconButton>(&_widget, st::walletTopMenuButton);
+  menu->setClickedCallback([=] { showMenu(menu); });
 
-	_widget.setAttribute(Qt::WA_OpaquePaintEvent);
-	_widget.paintRequest(
-	) | rpl::start_with_next([=](QRect clip) {
-		QPainter(&_widget).fillRect(clip, st::walletTopBg);
-	}, lifetime());
+  _widget.setAttribute(Qt::WA_OpaquePaintEvent);
+  _widget.paintRequest() |
+      rpl::start_with_next([=](QRect clip) { QPainter(&_widget).fillRect(clip, st::walletTopBg); }, lifetime());
 
-	label->show();
-	menu->show();
+  label->show();
+  menu->show();
 
-	rpl::combine(
-		_widget.widthValue(),
-		std::move(state)
-	) | rpl::start_with_next([=](int width, const TopBarState& state) {
-		const auto height = _widget.height();
+  rpl::combine(_widget.widthValue(), std::move(state))  //
+      | rpl::start_with_next(
+            [=](int width, const TopBarState &state) {
+              const auto height = _widget.height();
 
-		const auto isAssetSelected = state.selectedAsset.has_value();
-		back->setVisible(isAssetSelected);
-		broxus->setVisible(!isAssetSelected);
-		if (isAssetSelected) {
-			back->moveToLeft(0, (height - back->height()) / 2, width);
-		} else {
-			broxus->moveToLeft(0, (height - back->height()) / 2, width);
-		}
+              const auto isAssetSelected = state.selectedAsset.has_value();
+              back->setVisible(isAssetSelected);
+              broxus->setVisible(!isAssetSelected);
+              if (isAssetSelected) {
+                back->moveToLeft(0, (height - back->height()) / 2, width);
+              } else {
+                broxus->moveToLeft(0, (height - back->height()) / 2, width);
+              }
 
-		refresh->moveToRight(height, (height - refresh->height()) / 2, width);
-		menu->moveToRight(0, (height - menu->height()) / 2, width);
-		label->moveToLeft(
-			(width - label->width()) / 2,
-			(height - label->height()) / 2,
-			width);
-	}, lifetime());
+              refresh->moveToRight(height, (height - refresh->height()) / 2, width);
+              menu->moveToRight(0, (height - menu->height()) / 2, width);
+              label->moveToLeft((width - label->width()) / 2, (height - label->height()) / 2, width);
+            },
+            lifetime());
 }
 
-void TopBar::showMenu(not_null<Ui::IconButton*> toggle) {
-	if (_menu) {
-		return;
-	}
-	_menu.emplace(_widgetParent);
+void TopBar::showMenu(not_null<Ui::IconButton *> toggle) {
+  if (_menu) {
+    return;
+  }
+  _menu.emplace(_widgetParent);
 
-	const auto menu = _menu.get();
-	toggle->installEventFilter(menu);
+  const auto menu = _menu.get();
+  toggle->installEventFilter(menu);
 
-	const auto weak = Ui::MakeWeak(toggle);
-	menu->setHiddenCallback([=] {
-		menu->deleteLater();
-		if (weak && _menu.get() == menu) {
-			_menu = nullptr;
-			toggle->setForceRippled(false);
-		}
-	});
-	menu->setShowStartCallback(crl::guard(weak, [=] {
-		if (_menu == menu) {
-			toggle->setForceRippled(true);
-		}
-	}));
-	menu->setHideStartCallback(crl::guard(weak, [=] {
-		if (_menu == menu) {
-			toggle->setForceRippled(false);
-		}
-	}));
+  const auto weak = Ui::MakeWeak(toggle);
+  menu->setHiddenCallback([=] {
+    menu->deleteLater();
+    if (weak && _menu.get() == menu) {
+      _menu = nullptr;
+      toggle->setForceRippled(false);
+    }
+  });
+  menu->setShowStartCallback(crl::guard(weak, [=] {
+    if (_menu == menu) {
+      toggle->setForceRippled(true);
+    }
+  }));
+  menu->setHideStartCallback(crl::guard(weak, [=] {
+    if (_menu == menu) {
+      toggle->setForceRippled(false);
+    }
+  }));
 
-	menu->addAction(ph::lng_wallet_menu_settings(ph::now), [=] {
-		_actionRequests.fire(Action::ShowSettings);
-	});
-	menu->addAction(ph::lng_wallet_menu_change_passcode(ph::now), [=] {
-		_actionRequests.fire(Action::ChangePassword);
-	});
-	menu->addAction(ph::lng_wallet_menu_export(ph::now), [=] {
-		_actionRequests.fire(Action::Export);
-	});
-	menu->addAction(ph::lng_wallet_menu_delete(ph::now), [=] {
-		_actionRequests.fire(Action::LogOut);
-	});
+  menu->addAction(ph::lng_wallet_menu_settings(ph::now), [=] { _actionRequests.fire(Action::ShowSettings); });
+  menu->addAction(ph::lng_wallet_menu_change_passcode(ph::now), [=] { _actionRequests.fire(Action::ChangePassword); });
+  menu->addAction(ph::lng_wallet_menu_export(ph::now), [=] { _actionRequests.fire(Action::Export); });
+  menu->addAction(ph::lng_wallet_menu_delete(ph::now), [=] { _actionRequests.fire(Action::LogOut); });
 
-	_widgetParent->widthValue(
-	) | rpl::start_with_next([=](int width) {
-		menu->moveToRight(
-			st::walletMenuPosition.x(),
-			st::walletMenuPosition.y(),
-			width);
-	}, menu->lifetime());
+  _widgetParent->widthValue() |
+      rpl::start_with_next(
+          [=](int width) { menu->moveToRight(st::walletMenuPosition.x(), st::walletMenuPosition.y(), width); },
+          menu->lifetime());
 
-	menu->showAnimated(Ui::PanelAnimation::Origin::TopRight);
+  menu->showAnimated(Ui::PanelAnimation::Origin::TopRight);
 }
 
-rpl::producer<TopBarState> MakeTopBarState(
-		rpl::producer<Ton::WalletViewerState> &&state,
-		rpl::producer<Ton::Update> &&updates,
-		rpl::producer<std::optional<SelectedAsset>> &&selectedAsset,
-		rpl::lifetime &alive) {
-	auto syncs = rpl::single(
-		Ton::SyncState()
-	) | rpl::then(std::move(
-		updates
-	) | rpl::filter([](const Ton::Update &update) {
-		return v::is<Ton::SyncState>(update.data);
-	}) | rpl::map([](const Ton::Update &update) {
-		return v::get<Ton::SyncState>(update.data);
-	}));
-	return rpl::combine(
-		std::move(state),
-		std::move(syncs),
-		std::move(selectedAsset)
-	) | rpl::map([=](
-			const Ton::WalletViewerState &state,
-			const Ton::SyncState &sync,
-			const std::optional<SelectedAsset> &selectedAsset) -> rpl::producer<TopBarState> {
-		if (!sync.valid() || sync.current == sync.to) {
-			return MakeNonSyncTopBarState(state, selectedAsset);
-		} else if (sync.current == sync.from) {
-			return ph::lng_wallet_sync() | ToTopBarState(selectedAsset);
-		} else {
-			const auto percent = QString::number(
-				(100 * (sync.current - sync.from)
-					/ (sync.to - sync.from)));
-			return ph::lng_wallet_sync_percent(
-			) | rpl::map([=](QString &&text) {
-				return TopBarState{
-					.text = text.replace("{percent}", percent),
-					.refreshing = false,
-					.selectedAsset = selectedAsset,
-				};
-			});
-		}
-	}) | rpl::flatten_latest() | rpl::start_spawning(alive);
+rpl::producer<TopBarState> MakeTopBarState(rpl::producer<Ton::WalletViewerState> &&state,
+                                           rpl::producer<Ton::Update> &&updates,
+                                           rpl::producer<std::optional<SelectedAsset>> &&selectedAsset,
+                                           rpl::lifetime &alive) {
+  auto syncs =                                                                                                 //
+      rpl::single(Ton::SyncState())                                                                            //
+      | rpl::then(std::move(updates)                                                                           //
+                  | rpl::filter([](const Ton::Update &update) { return v::is<Ton::SyncState>(update.data); })  //
+                  | rpl::map([](const Ton::Update &update) { return v::get<Ton::SyncState>(update.data); }));
+
+  return rpl::combine(std::move(state), std::move(syncs), std::move(selectedAsset))  //
+         | rpl::map([=](const Ton::WalletViewerState &state, const Ton::SyncState &sync,
+                        const std::optional<SelectedAsset> &selectedAsset) -> rpl::producer<TopBarState> {
+             if (!sync.valid() || sync.current == sync.to) {
+               return MakeNonSyncTopBarState(state, selectedAsset);
+             } else if (sync.current == sync.from) {
+               return ph::lng_wallet_sync() | ToTopBarState(selectedAsset);
+             } else {
+               const auto percent = QString::number((100 * (sync.current - sync.from) / (sync.to - sync.from)));
+               return ph::lng_wallet_sync_percent()  //
+                      | rpl::map([=](QString &&text) {
+                          return TopBarState{
+                              .text = text.replace("{percent}", percent),
+                              .refreshing = false,
+                              .selectedAsset = selectedAsset,
+                          };
+                        });
+             }
+           })                     //
+         | rpl::flatten_latest()  //
+         | rpl::start_spawning(alive);
 }
 
-} // namespace Wallet
+}  // namespace Wallet

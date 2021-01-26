@@ -10,11 +10,7 @@
 
 namespace Wallet {
 
-template<typename T>
-void ConfirmTransactionBox(
-	not_null<Ui::GenericBox*> box,
-	const T &invoice,
-	int64 fee,
-	const Fn<void()> &confirmed);
+template <typename T>
+void ConfirmTransactionBox(not_null<Ui::GenericBox *> box, const T &invoice, int64 fee, const Fn<void()> &confirmed);
 
-} // namespace Wallet
+}  // namespace Wallet

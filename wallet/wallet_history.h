@@ -18,96 +18,83 @@ class Painter;
 namespace Wallet {
 
 struct HistoryState {
-	QString tokenContractAddress;
-	Ton::TransactionsSlice lastTransactions;
-	std::vector<Ton::PendingTransaction> pendingTransactions;
+  Ton::TransactionsSlice lastTransactions;
+  std::vector<Ton::PendingTransaction> pendingTransactions;
 };
 
 class HistoryRow;
 
 class History final {
-public:
-	History(
-		not_null<Ui::RpWidget*> parent,
-		rpl::producer<HistoryState> state,
-		rpl::producer<Ton::LoadedSlice> loaded,
-		rpl::producer<not_null<std::vector<Ton::Transaction>*>> collectEncrypted,
-		rpl::producer<not_null<const std::vector<Ton::Transaction>*>> updateDecrypted,
-		rpl::producer<std::optional<SelectedAsset>> selectedAsset);
-	~History();
+ public:
+  History(not_null<Ui::RpWidget *> parent, rpl::producer<HistoryState> state, rpl::producer<Ton::LoadedSlice> loaded,
+          rpl::producer<not_null<std::vector<Ton::Transaction> *>> collectEncrypted,
+          rpl::producer<not_null<const std::vector<Ton::Transaction> *>> updateDecrypted,
+          rpl::producer<std::optional<SelectedAsset>> selectedAsset);
+  ~History();
 
-	void updateGeometry(QPoint position, int width);
-	[[nodiscard]] rpl::producer<int> heightValue() const;
-	void setVisible(bool visible);
-	void setVisibleTopBottom(int top, int bottom);
+  void updateGeometry(QPoint position, int width);
+  [[nodiscard]] rpl::producer<int> heightValue() const;
+  void setVisible(bool visible);
+  void setVisibleTopBottom(int top, int bottom);
 
-	[[nodiscard]] rpl::producer<Ton::TransactionId> preloadRequests() const;
-	[[nodiscard]] rpl::producer<Ton::Transaction> viewRequests() const;
-	[[nodiscard]] rpl::producer<Ton::Transaction> decryptRequests() const;
+  [[nodiscard]] rpl::producer<Ton::TransactionId> preloadRequests() const;
+  [[nodiscard]] rpl::producer<Ton::Transaction> viewRequests() const;
+  [[nodiscard]] rpl::producer<Ton::Transaction> decryptRequests() const;
 
-	[[nodiscard]] rpl::lifetime &lifetime();
+  [[nodiscard]] rpl::lifetime &lifetime();
 
-private:
-	struct ScrollState {
-		Ton::TransactionId top;
-		int offset = 0;
-	};
+ private:
+  struct ScrollState {
+    Ton::TransactionId top;
+    int offset = 0;
+  };
 
-	void setupContent(
-		rpl::producer<HistoryState> &&state,
-		rpl::producer<Ton::LoadedSlice> &&loaded,
-		rpl::producer<std::optional<SelectedAsset>> &&selectedAsset);
-	void resizeToWidth(int width);
-	void mergeState(HistoryState &&state);
-	bool mergePendingChanged(std::vector<Ton::PendingTransaction> &&list);
-	bool mergeListChanged(Ton::TransactionsSlice &&data);
-	void refreshRows();
-	void refreshPending();
-	void paint(Painter &p, QRect clip);
-	void repaintRow(not_null<HistoryRow*> row);
-	void repaintShadow(not_null<HistoryRow*> row);
-	void checkPreload() const;
+  void setupContent(rpl::producer<HistoryState> &&state, rpl::producer<Ton::LoadedSlice> &&loaded,
+                    rpl::producer<std::optional<SelectedAsset>> &&selectedAsset);
+  void resizeToWidth(int width);
+  void mergeState(HistoryState &&state);
+  bool mergePendingChanged(std::vector<Ton::PendingTransaction> &&list);
+  bool mergeListChanged(Ton::TransactionsSlice &&data);
+  void refreshRows();
+  void refreshPending();
+  void paint(Painter &p, QRect clip);
+  void repaintRow(not_null<HistoryRow *> row);
+  void repaintShadow(not_null<HistoryRow *> row);
+  void checkPreload() const;
 
-	void selectRow(int selected, ClickHandlerPtr handler);
-	void selectRowByMouse();
-	void pressRow();
-	void releaseRow();
-	void decryptById(const Ton::TransactionId &id);
+  void selectRow(int selected, const ClickHandlerPtr &handler);
+  void selectRowByMouse();
+  void pressRow();
+  void releaseRow();
+  void decryptById(const Ton::TransactionId &id);
 
-	void computeInitTransactionId();
-	void refreshShowDates();
-	void setRowShowDate(
-		const std::unique_ptr<HistoryRow> &row,
-		bool show = true);
-	bool takeDecrypted(
-		int index,
-		const std::vector<Ton::Transaction> &decrypted);
-	[[nodiscard]] std::unique_ptr<HistoryRow> makeRow(
-		const Ton::Transaction &data);
+  void computeInitTransactionId();
+  void refreshShowDates();
+  void setRowShowDate(const std::unique_ptr<HistoryRow> &row, bool show = true);
+  bool takeDecrypted(int index, const std::vector<Ton::Transaction> &decrypted);
+  [[nodiscard]] std::unique_ptr<HistoryRow> makeRow(const Ton::Transaction &data);
 
-	Ui::RpWidget _widget;
+  Ui::RpWidget _widget;
 
-	std::vector<Ton::PendingTransaction> _pendingData;
-	std::vector<Ton::Transaction> _listData;
-	Ton::TransactionId _previousId;
-	Ton::TransactionId _initTransactionId;
+  std::vector<Ton::PendingTransaction> _pendingData;
+  std::vector<Ton::Transaction> _listData;
+  Ton::TransactionId _previousId;
+  Ton::TransactionId _initTransactionId;
 
-	rpl::variable<SelectedAsset> _selectedAsset;
-	rpl::variable<QString> _tokenContractAddress;
-	std::vector<std::unique_ptr<HistoryRow>> _pendingRows;
-	std::vector<std::unique_ptr<HistoryRow>> _rows;
-	int _visibleTop = 0;
-	int _visibleBottom = 0;
-	int _selected = -1;
-	int _pressed = -1;
+  rpl::variable<SelectedAsset> _selectedAsset;
+  rpl::variable<QString> _tokenContractAddress;
+  std::vector<std::unique_ptr<HistoryRow>> _pendingRows;
+  std::vector<std::unique_ptr<HistoryRow>> _rows;
+  int _visibleTop = 0;
+  int _visibleBottom = 0;
+  int _selected = -1;
+  int _pressed = -1;
 
-	rpl::event_stream<Ton::TransactionId> _preloadRequests;
-	rpl::event_stream<Ton::Transaction> _viewRequests;
-	rpl::event_stream<Ton::Transaction> _decryptRequests;
+  rpl::event_stream<Ton::TransactionId> _preloadRequests;
+  rpl::event_stream<Ton::Transaction> _viewRequests;
+  rpl::event_stream<Ton::Transaction> _decryptRequests;
 };
 
-[[nodiscard]] rpl::producer<HistoryState> MakeHistoryState(
-	rpl::producer<QString> tokenContractAddress,
-	rpl::producer<Ton::WalletViewerState> state);
+[[nodiscard]] rpl::producer<HistoryState> MakeHistoryState(rpl::producer<Ton::WalletViewerState> state);
 
-} // namespace Wallet
+}  // namespace Wallet

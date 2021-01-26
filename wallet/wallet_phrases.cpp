@@ -26,15 +26,18 @@ phrase lng_wallet_ok = "OK";
 phrase lng_wallet_copy_address = "Copy Wallet Address";
 
 phrase lng_wallet_intro_title = "TON Crystal Wallet";
-phrase lng_wallet_intro_description = "TON Crystal wallet allows you to make fast and\nsecure blockchain-based payments\nwithout intermediaries.";
+phrase lng_wallet_intro_description =
+    "TON Crystal wallet allows you to make fast and\nsecure blockchain-based payments\nwithout intermediaries.";
 phrase lng_wallet_intro_create = "Create My Wallet";
 phrase lng_wallet_intro_import = "Import existing wallet";
 
 phrase lng_wallet_import_title = "24 Secret Words";
-phrase lng_wallet_import_description = "Please restore access to your wallet by\nentering the 24 secret words you wrote\ndown when creating the wallet.";
+phrase lng_wallet_import_description =
+    "Please restore access to your wallet by\nentering the 24 secret words you wrote\ndown when creating the wallet.";
 phrase lng_wallet_import_dont_have = "I don't have them";
 phrase lng_wallet_import_incorrect_title = "Incorrect words";
-phrase lng_wallet_import_incorrect_text = "Sorry, you have entered incorrect secret words. Please double check and try again.";
+phrase lng_wallet_import_incorrect_text =
+    "Sorry, you have entered incorrect secret words. Please double check and try again.";
 phrase lng_wallet_import_incorrect_retry = "Try again";
 
 phrase lng_wallet_too_bad_title = "Too Bad";
@@ -42,16 +45,22 @@ phrase lng_wallet_too_bad_description = "Without the secret words, you can't\nre
 phrase lng_wallet_too_bad_enter_words = "Enter words";
 
 phrase lng_wallet_created_title = "Congratulations";
-phrase lng_wallet_created_description = "Your TON Crystal wallet has just been created.\nOnly you control it.\n\nTo be able to always have access to it,\nplease set up a secure password and write\ndown secret words.";
+phrase lng_wallet_created_description =
+    "Your TON Crystal wallet has just been created.\nOnly you control it.\n\nTo be able to always have access to "
+    "it,\nplease set up a secure password and write\ndown secret words.";
 
 phrase lng_wallet_words_title = "24 secret words";
-phrase lng_wallet_words_description = "Write down these 24 words in the correct\norder and store them in a secret place.\n\nUse these secret words to restore access to\nyour wallet if you lose your password or\naccess to this device.";
+phrase lng_wallet_words_description =
+    "Write down these 24 words in the correct\norder and store them in a secret place.\n\nUse these secret words to "
+    "restore access to\nyour wallet if you lose your password or\naccess to this device.";
 phrase lng_wallet_words_sure_title = "Sure done?";
 phrase lng_wallet_words_sure_text = "You didn't have enough time to write these words down.";
 phrase lng_wallet_words_sure_ok = "OK, Sorry";
 
 phrase lng_wallet_check_title = "Test Time!";
-phrase lng_wallet_check_description = "Now let's check that you wrote your secret\nwords correctly.\n\nPlease enter the words {index1}, {index2} and {index3} below:";
+phrase lng_wallet_check_description =
+    "Now let's check that you wrote your secret\nwords correctly.\n\nPlease enter the words {index1}, {index2} and "
+    "{index3} below:";
 phrase lng_wallet_check_incorrect_title = "Incorrect words";
 phrase lng_wallet_check_incorrect_text = "The secret words you have entered do not match the ones in the list.";
 phrase lng_wallet_check_incorrect_view = "See words";
@@ -69,7 +78,9 @@ phrase lng_wallet_change_passcode_repeat = "Repeat the new password";
 phrase lng_wallet_change_passcode_done = "Password changed successfully.";
 
 phrase lng_wallet_ready_title = "Ready to go!";
-phrase lng_wallet_ready_description = "You're all set. Now you have a wallet that\nonly you control \xe2\x80\x93 directly, without\nmiddlemen or bankers.";
+phrase lng_wallet_ready_description =
+    "You're all set. Now you have a wallet that\nonly you control \xe2\x80\x93 directly, without\nmiddlemen or "
+    "bankers.";
 phrase lng_wallet_ready_show_account = "View My Wallet";
 
 phrase lng_wallet_sync = "syncing...";
@@ -137,8 +148,10 @@ phrase lng_wallet_view_send_to_recipient = "Send {ticker} to this Recipient";
 phrase lng_wallet_view_reveal = "Reveal";
 
 phrase lng_wallet_receive_title = "Receive {ticker}";
-phrase lng_wallet_receive_description = "Share this address with other TON Crystal wallet owners to receive TON from them.";
-phrase lng_wallet_receive_description_test = "Share this address to receive Ruby. Note: this link won't work for real TON.";
+phrase lng_wallet_receive_description =
+    "Share this address with other TON Crystal wallet owners to receive TON from them.";
+phrase lng_wallet_receive_description_test =
+    "Share this address to receive Ruby. Note: this link won't work for real TON.";
 phrase lng_wallet_receive_show_as_packed = "Show as packed";
 phrase lng_wallet_receive_create_invoice = "Create Invoice";
 phrase lng_wallet_receive_share = "Share Wallet Address";
@@ -151,11 +164,14 @@ phrase lng_wallet_invoice_title = "Create Invoice";
 phrase lng_wallet_invoice_amount = "Amount";
 phrase lng_wallet_invoice_number = "Amount in {ticker} you expect to receive";
 phrase lng_wallet_invoice_comment = "Comment (optional)";
-phrase lng_wallet_invoice_comment_about = "You can specify the amount and purpose of the payment to save the sender some time.";
+phrase lng_wallet_invoice_comment_about =
+    "You can specify the amount and purpose of the payment to save the sender some time.";
 phrase lng_wallet_invoice_url = "Invoice URL";
 phrase lng_wallet_invoice_copy_url = "Copy Invoice URL";
-phrase lng_wallet_invoice_url_about = "Share this address with other TON Crystal wallet owners to receive {ticker} from them.";
-phrase lng_wallet_invoice_url_about_test = "Share this address to receive Ruby. Note: this link won't work for real TON.";
+phrase lng_wallet_invoice_url_about =
+    "Share this address with other TON Crystal wallet owners to receive {ticker} from them.";
+phrase lng_wallet_invoice_url_about_test =
+    "Share this address to receive Ruby. Note: this link won't work for real TON.";
 phrase lng_wallet_invoice_generate_qr = "Generate QR Code";
 phrase lng_wallet_invoice_share = "Share Invoice URL";
 phrase lng_wallet_invoice_qr_title = "Invoice QR";
@@ -170,13 +186,17 @@ phrase lng_wallet_menu_export = "Back up wallet";
 phrase lng_wallet_menu_delete = "Log Out";
 
 phrase lng_wallet_delete_title = "Log Out";
-phrase lng_wallet_delete_about = "This will disconnect the wallet from this app. You will be able to restore your wallet using **24 secret words** \xe2\x80\x93 or import another wallet.\n\nWallets are located in the decentralized TON Blockchain. If you want the wallet to be deleted simply transfer all the TON Crystals from it and leave it empty.";
+phrase lng_wallet_delete_about =
+    "This will disconnect the wallet from this app. You will be able to restore your wallet using **24 secret words** "
+    "\xe2\x80\x93 or import another wallet.\n\nWallets are located in the decentralized TON Blockchain. If you want "
+    "the wallet to be deleted simply transfer all the TON Crystals from it and leave it empty.";
 phrase lng_wallet_delete_disconnect = "Disconnect";
 
 phrase lng_wallet_send_title = "Send {ticker}";
 phrase lng_wallet_send_recipient = "Recipient wallet address";
 phrase lng_wallet_send_address = "Enter wallet address";
-phrase lng_wallet_send_about = "Copy the wallet address of the recipient here or ask them to send you a freeton:// link.";
+phrase lng_wallet_send_about =
+    "Copy the wallet address of the recipient here or ask them to send you a freeton:// link.";
 phrase lng_wallet_send_amount = "Amount";
 phrase lng_wallet_send_balance = "Balance: {amount}";
 phrase lng_wallet_send_comment = "Comment (optional)";
@@ -188,7 +208,8 @@ phrase lng_wallet_send_button_swap_back_amount = "Swap Back {amount}";
 phrase lng_wallet_send_stake_title = "Send stake";
 phrase lng_wallet_send_stake_amount = "Amount";
 phrase lng_wallet_send_stake_balance = "Balance: {amount}";
-phrase lng_wallet_send_stake_warning = "The staking mechanism is currently at the testing stage, do not use the amount that you cannot lose.";
+phrase lng_wallet_send_stake_warning =
+    "The staking mechanism is currently at the testing stage, do not use the amount that you cannot lose.";
 phrase lng_wallet_send_stake_button = "Send stake";
 phrase lng_wallet_send_stake_button_amount = "Stake {amount}";
 
@@ -206,7 +227,8 @@ phrase lng_wallet_cancel_withdrawal_description = "It will reset withdrawal amou
 phrase lng_wallet_cancel_withdrawal_button = "Confirm";
 
 phrase lng_wallet_send_failed_title = "Sending failed";
-phrase lng_wallet_send_failed_text = "Could not perform the transaction. Please check your wallet's balance and try again.";
+phrase lng_wallet_send_failed_text =
+    "Could not perform the transaction. Please check your wallet's balance and try again.";
 
 phrase lng_wallet_confirm_title = "Confirmation";
 phrase lng_wallet_confirm_text = "Do you want to send **{grams}** to:";
@@ -219,7 +241,9 @@ phrase lng_wallet_confirm_cancel_withdrawal = "Confirm";
 phrase lng_wallet_confirm_warning = "**Note:** your comment \xC2\xAB{comment}\xC2\xBB **will not be encrypted**.";
 
 phrase lng_wallet_same_address_title = "Warning";
-phrase lng_wallet_same_address_text = "Sending TON from a wallet to the same wallet doesn't make sense, you will simply waste a portion of the value on blockchain fees.";
+phrase lng_wallet_same_address_text =
+    "Sending TON from a wallet to the same wallet doesn't make sense, you will simply waste a portion of the value on "
+    "blockchain fees.";
 phrase lng_wallet_same_address_proceed = "Proceed";
 
 phrase lng_wallet_passcode_title = "Password";
@@ -254,13 +278,15 @@ phrase lng_wallet_settings_config_from_file = "Load from file";
 phrase lng_wallet_settings_mainnet = "Main Network";
 phrase lng_wallet_settings_testnet = "Test Network";
 phrase lng_wallet_settings_blockchain_name = "Blockchain ID";
-phrase lng_wallet_settings_tokens_contract_address = "Tokens contract address";
-phrase lng_wallet_settings_tokens_contract_address_field = "Enter contract address";
 
 phrase lng_wallet_warning_reconnect = "If you proceed, you will need to reconnect your wallet using 24 secret words.";
-phrase lng_wallet_warning_blockchain_name = "Are you sure you want to change the blockchain ID? You don't need this unless you're testing your own TON network.";
-phrase lng_wallet_warning_to_testnet = "Are you sure you want to switch to the Test Free TON network? It exists only for testing purposes.";
-phrase lng_wallet_warning_to_mainnet = "Are you sure you want to switch to the Main Free TON network? TON will have real value there.";
+phrase lng_wallet_warning_blockchain_name =
+    "Are you sure you want to change the blockchain ID? You don't need this unless you're testing your own TON "
+    "network.";
+phrase lng_wallet_warning_to_testnet =
+    "Are you sure you want to switch to the Test Free TON network? It exists only for testing purposes.";
+phrase lng_wallet_warning_to_mainnet =
+    "Are you sure you want to switch to the Main Free TON network? TON will have real value there.";
 phrase lng_wallet_bad_config = "Sorry, this config is invalid.";
 phrase lng_wallet_bad_config_url = "Could not load config from URL.";
 phrase lng_wallet_wait_pending = "Please wait until the current transaction is completed.";
@@ -268,107 +294,77 @@ phrase lng_wallet_wait_syncing = "Please wait until the synchronization is compl
 
 phrase lng_wallet_downloaded = "{ready} / {total} {mb}";
 
-const auto walletCountValidate = check_phrase_count(Wallet::kPhrasesCount);
-
 Fn<phrase(int)> lng_wallet_refreshed_minutes_ago = [](int minutes) {
-	return (minutes == 1)
-		? "updated one minute ago"
-		: "updated " + QString::number(minutes) + " minutes ago";
+  return (minutes == 1) ? "updated one minute ago" : "updated " + QString::number(minutes) + " minutes ago";
 };
 
 Fn<phrase(QDate)> lng_wallet_short_date = [](QDate date) {
-	const auto month = date.month();
-	const auto result = [&]() -> QString {
-		switch (month) {
-		case 1: return "January";
-		case 2: return "February";
-		case 3: return "March";
-		case 4: return "April";
-		case 5: return "May";
-		case 6: return "June";
-		case 7: return "July";
-		case 8: return "August";
-		case 9: return "September";
-		case 10: return "October";
-		case 11: return "November";
-		case 12: return "December";
-		}
-		return QString();
-	}();
-	if (result.isEmpty()) {
-		return result;
-	}
-	const auto small = result + ' ' + QString::number(date.day());
-	const auto year = date.year();
-	const auto current = QDate::currentDate();
-	const auto currentYear = current.year();
-	const auto currentMonth = current.month();
-	if (year == currentYear) {
-		return small;
-	}
-	const auto yearIsMuchGreater = [](int year, int otherYear) {
-		return (year > otherYear + 1);
-	};
-	const auto monthIsMuchGreater = [](
-			int year,
-			int month,
-			int otherYear,
-			int otherMonth) {
-		return (year == otherYear + 1) && (month + 12 > otherMonth + 3);
-	};
-	if (false
-		|| yearIsMuchGreater(year, currentYear)
-		|| yearIsMuchGreater(currentYear, year)
-		|| monthIsMuchGreater(year, month, currentYear, currentMonth)
-		|| monthIsMuchGreater(currentYear, currentMonth, year, month)) {
-		return small + ", " + QString::number(year);
-	}
-	return small;
+  const auto month = date.month();
+  const auto result = [&]() -> QString {
+    switch (month) {
+      case 1:
+        return "January";
+      case 2:
+        return "February";
+      case 3:
+        return "March";
+      case 4:
+        return "April";
+      case 5:
+        return "May";
+      case 6:
+        return "June";
+      case 7:
+        return "July";
+      case 8:
+        return "August";
+      case 9:
+        return "September";
+      case 10:
+        return "October";
+      case 11:
+        return "November";
+      case 12:
+        return "December";
+    }
+    return QString();
+  }();
+  if (result.isEmpty()) {
+    return result;
+  }
+  const auto small = result + ' ' + QString::number(date.day());
+  const auto year = date.year();
+  const auto current = QDate::currentDate();
+  const auto currentYear = current.year();
+  const auto currentMonth = current.month();
+  if (year == currentYear) {
+    return small;
+  }
+  const auto yearIsMuchGreater = [](int year, int otherYear) { return (year > otherYear + 1); };
+  const auto monthIsMuchGreater = [](int year, int month, int otherYear, int otherMonth) {
+    return (year == otherYear + 1) && (month + 12 > otherMonth + 3);
+  };
+  if (false || yearIsMuchGreater(year, currentYear) || yearIsMuchGreater(currentYear, year) ||
+      monthIsMuchGreater(year, month, currentYear, currentMonth) ||
+      monthIsMuchGreater(currentYear, currentMonth, year, month)) {
+    return small + ", " + QString::number(year);
+  }
+  return small;
 };
 
-Fn<phrase(QTime)> lng_wallet_short_time = [](QTime time) {
-	return time.toString(Qt::SystemLocaleShortDate);
+Fn<phrase(QTime)> lng_wallet_short_time = [](QTime time) { return time.toString(Qt::SystemLocaleShortDate); };
+
+Fn<phrase(QString, const Ton::Symbol &)> lng_wallet_grams_count = [](QString text, const Ton::Symbol &symbol) {
+  return text + " " + symbol.name();
 };
 
-Fn<phrase(QString, Ton::Currency)> lng_wallet_grams_count = [](QString text, Ton::Currency token) {
-	return text + " " + Ton::toString(token);
-};
-
-Fn<phrase(QString, Ton::Currency)> lng_wallet_grams_count_sent = [](QString text, Ton::Currency token) {
-	return text + " " + Ton::toString(token) + ((text == "1")
-		? " has been sent."
-		: " have been sent.");
+Fn<phrase(QString, const Ton::Symbol &)> lng_wallet_grams_count_sent = [](QString text, const Ton::Symbol &symbol) {
+  return text + " " + symbol.name() + ((text == "1") ? " has been sent." : " have been sent.");
 };
 
 Fn<phrase(QString)> lng_wallet_grams_count_withdrawn = [](QString text) {
-	return text + " " + Ton::toString(Ton::Currency::DefaultToken) + ((text == "1")
-		? " was requested for withdrawal."
-		: " were requested for withdrawal.");
+  return text + " " + Ton::Symbol::ton().name() +
+         ((text == "1") ? " was requested for withdrawal." : " were requested for withdrawal.");
 };
 
-} // namespace ph
-
-namespace Wallet {
-
-void SetPhrases(
-		ph::details::phrase_value_array<kPhrasesCount> data,
-		Fn<rpl::producer<QString>(int)> wallet_refreshed_minutes_ago,
-		Fn<rpl::producer<QString>(QDate)> wallet_short_date,
-		Fn<rpl::producer<QString>(QTime)> wallet_short_time,
-		Fn<rpl::producer<QString>(QString, Ton::Currency)> wallet_grams_count) {
-	ph::details::set_values(std::move(data));
-	ph::lng_wallet_refreshed_minutes_ago = [=](int minutes) {
-		return ph::phrase{ wallet_refreshed_minutes_ago(minutes) };
-	};
-	ph::lng_wallet_short_date = [=](QDate date) {
-		return ph::phrase{ wallet_short_date(date) };
-	};
-	ph::lng_wallet_short_time = [=](QTime date) {
-		return ph::phrase{ wallet_short_time(date) };
-	};
-	ph::lng_wallet_grams_count = [=](QString text, Ton::Currency token) {
-		return ph::phrase{ wallet_grams_count(text, token) };
-	};
-}
-
-} // namespace Wallet
+}  // namespace ph

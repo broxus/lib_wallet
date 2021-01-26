@@ -129,17 +129,17 @@ QImage InlineTokenIcon(const Ton::Symbol &symbol, int size) {
   return CreateImage(symbol, size);
 }
 
-not_null<RpWidget *> CreateInlineTokenIcon(rpl::producer<Ton::Symbol> symbol, not_null<QWidget *> parent, int x, int y,
+not_null<RpWidget *> CreateInlineTokenIcon(const Ton::Symbol &symbol, not_null<QWidget *> parent, int x, int y,
                                            const style::font &font) {
   auto result = Ui::CreateChild<RpWidget>(parent.get());
 
   result->setGeometry(x, y + font->ascent - st::walletTokenIconAscent, st::walletDiamondSize, st::walletDiamondSize);
 
-  rpl::combine(result->paintRequest(), std::move(symbol))  //
+  rpl::combine(result->paintRequest())  //
       | rpl::start_with_next(
-            [=](const QRect &, Ton::Symbol kind) {
+            [=, symbol = symbol](const QRect &) {
               auto p = QPainter(result);
-              Paint(kind, p, 0, 0);
+              Paint(symbol, p, 0, 0);
             },
             result->lifetime());
 

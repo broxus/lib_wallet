@@ -41,34 +41,35 @@ AmountLabel::AmountLabel(not_null<QWidget *> parent, rpl::producer<FormattedAmou
     , _token(Token(amount))
     , _diamond(!st.diamond ? nullptr : std::make_unique<LottieAnimation>(parent, LottieFromResource("diamond")))
     , _tokenIcon(!st.diamond ? nullptr : std::make_unique<Ui::FixedHeightWidget>(parent)) {
-  const auto currentToken = _tokenIcon->lifetime().make_state<Ton::Symbol>(Ton::Symbol::DefaultToken);
+  const auto currentToken = _tokenIcon->lifetime().make_state<Ton::Symbol>(Ton::Symbol::ton());
 
   _diamond->start();
 
   if (_diamond) {
-    rpl::duplicate(_token) | rpl::start_with_next(
-                                 [=](Ton::Currency token) {
-                                   *currentToken = token;
+    rpl::duplicate(_token)  //
+        | rpl::start_with_next(
+              [=](Ton::Symbol symbol) {
+                *currentToken = symbol;
 
-                                   const auto isTon = !token;
-                                   _diamond->setVisible(isTon);
-                                   _tokenIcon->setVisible(!isTon);
+                _diamond->setVisible(symbol.isTon());
+                _tokenIcon->setVisible(symbol.isToken());
 
-                                   if (isTon) {
-                                     _diamond->start();
-                                   }
-                                 },
-                                 _large.lifetime());
+                if (symbol.isTon()) {
+                  _diamond->start();
+                }
+              },
+              _large.lifetime());
   }
   _large.show();
   _small.show();
 
-  _tokenIcon->paintRequest() | rpl::start_with_next(
-                                   [=](QRect clip) {
-                                     QPainter p(_tokenIcon.get());
-                                     p.drawImage(0, 0, Ui::InlineTokenIcon(*currentToken, _st.tokenIcon));
-                                   },
-                                   _tokenIcon->lifetime());
+  _tokenIcon->paintRequest()  //
+      | rpl::start_with_next(
+            [=](QRect clip) {
+              QPainter p(_tokenIcon.get());
+              p.drawImage(0, 0, Ui::InlineTokenIcon(*currentToken, _st.tokenIcon));
+            },
+            _tokenIcon->lifetime());
 }
 
 AmountLabel::~AmountLabel() = default;
@@ -76,7 +77,7 @@ AmountLabel::~AmountLabel() = default;
 rpl::producer<int> AmountLabel::widthValue() const {
   using namespace rpl::mappers;
   return rpl::combine(_large.widthValue(), _small.widthValue(), rpl::duplicate(_token)) |
-         rpl::map([this](int largeWidth, int smallWidth, Ton::Currency token) {
+         rpl::map([this](int largeWidth, int smallWidth, const Ton::Symbol &) {
            return largeWidth + smallWidth + (_diamond ? (_st.diamond + _st.diamondPosition.x()) : 0);
          });
 }

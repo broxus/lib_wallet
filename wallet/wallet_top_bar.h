@@ -13,47 +13,44 @@
 namespace Ui {
 class IconButton;
 class DropdownMenu;
-} // namespace Ui
+}  // namespace Ui
 
 namespace Ton {
 struct WalletViewerState;
 struct Update;
-enum class Currency;
-} // namespace Ton
+}  // namespace Ton
 
 namespace Wallet {
 
 enum class Action;
 
 struct TopBarState {
-	QString text;
-	bool refreshing = false;
-	std::optional<SelectedAsset> selectedAsset = std::nullopt;
+  QString text;
+  bool refreshing = false;
+  std::optional<SelectedAsset> selectedAsset = std::nullopt;
 };
 
 class TopBar final {
-public:
-	TopBar(not_null<Ui::RpWidget*> parent, rpl::producer<TopBarState> state);
+ public:
+  TopBar(not_null<Ui::RpWidget *> parent, rpl::producer<TopBarState> state);
 
-	[[nodiscard]] rpl::producer<Action> actionRequests() const;
+  [[nodiscard]] rpl::producer<Action> actionRequests() const;
 
-	[[nodiscard]] rpl::lifetime &lifetime();
+  [[nodiscard]] rpl::lifetime &lifetime();
 
-private:
-	void setupControls(rpl::producer<TopBarState> &&state);
-	void showMenu(not_null<Ui::IconButton*> toggle);
+ private:
+  void setupControls(rpl::producer<TopBarState> &&state);
+  void showMenu(not_null<Ui::IconButton *> toggle);
 
-	const not_null<Ui::RpWidget*> _widgetParent;
-	Ui::RpWidget _widget;
-	rpl::event_stream<Action> _actionRequests;
-	base::unique_qptr<Ui::DropdownMenu> _menu;
-
+  const not_null<Ui::RpWidget *> _widgetParent;
+  Ui::RpWidget _widget;
+  rpl::event_stream<Action> _actionRequests;
+  base::unique_qptr<Ui::DropdownMenu> _menu;
 };
 
-[[nodiscard]] rpl::producer<TopBarState> MakeTopBarState(
-	rpl::producer<Ton::WalletViewerState> &&state,
-	rpl::producer<Ton::Update> &&updates,
-	rpl::producer<std::optional<SelectedAsset>> &&selectedAsset,
-	rpl::lifetime &alive);
+[[nodiscard]] rpl::producer<TopBarState> MakeTopBarState(rpl::producer<Ton::WalletViewerState> &&state,
+                                                         rpl::producer<Ton::Update> &&updates,
+                                                         rpl::producer<std::optional<SelectedAsset>> &&selectedAsset,
+                                                         rpl::lifetime &alive);
 
-} // namespace Wallet
+}  // namespace Wallet

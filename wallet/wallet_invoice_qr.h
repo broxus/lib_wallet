@@ -14,9 +14,6 @@ enum class Currency;
 
 namespace Wallet {
 
-void InvoiceQrBox(
-	not_null<Ui::GenericBox*> box,
-	const QString &link,
-	const Fn<void(QImage, QString)> &share);
+void InvoiceQrBox(not_null<Ui::GenericBox *> box, const QString &link, const Fn<void(QImage, QString)> &share);
 
-} // namespace Wallet
+}  // namespace Wallet

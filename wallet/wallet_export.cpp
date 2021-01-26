@@ -14,27 +14,19 @@
 
 namespace Wallet {
 
-void ExportedBox(
-		not_null<Ui::GenericBox*> box,
-		const std::vector<QString> &words) {
-	box->setWidth(st::boxWideWidth);
-	box->setStyle(st::walletBox);
-	box->setNoContentMargin(true);
+void ExportedBox(not_null<Ui::GenericBox *> box, const std::vector<QString> &words) {
+  box->setWidth(st::boxWideWidth);
+  box->setStyle(st::walletBox);
+  box->setNoContentMargin(true);
 
-	const auto view = box->lifetime().make_state<Create::View>(
-		words,
-		Create::View::Layout::Export);
-	view->widget()->resize(st::boxWideWidth, view->desiredHeight());
-	box->addRow(
-		object_ptr<Ui::RpWidget>::fromRaw(view->widget()),
-		QMargins());
-	view->showFast();
+  const auto view = box->lifetime().make_state<Create::View>(words, Create::View::Layout::Export);
+  view->widget()->resize(st::boxWideWidth, view->desiredHeight());
+  box->addRow(object_ptr<Ui::RpWidget>::fromRaw(view->widget()), QMargins());
+  view->showFast();
 
-	box->addButton(
-		ph::lng_wallet_done(),
-		[=] { box->closeBox(); },
-		st::walletWideBottomButton
-	)->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+  box->addButton(
+         ph::lng_wallet_done(), [=] { box->closeBox(); }, st::walletWideBottomButton)
+      ->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 }
 
-} // namespace Wallet
+}  // namespace Wallet

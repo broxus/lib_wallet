@@ -12,8 +12,8 @@ class QDate;
 class QTime;
 
 namespace Ton {
-enum class Currency;
-} // namespace Ton
+class Symbol;
+}  // namespace Ton
 
 namespace ph {
 
@@ -256,8 +256,6 @@ extern phrase lng_wallet_settings_config_from_file;
 extern phrase lng_wallet_settings_mainnet;
 extern phrase lng_wallet_settings_testnet;
 extern phrase lng_wallet_settings_blockchain_name;
-extern phrase lng_wallet_settings_tokens_contract_address;
-extern phrase lng_wallet_settings_tokens_contract_address_field;
 
 extern phrase lng_wallet_warning_reconnect;
 extern phrase lng_wallet_warning_blockchain_name;
@@ -273,22 +271,8 @@ extern phrase lng_wallet_downloaded;
 extern Fn<phrase(int)> lng_wallet_refreshed_minutes_ago;
 extern Fn<phrase(QDate)> lng_wallet_short_date;
 extern Fn<phrase(QTime)> lng_wallet_short_time;
-extern Fn<phrase(QString, Ton::Currency)> lng_wallet_grams_count;
-extern Fn<phrase(QString, Ton::Currency)> lng_wallet_grams_count_sent;
+extern Fn<phrase(QString, const Ton::Symbol &)> lng_wallet_grams_count;
+extern Fn<phrase(QString, const Ton::Symbol &)> lng_wallet_grams_count_sent;
 extern Fn<phrase(QString)> lng_wallet_grams_count_withdrawn;
 
-} // namespace ph
-
-namespace Wallet {
-
-inline constexpr auto kPhrasesCount = 217;
-
-void SetPhrases(
-	ph::details::phrase_value_array<kPhrasesCount> data,
-	Fn<rpl::producer<QString>(int)> wallet_refreshed_minutes_ago,
-	Fn<rpl::producer<QString>(QDate)> wallet_short_date,
-	Fn<rpl::producer<QString>(QTime)> wallet_short_time,
-	Fn<rpl::producer<QString>(QString)> wallet_grams_count,
-	Fn<rpl::producer<QString>(QString)> wallet_grams_count_sent);
-
-} // namespace Wallet
+}  // namespace ph

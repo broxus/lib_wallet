@@ -11,7 +11,7 @@
 namespace Ton {
 enum class Currency;
 struct WalletState;
-} // namespace Ton
+}  // namespace Ton
 
 namespace Wallet {
 
@@ -19,16 +19,13 @@ struct TonTransferInvoice;
 struct TokenTransferInvoice;
 
 enum class InvoiceField {
-	Address,
-	Amount,
-	Comment,
+  Address,
+  Amount,
+  Comment,
 };
 
-template<typename T>
-void SendGramsBox(
-	not_null<Ui::GenericBox*> box,
-	const T &invoice,
-    rpl::producer<Ton::WalletState> state,
-	const Fn<void(const T&, Fn<void(InvoiceField)> error)> &done);
+template <typename T>
+void SendGramsBox(not_null<Ui::GenericBox *> box, const T &invoice, rpl::producer<Ton::WalletState> state,
+                  const Fn<void(const T &, Fn<void(InvoiceField)> error)> &done);
 
-} // namespace Wallet
+}  // namespace Wallet

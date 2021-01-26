@@ -10,21 +10,15 @@
 
 namespace Ton {
 struct Transaction;
-enum class Currency;
-} // namespace Ton
+class Symbol;
+}  // namespace Ton
 
 namespace Wallet {
 
-void SendingTransactionBox(
-	not_null<Ui::GenericBox*> box,
-	Ton::Currency token,
-	rpl::producer<> confirmed);
+void SendingTransactionBox(not_null<Ui::GenericBox *> box, const Ton::Symbol &token, rpl::producer<> confirmed);
 
-template<typename T>
-void SendingDoneBox(
-	not_null<Ui::GenericBox*> box,
-	const Ton::Transaction &result,
-	const T &invoice,
-	const Fn<void()> &onClose);
+template <typename T>
+void SendingDoneBox(not_null<Ui::GenericBox *> box, const Ton::Transaction &result, const T &invoice,
+                    const Fn<void()> &onClose);
 
-} // namespace Wallet
+}  // namespace Wallet

@@ -11,7 +11,7 @@
 namespace Wallet::details {
 
 void LogMessage(const QString &text) {
-	base::Integration::Instance().logMessage(text);
+  base::Integration::Instance().logMessage(text);
 }
 
-} // namespace Wallet::details
+}  // namespace Wallet::details

@@ -10,6 +10,6 @@ namespace Wallet::details {
 
 void LogMessage(const QString &text);
 
-} // namespace Wallet::details
+}  // namespace Wallet::details
 
 #define WALLET_LOG(DATA) ::Wallet::details::LogMessage(QString DATA);

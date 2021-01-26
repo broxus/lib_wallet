@@ -10,8 +10,6 @@
 
 namespace Wallet {
 
-void ExportedBox(
-	not_null<Ui::GenericBox*> box,
-	const std::vector<QString> &words);
+void ExportedBox(not_null<Ui::GenericBox *> box, const std::vector<QString> &words);
 
-} // namespace Wallet
+}  // namespace Wallet

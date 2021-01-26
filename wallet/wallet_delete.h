@@ -12,4 +12,4 @@ namespace Wallet {
 
 void DeleteWalletBox(not_null<Ui::GenericBox*> box, Fn<void()> logout);
 
-} // namespace Wallet
+}  // namespace Wallet

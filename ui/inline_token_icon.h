@@ -13,7 +13,7 @@ void PaintInlineTokenIcon(const Ton::Symbol &symbol, QPainter &p, int x, int y, 
 
 [[nodiscard]] QImage InlineTokenIcon(const Ton::Symbol &symbol, int size);
 
-not_null<RpWidget *> CreateInlineTokenIcon(rpl::producer<Ton::Symbol> kind, not_null<QWidget *> parent, int x, int y,
+not_null<RpWidget *> CreateInlineTokenIcon(const Ton::Symbol &symbol, not_null<QWidget *> parent, int x, int y,
                                            const style::font &font);
 
 [[nodiscard]] QImage TokenQr(const Ton::Symbol &token, const QString &text, int pixel, int max = 0);

@@ -24,7 +24,7 @@ struct WalletState;
 struct Error;
 struct Settings;
 enum class ConfigUpgrade;
-} // namespace Ton
+}  // namespace Ton
 
 namespace Ui {
 class Window;
@@ -32,12 +32,12 @@ class LayerManager;
 class GenericBox;
 class RpWidget;
 class FlatButton;
-} // namespace Ui
+}  // namespace Ui
 
 namespace Wallet {
 namespace Create {
 class Manager;
-} // namespace Create
+}  // namespace Create
 
 class Info;
 struct StakeInvoice;
@@ -47,140 +47,114 @@ enum class InfoTransition;
 using PreparedInvoiceOrLink = std::variant<PreparedInvoice, QString>;
 
 class Window final : public base::has_weak_ptr {
-public:
-	Window(not_null<Ton::Wallet*> wallet, UpdateInfo *updateInfo = nullptr);
-	~Window();
+ public:
+  Window(not_null<Ton::Wallet *> wallet, UpdateInfo *updateInfo = nullptr);
+  ~Window();
 
-	void showAndActivate();
-	[[nodiscard]] not_null<Ui::RpWidget*> widget() const;
-	bool handleLinkOpen(const QString &link);
-	void showConfigUpgrade(Ton::ConfigUpgrade upgrade);
+  void showAndActivate();
+  [[nodiscard]] not_null<Ui::RpWidget *> widget() const;
+  bool handleLinkOpen(const QString &link);
+  void showConfigUpgrade(Ton::ConfigUpgrade upgrade);
 
-private:
-	struct DecryptPasswordState {
-		int generation = 0;
-		bool success = false;
-		QPointer<Ui::GenericBox> box;
-		Fn<void(QString)> showError;
-	};
+ private:
+  struct DecryptPasswordState {
+    int generation = 0;
+    bool success = false;
+    QPointer<Ui::GenericBox> box;
+    Fn<void(QString)> showError;
+  };
 
-	void init();
-	void updatePalette();
-	void showSimpleError(
-		rpl::producer<QString> title,
-		rpl::producer<QString> text,
-		rpl::producer<QString> button);
-	void showGenericError(
-		const Ton::Error &error,
-		const QString &additional = QString());
-	void showSendingError(const Ton::Error &error);
-	void showToast(const QString &text);
-	void startWallet();
+  void init();
+  void updatePalette();
+  void showSimpleError(rpl::producer<QString> title, rpl::producer<QString> text, rpl::producer<QString> button);
+  void showGenericError(const Ton::Error &error, const QString &additional = QString());
+  void showSendingError(const Ton::Error &error);
+  void showToast(const QString &text);
+  void startWallet();
 
-	void showCreate();
-	void createImportKey(const std::vector<QString> &words);
-	void createKey(std::shared_ptr<bool> guard);
-	void createShowIncorrectWords();
-	void createShowTooFastWords();
-	void createShowIncorrectImport();
-	void createShowImportFail();
-	void createSavePasscode(
-		const QByteArray &passcode,
-		std::shared_ptr<bool> guard);
-	void createSaveKey(
-		const QByteArray &passcode,
-		const QString &address,
-		std::shared_ptr<bool> guard);
+  void showCreate();
+  void createImportKey(const std::vector<QString> &words);
+  void createKey(std::shared_ptr<bool> guard);
+  void createShowIncorrectWords();
+  void createShowTooFastWords();
+  void createShowIncorrectImport();
+  void createShowImportFail();
+  void createSavePasscode(const QByteArray &passcode, std::shared_ptr<bool> guard);
+  void createSaveKey(const QByteArray &passcode, const QString &address, std::shared_ptr<bool> guard);
 
-	void decryptEverything(const QByteArray &publicKey);
-	void askDecryptPassword(const Ton::DecryptPasswordNeeded &data);
-	void doneDecryptPassword(const Ton::DecryptPasswordGood &data);
+  void decryptEverything(const QByteArray &publicKey);
+  void askDecryptPassword(const Ton::DecryptPasswordNeeded &data);
+  void doneDecryptPassword(const Ton::DecryptPasswordGood &data);
 
-	void showAccount(const QByteArray &publicKey, bool justCreated = false);
-	void setupUpdateWithInfo();
-	void setupRefreshEach();
-	void sendMoney(const PreparedInvoiceOrLink &invoice);
-	void sendStake(const StakeInvoice &invoice);
-	void dePoolWithdraw(const WithdrawalInvoice &invoice);
-	void dePoolCancelWithdrawal(const CancelWithdrawalInvoice &invoice);
-	void confirmTransaction(
-		const PreparedInvoice &invoice,
-		const Fn<void(InvoiceField)> &showInvoiceError,
-		const std::shared_ptr<bool> &guard);
-	void showSendConfirmation(
-		const PreparedInvoice &invoice,
-		const Ton::TransactionCheckResult &checkResult,
-		const Fn<void(InvoiceField)> &showInvoiceError);
-	void askSendPassword(
-		const PreparedInvoice &invoice,
-		const Fn<void(InvoiceField)> &showInvoiceError);
-	void showSendingTransaction(
-		const Ton::PendingTransaction &transaction,
-		const PreparedInvoice &invoice,
-		rpl::producer<> confirmed);
-	void showSendingDone(std::optional<Ton::Transaction> result, const PreparedInvoice &invoice);
-	void refreshNow();
-	void receiveTokens(Ton::Currency selectedToken);
-	void createInvoice(Ton::Currency selectedToken);
-	void showInvoiceQr(const QString &link);
-	void changePassword();
-	void askExportPassword();
-	void showExported(const std::vector<QString> &words);
-	void showSettings();
-	void checkConfigFromContent(QByteArray bytes, Fn<void(QByteArray)> good);
-	void saveSettings(const Ton::Settings &settings);
-	void saveSettingsWithLoaded(const Ton::Settings &settings);
-	void saveSettingsSure(const Ton::Settings &settings, Fn<void()> done);
-	void showSwitchTestNetworkWarning(const Ton::Settings &settings);
-	void showBlockchainNameWarning(const Ton::Settings &settings);
-	void showSettingsWithLogoutWarning(
-		const Ton::Settings &settings,
-		rpl::producer<QString> text);
-	[[nodiscard]] Fn<void(QImage, QString)> shareCallback(
-		const QString &linkCopied,
-		const QString &textCopied,
-		const QString &qr);
-	[[nodiscard]] Fn<void(QImage, QString)> shareAddressCallback();
-	void logoutWithConfirmation();
-	void logout();
-	void back();
+  void showAccount(const QByteArray &publicKey, bool justCreated = false);
+  void setupUpdateWithInfo();
+  void setupRefreshEach();
+  void sendMoney(const PreparedInvoiceOrLink &symbol);
+  void sendStake(const StakeInvoice &invoice);
+  void dePoolWithdraw(const WithdrawalInvoice &invoice);
+  void dePoolCancelWithdrawal(const CancelWithdrawalInvoice &invoice);
+  void confirmTransaction(const PreparedInvoice &invoice, const Fn<void(InvoiceField)> &showInvoiceError,
+                          const std::shared_ptr<bool> &guard);
+  void showSendConfirmation(const PreparedInvoice &invoice, const Ton::TransactionCheckResult &checkResult,
+                            const Fn<void(InvoiceField)> &showInvoiceError);
+  void askSendPassword(const PreparedInvoice &invoice, const Fn<void(InvoiceField)> &showInvoiceError);
+  void showSendingTransaction(const Ton::PendingTransaction &transaction, const PreparedInvoice &invoice,
+                              rpl::producer<> confirmed);
+  void showSendingDone(std::optional<Ton::Transaction> result, const PreparedInvoice &invoice);
+  void refreshNow();
+  void receiveTokens(const Ton::Symbol &selectedToken);
+  void createInvoice(const Ton::Symbol &selectedToken);
+  void showInvoiceQr(const QString &link);
+  void changePassword();
+  void askExportPassword();
+  void showExported(const std::vector<QString> &words);
+  void showSettings();
+  void checkConfigFromContent(QByteArray bytes, Fn<void(QByteArray)> good);
+  void saveSettings(const Ton::Settings &settings);
+  void saveSettingsWithLoaded(const Ton::Settings &settings);
+  void saveSettingsSure(const Ton::Settings &settings, Fn<void()> done);
+  void showSwitchTestNetworkWarning(const Ton::Settings &settings);
+  void showBlockchainNameWarning(const Ton::Settings &settings);
+  void showSettingsWithLogoutWarning(const Ton::Settings &settings, rpl::producer<QString> text);
+  [[nodiscard]] Fn<void(QImage, QString)> shareCallback(const QString &linkCopied, const QString &textCopied,
+                                                        const QString &qr);
+  [[nodiscard]] Fn<void(QImage, QString)> shareAddressCallback();
+  void logoutWithConfirmation();
+  void logout();
+  void back();
 
-	// Before _layers, because box destructor can set this pointer.
-	std::unique_ptr<DecryptPasswordState> _decryptPasswordState;
+  // Before _layers, because box destructor can set this pointer.
+  std::unique_ptr<DecryptPasswordState> _decryptPasswordState;
 
-	const not_null<Ton::Wallet*> _wallet;
-	const std::unique_ptr<Ui::Window> _window;
-	const std::unique_ptr<Ui::LayerManager> _layers;
-	UpdateInfo * const _updateInfo = nullptr;
+  const not_null<Ton::Wallet *> _wallet;
+  const std::unique_ptr<Ui::Window> _window;
+  const std::unique_ptr<Ui::LayerManager> _layers;
+  UpdateInfo *const _updateInfo = nullptr;
 
-	std::unique_ptr<Create::Manager> _createManager;
-	rpl::event_stream<QString> _createSyncing;
-	bool _importing = false;
-	bool _testnet = false;
+  std::unique_ptr<Create::Manager> _createManager;
+  rpl::event_stream<QString> _createSyncing;
+  bool _importing = false;
+  bool _testnet = false;
 
-	QString _packedAddress;
-	QString _rawAddress;
-	std::unique_ptr<Ton::AccountViewer> _viewer;
-	rpl::variable<Ton::WalletState> _state;
-	rpl::variable<std::optional<SelectedAsset>> _selectedAsset;
-	rpl::variable<bool> _syncing;
-	rpl::variable<QString> _tokenContractAddress;
-	std::unique_ptr<Info> _info;
-	object_ptr<Ui::FlatButton> _updateButton = { nullptr };
-	rpl::event_stream<rpl::producer<int>> _updateButtonHeight;
+  QString _packedAddress;
+  QString _rawAddress;
+  std::unique_ptr<Ton::AccountViewer> _viewer;
+  rpl::variable<Ton::WalletState> _state;
+  rpl::variable<std::optional<SelectedAsset>> _selectedAsset;
+  rpl::variable<bool> _syncing;
+  std::unique_ptr<Info> _info;
+  object_ptr<Ui::FlatButton> _updateButton = {nullptr};
+  rpl::event_stream<rpl::producer<int>> _updateButtonHeight;
 
-	rpl::event_stream<
-		not_null<std::vector<Ton::Transaction>*>> _collectEncryptedRequests;
-	rpl::event_stream<
-		not_null<const std::vector<Ton::Transaction>*>> _decrypted;
-	rpl::event_stream<InfoTransition> _infoTransitions;
+  rpl::event_stream<not_null<std::vector<Ton::Transaction> *>> _collectEncryptedRequests;
+  rpl::event_stream<not_null<const std::vector<Ton::Transaction> *>> _decrypted;
+  rpl::event_stream<InfoTransition> _infoTransitions;
 
-	QPointer<Ui::GenericBox> _sendBox;
-	QPointer<Ui::GenericBox> _sendConfirmBox;
-	QPointer<Ui::GenericBox> _simpleErrorBox;
-	QPointer<Ui::GenericBox> _settingsBox;
-	QPointer<Ui::GenericBox> _saveConfirmBox;
-
+  QPointer<Ui::GenericBox> _sendBox;
+  QPointer<Ui::GenericBox> _sendConfirmBox;
+  QPointer<Ui::GenericBox> _simpleErrorBox;
+  QPointer<Ui::GenericBox> _settingsBox;
+  QPointer<Ui::GenericBox> _saveConfirmBox;
 };
 
-} // namespace Wallet
+}  // namespace Wallet

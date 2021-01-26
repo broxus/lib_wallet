@@ -11,17 +11,13 @@
 
 namespace Ton {
 struct Settings;
-} // namespace ton
+}  // namespace Ton
 
 namespace Wallet {
 
 class UpdateInfo;
 
-void SettingsBox(
-	not_null<Ui::GenericBox*> box,
-	const Ton::Settings &settings,
-	UpdateInfo *updateInfo,
-	Fn<void(QString, Fn<void(QByteArray)>)> checkConfig,
-	Fn<void(Ton::Settings)> save);
+void SettingsBox(not_null<Ui::GenericBox *> box, const Ton::Settings &settings, UpdateInfo *updateInfo,
+                 const Fn<void(QString, Fn<void(QByteArray)>)> &checkConfig, const Fn<void(Ton::Settings)> &save);
 
-} // namespace Wallet
+}  // namespace Wallet

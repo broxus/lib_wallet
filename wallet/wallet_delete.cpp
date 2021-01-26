@@ -13,19 +13,13 @@
 namespace Wallet {
 
 void DeleteWalletBox(not_null<Ui::GenericBox*> box, Fn<void()> logout) {
-	box->setTitle(ph::lng_wallet_delete_title());
+  box->setTitle(ph::lng_wallet_delete_title());
 
-	box->addRow(object_ptr<Ui::FlatLabel>(
-		box,
-		ph::lng_wallet_delete_about(Ui::Text::RichLangValue),
-		st::boxLabel));
+  box->addRow(object_ptr<Ui::FlatLabel>(box, ph::lng_wallet_delete_about(Ui::Text::RichLangValue), st::boxLabel));
 
-	box->addButton(ph::lng_wallet_delete_disconnect(), [=] {
-		logout();
-	}, st::attentionBoxButton);
-	box->addButton(ph::lng_wallet_cancel(), [=] {
-		box->closeBox();
-	});
+  box->addButton(
+      ph::lng_wallet_delete_disconnect(), [=] { logout(); }, st::attentionBoxButton);
+  box->addButton(ph::lng_wallet_cancel(), [=] { box->closeBox(); });
 }
 
-} // namespace Wallet
+}  // namespace Wallet

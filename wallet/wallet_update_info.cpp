@@ -5,4 +5,3 @@
 // https://github.com/desktop-app/legal/blob/master/LEGAL
 //
 #include "wallet/wallet_update_info.h"
-

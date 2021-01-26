@@ -12,8 +12,8 @@
 
 namespace Ton {
 struct Error;
-enum class Currency;
-Currency tokenFromString(const QString &token);
+class Symbol;
+Symbol tokenFromString(const QString &token);
 }  // namespace Ton
 
 namespace Ui {
@@ -128,8 +128,8 @@ constexpr bool is_flag_type(FormatFlag) {
 };
 using FormatFlags = base::flags<FormatFlag>;
 
-[[nodiscard]] FormattedAmount FormatAmount(int64 amount, Ton::Currency token, FormatFlags flags = FormatFlags());
-[[nodiscard]] QString AmountSeparator(Ton::Currency token = Ton::Currency::DefaultToken);
+[[nodiscard]] FormattedAmount FormatAmount(int64 amount, const Ton::Symbol &symbol, FormatFlags flags = FormatFlags());
+[[nodiscard]] QString AmountSeparator();
 [[nodiscard]] std::optional<int64> ParseAmountString(const QString &amount, size_t decimals);
 [[nodiscard]] PreparedInvoice ParseInvoice(QString invoice);
 [[nodiscard]] int64 CalculateValue(const Ton::Transaction &data);
@@ -138,7 +138,7 @@ using FormatFlags = base::flags<FormatFlag>;
 [[nodiscard]] bool IsServiceTransaction(const Ton::Transaction &data);
 [[nodiscard]] QString ExtractMessage(const Ton::Transaction &data);
 
-[[nodiscard]] QString TransferLink(const QString &address, Ton::Currency token, int64 amount = 0,
+[[nodiscard]] QString TransferLink(const QString &address, const Ton::Symbol &symbol, int64 amount = 0,
                                    const QString &comment = QString());
 
 not_null<Ui::FlatLabel *> AddBoxSubtitle(not_null<Ui::VerticalLayout *> box, rpl::producer<QString> text);
@@ -146,7 +146,7 @@ not_null<Ui::FlatLabel *> AddBoxSubtitle(not_null<Ui::GenericBox *> box, rpl::pr
 
 [[nodiscard]] not_null<Ui::InputField *> CreateAmountInput(not_null<QWidget *> parent,
                                                            rpl::producer<QString> placeholder, int64 amount,
-                                                           rpl::producer<Ton::Currency> token);
+                                                           const Ton::Symbol &symbol);
 [[nodiscard]] not_null<Ui::InputField *> CreateCommentInput(not_null<QWidget *> parent,
                                                             rpl::producer<QString> placeholder,
                                                             const QString &value = QString());

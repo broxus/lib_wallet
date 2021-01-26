@@ -12,12 +12,7 @@
 
 namespace Wallet {
 
-void CreateInvoiceBox(
-	not_null<Ui::GenericBox*> box,
-	const QString &address,
-	bool testnet,
-    Ton::Currency token,
-	const Fn<void(QString)> &generateQr,
-	const Fn<void(QImage, QString)> &share);
+void CreateInvoiceBox(not_null<Ui::GenericBox *> box, const QString &address, bool testnet, const Ton::Symbol &symbol,
+                      const Fn<void(QString)> &generateQr, const Fn<void(QImage, QString)> &share);
 
-} // namespace Wallet
+}  // namespace Wallet
