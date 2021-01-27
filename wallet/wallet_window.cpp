@@ -89,6 +89,8 @@ Window::Window(not_null<Ton::Wallet *> wallet, UpdateInfo *updateInfo)
 Window::~Window() = default;
 
 void Window::init() {
+  QApplication::setStartDragDistance(32);
+
   _window->setTitle(QString());
   _window->setGeometry(style::centerrect(qApp->primaryScreen()->geometry(), QRect(QPoint(), st::walletWindowSize)));
   _window->setMinimumSize(st::walletWindowSize);

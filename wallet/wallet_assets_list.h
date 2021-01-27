@@ -7,6 +7,10 @@
 
 class Painter;
 
+namespace Ui {
+class ScrollArea;
+}  // namespace Ui
+
 namespace Ton {
 struct WalletViewerState;
 }  // namespace Ton
@@ -38,7 +42,7 @@ class AssetsListRow;
 
 class AssetsList final {
  public:
-  AssetsList(not_null<Ui::RpWidget *> parent, rpl::producer<AssetsListState> state);
+  AssetsList(not_null<Ui::RpWidget *> parent, rpl::producer<AssetsListState> state, not_null<Ui::ScrollArea *> scroll);
   ~AssetsList();
 
   void setGeometry(QRect geometry);
@@ -56,9 +60,10 @@ class AssetsList final {
   bool mergeListChanged(AssetsListState &&data);
 
   Ui::RpWidget _widget;
+  not_null<Ui::ScrollArea *> _scroll;
 
   std::vector<std::unique_ptr<AssetsListRow>> _rows;
-  std::vector<std::unique_ptr<Ui::RoundButton>> _buttons;
+  std::vector<Ui::RoundButton *> _buttons;
   rpl::variable<int> _height;
 
   rpl::event_stream<AssetItem> _openRequests;

@@ -3,15 +3,18 @@
 #include "wallet/wallet_common.h"
 #include "ui/painter.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/address_label.h"
 #include "ui/image/image_prepare.h"
 #include "ton/ton_state.h"
 #include "styles/style_wallet.h"
 #include "styles/palette.h"
 #include "ui/layers/generic_box.h"
+#include "ui/wrap/vertical_layout_reorder.h"
 #include "wallet_phrases.h"
 
 #include <QtWidgets/qlayout.h>
+#include <QContextMenuEvent>
 #include <iostream>
 
 namespace Wallet {
@@ -154,7 +157,9 @@ class AssetsListRow final {
 
 AssetsList::~AssetsList() = default;
 
-AssetsList::AssetsList(not_null<Ui::RpWidget *> parent, rpl::producer<AssetsListState> state) : _widget(parent) {
+AssetsList::AssetsList(not_null<Ui::RpWidget *> parent, rpl::producer<AssetsListState> state,
+                       not_null<Ui::ScrollArea *> scroll)
+    : _widget(parent), _scroll(scroll) {
   setupContent(std::move(state));
 }
 
@@ -188,21 +193,30 @@ void AssetsList::setupContent(rpl::producer<AssetsListState> &&state) {
   titleLabel->show();
 
   // content
-  const auto layoutWidget = Ui::CreateChild<Ui::FixedHeightWidget>(&_widget, 0);
-  layoutWidget->setContentsMargins(st::walletTokensListPadding);
-  auto *layout = new QVBoxLayout{layoutWidget};
-  layout->setContentsMargins(0, 0, 0, 0);
-  layout->setSpacing(st::walletTokensListRowSpacing);
+  const auto layout = Ui::CreateChild<Ui::VerticalLayout>(&_widget);
+  layout->setContentsMargins(st::walletTokensListPadding);
+
+  const auto wasReordered = lifetime().make_state<bool>(false);
+
+  const auto reorder = Ui::CreateChild<Ui::VerticalLayoutReorder>(layout, layout, _scroll);
+  reorder->updates()  //
+      | rpl::start_with_next(
+            [wasReordered](Ui::VerticalLayoutReorder::Single event) {
+              if (event.state == Ui::VerticalLayoutReorder::State::Started) {
+                *wasReordered = true;
+              }
+            },
+            layout->lifetime());
 
   // open gate button
   const auto gateButton =
       Ui::CreateChild<Ui::RoundButton>(&_widget, ph::lng_wallet_tokens_list_swap(), st::walletCoverButton);
   gateButton->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 
-  gateButton->clicks() | rpl::start_with_next([=]() { _gateOpenRequests.fire({}); }, gateButton->lifetime());
+  gateButton->clicks() | rpl::start_with_next([=] { _gateOpenRequests.fire({}); }, gateButton->lifetime());
 
   //
-  rpl::combine(_widget.sizeValue(), layoutWidget->heightValue()) |
+  rpl::combine(_widget.sizeValue(), layout->heightValue()) |
       rpl::start_with_next(
           [=](QSize size, int contentHeight) {
             const auto width = std::min(size.width(), st::walletRowWidthMax);
@@ -219,16 +233,25 @@ void AssetsList::setupContent(rpl::producer<AssetsListState> &&state) {
             _height = st::walletTokensListRowsTopOffset + contentHeight + bottomSectionHeight;
 
             titleLabel->move(left + st::walletTokensListPadding.left(), st::walletTokensListPadding.top());
-            layoutWidget->setGeometry(QRect(left, topSectionHeight, width, contentHeight));
+
+            const auto paddingLeft = st::walletTokensListPadding.left();
+            const auto paddingRight = st::walletTokensListPadding.right();
+            const auto layoutWidth = width - paddingLeft - paddingRight;
+
+            layout->setGeometry(QRect(left + paddingLeft, topSectionHeight, layoutWidth, contentHeight));
             gateButton->setGeometry(
                 QRect((size.width() - gateButtonWidth) / 2, gateButtonTop, gateButtonWidth, gateButton->height()));
+
+            for (const auto &button : _buttons) {
+              button->setFixedWidth(layoutWidth);
+            }
           },
           lifetime());
 
   //
   std::move(state) |
       rpl::start_with_next(
-          [this, layoutWidget, layout](AssetsListState &&state) {
+          [=](AssetsListState &&state) {
             refreshItemValues(state);
             if (!mergeListChanged(std::move(state))) {
               return;
@@ -240,47 +263,86 @@ void AssetsList::setupContent(rpl::producer<AssetsListState> &&state) {
                 continue;
               }
 
-              auto button =
-                  std::make_unique<Ui::RoundButton>(&_widget, rpl::single(QString()), st::walletTokensListRow);
+              auto button = object_ptr<Ui::RoundButton>(&_widget, rpl::single(QString()), st::walletTokensListRow);
+              auto *buttonPtr = button.data();
 
-              auto *label = Ui::CreateChild<Ui::FixedHeightWidget>(button.get());
-              button->sizeValue() |
-                  rpl::start_with_next(
-                      [=](QSize size) { label->setGeometry(QRect(0, 0, size.width(), size.height())); },
-                      button->lifetime());
+              auto *label = Ui::CreateChild<Ui::FixedHeightWidget>(button.data());
+              button->sizeValue()  //
+                  | rpl::start_with_next(
+                        [=](QSize size) { label->setGeometry(QRect(0, 0, size.width(), size.height())); },
+                        button->lifetime());
 
-              label->paintRequest() | rpl::start_with_next(
-                                          [this, label, i](QRect clip) {
-                                            auto p = Painter(label);
-                                            _rows[i]->resizeToWidth(label->width());
-                                            _rows[i]->paint(p, clip.left(), clip.top());
-                                          },
-                                          label->lifetime());
+              label->paintRequest()  //
+                  | rpl::start_with_next(
+                        [this, label, i](QRect clip) {
+                          auto p = Painter(label);
+                          _rows[i]->resizeToWidth(label->width());
+                          _rows[i]->paint(p, clip.left(), clip.top());
+                        },
+                        label->lifetime());
 
-              button->clicks() | rpl::start_with_next(
-                                     [this, i](Qt::MouseButton mouseButton) {
-                                       if (mouseButton != Qt::MouseButton::LeftButton) {
-                                         return;
-                                       }
-                                       _openRequests.fire_copy(_rows[i]->data());
-                                     },
-                                     button->lifetime());
+              button->events()  //
+                  | rpl::start_with_next(
+                        [=](not_null<QEvent *> event) {
+                          switch (event->type()) {
+                            case QEvent::Type::ContextMenu: {
+                              const auto persistent = v::match(
+                                  _rows[i]->data(), [](const TokenItem &tokenItem) { return tokenItem.token.isTon(); },
+                                  [](auto &&) { return false; });
+                              if (persistent) {
+                                return;
+                              }
 
-              layout->addWidget(button.get());
+                              const auto *e = dynamic_cast<const QContextMenuEvent *>(event.get());
+                              auto *menu = new QMenu(buttonPtr);
+                              menu->addAction(ph::lng_wallet_tokens_list_delete_item(ph::now), [=] {
+                                // TODO: remove
+                              });
+                              (new Ui::PopupMenu(buttonPtr, menu))->popup(e->globalPos());
 
-              _buttons.emplace_back(std::move(button));
+                              break;
+                            }
+                            case QEvent::Type::MouseButtonPress: {
+                              if (dynamic_cast<const QMouseEvent *>(event.get())->button() ==
+                                  Qt::MouseButton::LeftButton) {
+                                *wasReordered = false;
+                              }
+                              return;
+                            }
+                            case QEvent::Type::MouseButtonRelease: {
+                              if (dynamic_cast<const QMouseEvent *>(event.get())->button() ==
+                                      Qt::MouseButton::LeftButton &&
+                                  !*wasReordered) {
+                                _openRequests.fire_copy(_rows[i]->data());
+                              }
+                              return;
+                            }
+                          }
+                        },
+                        button->lifetime());
+
+              button->setFixedHeight(st::walletTokensListRowHeight);
+
+              layout->add(std::move(button), QMargins{0, st::walletTokensListRowSpacing, 0, 0});
+              _buttons.emplace_back(buttonPtr);
             }
 
-            for (size_t i = _buttons.size(); i > _rows.size() + 1; --i) {
+            reorder->cancel();
+
+            for (size_t i = _buttons.size(); i > _rows.size(); --i) {
               // remove unused buttons
-              layout->removeWidget(_buttons.back().get());
+              const auto button = _buttons.back();
+              button->lifetime().destroy();
+              layout->removeChild(button);
               _buttons.pop_back();
             }
 
-            layoutWidget->setFixedHeight(static_cast<int>(_buttons.size()) *
-                                             (st::walletTokensListRowHeight + st::walletTokensListRowSpacing) -
-                                         (_buttons.empty() ? 0 : st::walletTokensListRowSpacing) +
-                                         st::walletTokensListPadding.top() + st::walletTokensListPadding.bottom());
+            layout->setFixedHeight(  //
+                static_cast<int>(_buttons.size()) * (st::walletTokensListRowHeight + st::walletTokensListRowSpacing) -
+                (_buttons.empty() ? 0 : st::walletTokensListRowSpacing) + st::walletTokensListPadding.top() +
+                st::walletTokensListPadding.bottom());
+
+            reorder->start();
           },
           lifetime());
 }

@@ -103,6 +103,7 @@ phrase lng_wallet_update = "Update Wallet";
 phrase lng_wallet_update_short = "Update";
 
 phrase lng_wallet_tokens_list_accounts = "Accounts";
+phrase lng_wallet_tokens_list_delete_item = "Delete";
 phrase lng_wallet_tokens_list_swap = "Swap Tokens";
 
 phrase lng_wallet_empty_history_title = "Wallet Created";

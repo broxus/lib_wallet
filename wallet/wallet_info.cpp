@@ -89,25 +89,26 @@ void Info::setupControls(Data &&data) {
                 rpl::filter([](const Ton::Result<Ton::LoadedSlice> &value) { return value.has_value(); }) |
                 rpl::map([](Ton::Result<Ton::LoadedSlice> &&value) { return std::move(*value); });
 
-  std::move(data.transitionEvents) | rpl::start_with_next(
-                                         [=](InfoTransition transition) {
-                                           switch (transition) {
-                                             case InfoTransition::Back:
-                                               _selectedAsset = std::nullopt;
-                                               return;
-                                             default:
-                                               return;
-                                           }
-                                         },
-                                         lifetime());
+  std::move(data.transitionEvents)  //
+      | rpl::start_with_next(
+            [=](InfoTransition transition) {
+              switch (transition) {
+                case InfoTransition::Back:
+                  _selectedAsset = std::nullopt;
+                  return;
+                default:
+                  return;
+              }
+            },
+            lifetime());
 
   // create wrappers
   const auto assetsListWrapper = Ui::CreateChild<Ui::FixedHeightWidget>(_inner.get(), _widget->height());
   const auto tonHistoryWrapper = Ui::CreateChild<Ui::FixedHeightWidget>(_inner.get(), _widget->height());
 
   // create tokens list page
-  const auto assetsList =
-      _widget->lifetime().make_state<AssetsList>(assetsListWrapper, MakeTokensListState(rpl::duplicate(state)));
+  const auto assetsList = _widget->lifetime().make_state<AssetsList>(
+      assetsListWrapper, MakeTokensListState(rpl::duplicate(state)), _scroll);
 
   assetsList->openRequests() |
       rpl::start_with_next([=](AssetItem item) { _selectedAsset = mapAssetItem(item); }, assetsList->lifetime());

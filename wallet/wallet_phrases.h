@@ -94,6 +94,7 @@ extern phrase lng_wallet_update;
 extern phrase lng_wallet_update_short;
 
 extern phrase lng_wallet_tokens_list_accounts;
+extern phrase lng_wallet_tokens_list_delete_item;
 extern phrase lng_wallet_tokens_list_swap;
 
 extern phrase lng_wallet_empty_history_title;
