@@ -237,6 +237,10 @@ phrase lng_wallet_add_depool_failed_title = "Failed to add DePool";
 phrase lng_wallet_add_depool_failed_text =
     "The specified account was not found, or it is neither DePoolV1 nor DePoolV2";
 
+phrase lng_wallet_add_token_succeeded = "TIP3 Token added successfully!";
+phrase lng_wallet_add_token_failed_title = "Failed to add TIP3 Token";
+phrase lng_wallet_add_token_failed_text = "The specified account was not found, or it is not a root token contract";
+
 phrase lng_wallet_confirm_title = "Confirmation";
 phrase lng_wallet_confirm_text = "Do you want to send **{grams}** to:";
 phrase lng_wallet_confirm_withdrawal_text = "Do you want to withdraw **{grams}** from:";

@@ -1185,6 +1185,16 @@ void Window::addAsset() {
     }
   };
 
+  const auto onNewToken = [this](Ton::Result<> result) {
+    if (result.has_value()) {
+      refreshNow();
+      showToast(ph::lng_wallet_add_token_succeeded(ph::now));
+    } else {
+      showSimpleError(ph::lng_wallet_add_token_failed_title(), ph::lng_wallet_add_token_failed_text(),
+                      ph::lng_wallet_continue());
+    }
+  };
+
   const auto checking = std::make_shared<bool>();
   const auto send = [=](const CustomAsset &newAsset, const Fn<void(AddAssetField)> &showError) {
     if (*checking) {
@@ -1195,8 +1205,17 @@ void Window::addAsset() {
       return showError(AddAssetField::Address);
     }
     const auto address = Ton::Wallet::ConvertIntoRaw(newAsset.address);
-    if (newAsset.type == CustomAssetType::DePool) {
-      _wallet->addDePool(_wallet->publicKeys().front(), address, crl::guard(this, onNewDepool));
+    switch (newAsset.type) {
+      case CustomAssetType::DePool: {
+        _wallet->addDePool(_wallet->publicKeys().front(), address, crl::guard(this, onNewDepool));
+        break;
+      }
+      case CustomAssetType::Token: {
+        _wallet->addToken(_wallet->publicKeys().front(), address, crl::guard(this, onNewToken));
+        break;
+      }
+      default:
+        break;
     }
 
     _sendBox->closeBox();

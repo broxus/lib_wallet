@@ -216,6 +216,10 @@ extern phrase lng_wallet_add_depool_succeeded;
 extern phrase lng_wallet_add_depool_failed_title;
 extern phrase lng_wallet_add_depool_failed_text;
 
+extern phrase lng_wallet_add_token_succeeded;
+extern phrase lng_wallet_add_token_failed_title;
+extern phrase lng_wallet_add_token_failed_text;
+
 extern phrase lng_wallet_confirm_title;
 extern phrase lng_wallet_confirm_text;
 extern phrase lng_wallet_confirm_withdrawal_text;
