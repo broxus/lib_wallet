@@ -252,7 +252,6 @@ void AssetsList::setupContent(rpl::producer<AssetsListState> &&state) {
       rpl::start_with_next(
           [=](QSize size, int) {
             const auto height = contentHeight->current();
-            std::cout << "New height: " << size.height() << ", " << height << std::endl;
 
             const auto width = std::min(size.width(), st::walletRowWidthMax);
             const auto left = (size.width() - width) / 2;
@@ -274,8 +273,6 @@ void AssetsList::setupContent(rpl::producer<AssetsListState> &&state) {
 
             gateButton->setGeometry(
                 QRect((size.width() - gateButtonWidth) / 2, gateButtonTop, gateButtonWidth, gateButton->height()));
-
-            std::cout << "Current top: " << gateButtonTop << " = " << gateButton->geometry().top() << std::endl;
 
             for (const auto &item : _buttons) {
               item.button->setFixedWidth(layoutWidth);
@@ -334,8 +331,11 @@ void AssetsList::setupContent(rpl::producer<AssetsListState> &&state) {
                               return;
                             }
                             const auto *e = dynamic_cast<QContextMenuEvent *>(event.get());
-                            auto *menu = new QMenu(button);
+                            auto *menu = new QMenu(&_widget);
                             menu->addAction(ph::lng_wallet_tokens_list_delete_item(ph::now), [=] {
+                              if (*i >= _rows.size()) {
+                                return;
+                              }
                               _removeAssetRequests.fire(v::match(
                                   _rows[*i]->data(),
                                   [](const TokenItem &tokenItem) {
@@ -345,7 +345,7 @@ void AssetsList::setupContent(rpl::producer<AssetsListState> &&state) {
                                     return CustomAsset{.type = CustomAssetType::DePool, .address = dePoolItem.address};
                                   }));
                             });
-                            return (new Ui::PopupMenu(button, menu))->popup(e->globalPos());
+                            return (new Ui::PopupMenu(&_widget, menu))->popup(e->globalPos());
                           }
                           case QEvent::Type::MouseButtonPress: {
                             if (dynamic_cast<QMouseEvent *>(event.get())->button() == Qt::MouseButton::LeftButton) {
@@ -376,8 +376,6 @@ void AssetsList::setupContent(rpl::producer<AssetsListState> &&state) {
             reorder->cancel();
 
             while (_buttons.size() > _rows.size()) {
-              std::cout << "Removed: " << *_buttons.back().index << std::endl;
-
               // remove unused buttons
               const auto &item = _buttons.back();
               layout->removeChild(item.button);
