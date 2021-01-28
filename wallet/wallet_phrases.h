@@ -94,6 +94,7 @@ extern phrase lng_wallet_update;
 extern phrase lng_wallet_update_short;
 
 extern phrase lng_wallet_tokens_list_accounts;
+extern phrase lng_wallet_tokens_list_add;
 extern phrase lng_wallet_tokens_list_delete_item;
 extern phrase lng_wallet_tokens_list_swap;
 
@@ -211,6 +212,10 @@ extern phrase lng_wallet_cancel_withdrawal_button;
 extern phrase lng_wallet_send_failed_title;
 extern phrase lng_wallet_send_failed_text;
 
+extern phrase lng_wallet_add_depool_succeeded;
+extern phrase lng_wallet_add_depool_failed_title;
+extern phrase lng_wallet_add_depool_failed_text;
+
 extern phrase lng_wallet_confirm_title;
 extern phrase lng_wallet_confirm_text;
 extern phrase lng_wallet_confirm_withdrawal_text;
@@ -238,6 +243,14 @@ extern phrase lng_wallet_sent_title;
 extern phrase lng_wallet_sent_cancel_withdrawal;
 extern phrase lng_wallet_sent_close;
 extern phrase lng_wallet_sent_close_view;
+
+extern phrase lng_wallet_add_asset_title;
+extern phrase lng_wallet_add_asset_token;
+extern phrase lng_wallet_add_asset_depool;
+extern phrase lng_wallet_add_asset_address;
+extern phrase lng_wallet_add_asset_token_address;
+extern phrase lng_wallet_add_asset_depool_address;
+extern phrase lng_wallet_add_asset_confirm;
 
 extern phrase lng_wallet_settings_title;
 extern phrase lng_wallet_settings_version_title;

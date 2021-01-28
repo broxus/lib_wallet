@@ -175,6 +175,14 @@ rpl::producer<> AssetsList::gateOpenRequests() const {
   return _gateOpenRequests.events();
 }
 
+rpl::producer<> AssetsList::addAssetRequests() const {
+  return _addAssetRequests.events();
+}
+
+rpl::producer<CustomAsset> AssetsList::removeAssetRequests() const {
+  return _removeAssetRequests.events();
+}
+
 rpl::producer<int> AssetsList::heightValue() const {
   return _height.value();
 }
@@ -192,6 +200,12 @@ void AssetsList::setupContent(rpl::producer<AssetsListState> &&state) {
       Ui::CreateChild<Ui::FlatLabel>(&_widget, ph::lng_wallet_tokens_list_accounts(), st::walletTokensListTitle);
   titleLabel->show();
 
+  const auto addAsset =
+      Ui::CreateChild<Ui::RoundButton>(&_widget, ph::lng_wallet_tokens_list_add(), st::walletCoverButton);
+  addAsset->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+
+  addAsset->clicks() | rpl::start_with_next([=] { _addAssetRequests.fire({}); }, addAsset->lifetime());
+
   // content
   const auto layout = Ui::CreateChild<Ui::VerticalLayout>(&_widget);
   layout->setContentsMargins(st::walletTokensListPadding);
@@ -201,9 +215,20 @@ void AssetsList::setupContent(rpl::producer<AssetsListState> &&state) {
   const auto reorder = Ui::CreateChild<Ui::VerticalLayoutReorder>(layout, layout, _scroll);
   reorder->updates()  //
       | rpl::start_with_next(
-            [wasReordered](Ui::VerticalLayoutReorder::Single event) {
-              if (event.state == Ui::VerticalLayoutReorder::State::Started) {
-                *wasReordered = true;
+            [this, wasReordered](Ui::VerticalLayoutReorder::Single event) {
+              switch (event.state) {
+                case Ui::VerticalLayoutReorder::State::Started: {
+                  *wasReordered = true;
+                  return;
+                }
+                case Ui::VerticalLayoutReorder::State::Applied: {
+                  base::reorder(_buttons, event.oldPosition, event.newPosition);
+                  for (int i = 0; i < _buttons.size(); ++i) {
+                    *_buttons[i].index = i;
+                  }
+                }
+                default:
+                  return;
               }
             },
             layout->lifetime());
@@ -215,35 +240,45 @@ void AssetsList::setupContent(rpl::producer<AssetsListState> &&state) {
 
   gateButton->clicks() | rpl::start_with_next([=] { _gateOpenRequests.fire({}); }, gateButton->lifetime());
 
+  const auto topSectionHeight = st::walletTokensListRowsTopOffset;
+  const auto bottomSectionHeight = gateButton->height() + 2 * st::walletTokensListGateButtonOffset;
+  const auto contentHeight = lifetime().make_state<rpl::variable<int>>(
+      st::walletTokensListPadding.top() + st::walletTokensListPadding.bottom() + bottomSectionHeight);
+
+  _height = topSectionHeight + contentHeight->current() + bottomSectionHeight;
+
   //
-  rpl::combine(_widget.sizeValue(), layout->heightValue()) |
+  rpl::combine(_widget.sizeValue(), contentHeight->value()) |
       rpl::start_with_next(
-          [=](QSize size, int contentHeight) {
+          [=](QSize size, int) {
+            const auto height = contentHeight->current();
+            std::cout << "New height: " << size.height() << ", " << height << std::endl;
+
             const auto width = std::min(size.width(), st::walletRowWidthMax);
             const auto left = (size.width() - width) / 2;
 
-            const auto topSectionHeight = st::walletTokensListRowsTopOffset;
-            const auto bottomSectionHeight = gateButton->height() + 2 * st::walletTokensListGateButtonOffset;
-
             const auto gateButtonWidth = width / 2;
             const auto gateButtonTop =
-                std::max((topSectionHeight + contentHeight + (bottomSectionHeight - gateButton->height()) / 2),
+                std::max((topSectionHeight + height + (bottomSectionHeight - gateButton->height()) / 2),
                          (size.height() - (bottomSectionHeight + gateButton->height()) / 2));
 
-            _height = st::walletTokensListRowsTopOffset + contentHeight + bottomSectionHeight;
-
             titleLabel->move(left + st::walletTokensListPadding.left(), st::walletTokensListPadding.top());
+            addAsset->move(left + width - addAsset->width() - st::walletTokensListPadding.left(),
+                           st::walletTokensListPadding.top());
 
             const auto paddingLeft = st::walletTokensListPadding.left();
             const auto paddingRight = st::walletTokensListPadding.right();
-            const auto layoutWidth = width - paddingLeft - paddingRight;
+            const auto layoutWidth = std::max(width - paddingLeft - paddingRight, 0);
 
-            layout->setGeometry(QRect(left + paddingLeft, topSectionHeight, layoutWidth, contentHeight));
+            layout->setGeometry(QRect(left + paddingLeft, topSectionHeight, layoutWidth, layout->size().height()));
+
             gateButton->setGeometry(
                 QRect((size.width() - gateButtonWidth) / 2, gateButtonTop, gateButtonWidth, gateButton->height()));
 
-            for (const auto &button : _buttons) {
-              button->setFixedWidth(layoutWidth);
+            std::cout << "Current top: " << gateButtonTop << " = " << gateButton->geometry().top() << std::endl;
+
+            for (const auto &item : _buttons) {
+              item.button->setFixedWidth(layoutWidth);
             }
           },
           lifetime());
@@ -263,8 +298,8 @@ void AssetsList::setupContent(rpl::producer<AssetsListState> &&state) {
                 continue;
               }
 
-              auto button = object_ptr<Ui::RoundButton>(&_widget, rpl::single(QString()), st::walletTokensListRow);
-              auto *buttonPtr = button.data();
+              auto button = object_ptr<Ui::RoundButton>(layout, rpl::single(QString()), st::walletTokensListRow);
+              auto buttonIndex = std::make_shared<int>(i);
 
               auto *label = Ui::CreateChild<Ui::FixedHeightWidget>(button.data());
               button->sizeValue()  //
@@ -274,73 +309,88 @@ void AssetsList::setupContent(rpl::producer<AssetsListState> &&state) {
 
               label->paintRequest()  //
                   | rpl::start_with_next(
-                        [this, label, i](QRect clip) {
+                        [this, label, i = buttonIndex](QRect clip) {
+                          if (*i >= _rows.size()) {
+                            return;
+                          }
                           auto p = Painter(label);
-                          _rows[i]->resizeToWidth(label->width());
-                          _rows[i]->paint(p, clip.left(), clip.top());
+                          _rows[*i]->resizeToWidth(label->width());
+                          _rows[*i]->paint(p, clip.left(), clip.top());
                         },
                         label->lifetime());
 
-              button->events()  //
-                  | rpl::start_with_next(
-                        [=](not_null<QEvent *> event) {
-                          switch (event->type()) {
-                            case QEvent::Type::ContextMenu: {
-                              const auto persistent = v::match(
-                                  _rows[i]->data(), [](const TokenItem &tokenItem) { return tokenItem.token.isTon(); },
-                                  [](auto &&) { return false; });
-                              if (persistent) {
-                                return;
-                              }
-
-                              const auto *e = dynamic_cast<const QContextMenuEvent *>(event.get());
-                              auto *menu = new QMenu(buttonPtr);
-                              menu->addAction(ph::lng_wallet_tokens_list_delete_item(ph::now), [=] {
-                                // TODO: remove
-                              });
-                              (new Ui::PopupMenu(buttonPtr, menu))->popup(e->globalPos());
-
-                              break;
-                            }
-                            case QEvent::Type::MouseButtonPress: {
-                              if (dynamic_cast<const QMouseEvent *>(event.get())->button() ==
-                                  Qt::MouseButton::LeftButton) {
-                                *wasReordered = false;
-                              }
+              button->events() |
+                  rpl::start_with_next(
+                      [this, wasReordered, button = button.data(), i = buttonIndex](not_null<QEvent *> event) {
+                        if (*i >= _rows.size()) {
+                          return;
+                        }
+                        switch (event->type()) {
+                          case QEvent::Type::ContextMenu: {
+                            const auto persistent = v::match(
+                                _rows[*i]->data(), [](const TokenItem &tokenItem) { return tokenItem.token.isTon(); },
+                                [](auto &&) { return false; });
+                            if (persistent) {
                               return;
                             }
-                            case QEvent::Type::MouseButtonRelease: {
-                              if (dynamic_cast<const QMouseEvent *>(event.get())->button() ==
-                                      Qt::MouseButton::LeftButton &&
-                                  !*wasReordered) {
-                                _openRequests.fire_copy(_rows[i]->data());
-                              }
-                              return;
-                            }
+                            const auto *e = dynamic_cast<QContextMenuEvent *>(event.get());
+                            auto *menu = new QMenu(button);
+                            menu->addAction(ph::lng_wallet_tokens_list_delete_item(ph::now), [=] {
+                              _removeAssetRequests.fire(v::match(
+                                  _rows[*i]->data(),
+                                  [](const TokenItem &tokenItem) {
+                                    return CustomAsset{.type = CustomAssetType::Token, .address = tokenItem.address};
+                                  },
+                                  [](const DePoolItem &dePoolItem) {
+                                    return CustomAsset{.type = CustomAssetType::DePool, .address = dePoolItem.address};
+                                  }));
+                            });
+                            return (new Ui::PopupMenu(button, menu))->popup(e->globalPos());
                           }
-                        },
-                        button->lifetime());
+                          case QEvent::Type::MouseButtonPress: {
+                            if (dynamic_cast<QMouseEvent *>(event.get())->button() == Qt::MouseButton::LeftButton) {
+                              *wasReordered = false;
+                            }
+                            return;
+                          }
+                          case QEvent::Type::MouseButtonRelease: {
+                            if (dynamic_cast<QMouseEvent *>(event.get())->button() == Qt::MouseButton::LeftButton &&
+                                !*wasReordered) {
+                              _openRequests.fire_copy(_rows[*i]->data());
+                            }
+                            return;
+                          }
+                          default:
+                            return;
+                        }
+                      },
+                      button->lifetime());
 
               button->setFixedHeight(st::walletTokensListRowHeight);
 
-              layout->add(std::move(button), QMargins{0, st::walletTokensListRowSpacing, 0, 0});
-              _buttons.emplace_back(buttonPtr);
+              _buttons.emplace_back(ButtonState{
+                  .button = layout->add(std::move(button), QMargins{0, st::walletTokensListRowSpacing, 0, 0}),
+                  .index = std::move(buttonIndex)});
             }
 
             reorder->cancel();
 
-            for (size_t i = _buttons.size(); i > _rows.size(); --i) {
+            while (_buttons.size() > _rows.size()) {
+              std::cout << "Removed: " << *_buttons.back().index << std::endl;
+
               // remove unused buttons
-              const auto button = _buttons.back();
-              button->lifetime().destroy();
-              layout->removeChild(button);
+              const auto &item = _buttons.back();
+              layout->removeChild(item.button);
               _buttons.pop_back();
             }
 
-            layout->setFixedHeight(  //
-                static_cast<int>(_buttons.size()) * (st::walletTokensListRowHeight + st::walletTokensListRowSpacing) -
-                (_buttons.empty() ? 0 : st::walletTokensListRowSpacing) + st::walletTokensListPadding.top() +
-                st::walletTokensListPadding.bottom());
+            *contentHeight =
+                static_cast<int>(_rows.size()) * (st::walletTokensListRowHeight + st::walletTokensListRowSpacing) -
+                (_rows.empty() ? 0 : st::walletTokensListRowSpacing) + st::walletTokensListPadding.top() +
+                st::walletTokensListPadding.bottom();
+
+            layout->setMinimumHeight(std::max(contentHeight->current() + bottomSectionHeight, _widget.height()));
+            _height = topSectionHeight + contentHeight->current() + bottomSectionHeight;
 
             reorder->start();
           },

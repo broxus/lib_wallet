@@ -9,6 +9,7 @@
 #include "wallet/wallet_phrases.h"
 #include "wallet/wallet_common.h"
 #include "wallet/wallet_info.h"
+#include "wallet/wallet_add_asset.h"
 #include "wallet/wallet_view_transaction.h"
 #include "wallet/wallet_view_depool_transaction.h"
 #include "wallet/wallet_receive_tokens.h"
@@ -462,19 +463,29 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
                       });
                   return;
                 case Action::ChangePassword:
-                  changePassword();
-                  return;
+                  return changePassword();
                 case Action::ShowSettings:
-                  showSettings();
-                  return;
+                  return showSettings();
+                case Action::AddAsset:
+                  return addAsset();
                 case Action::LogOut:
-                  logoutWithConfirmation();
-                  return;
+                  return logoutWithConfirmation();
                 case Action::Back:
-                  back();
-                  return;
+                  return back();
               }
               Unexpected("Action in Info::actionRequests().");
+            },
+            _info->lifetime());
+
+  _info->removeAssetRequests()  //
+      | rpl::start_with_next(
+            [=](const CustomAsset &asset) {
+              switch (asset.type) {
+                case CustomAssetType::DePool:
+                  return _wallet->removeDePool(_wallet->publicKeys().front(), asset.address);
+                default:
+                  return;
+              }
             },
             _info->lifetime());
 
@@ -888,15 +899,16 @@ void Window::confirmTransaction(const PreparedInvoice &invoice, const Fn<void(In
           // stay same
         },
         [&](TokenTransferInvoice &tokenTransferInvoice) {
-          tokenTransferInvoice.realAmount = result.value().sourceFees.sum() + 100'000'000;
-          for (auto fee : result.value().destinationFees) {
-            tokenTransferInvoice.realAmount += fee.sum();
-          }
+          tokenTransferInvoice.realAmount = Ton::TokenTransactionToSend::realAmount;
         },
-        [&](StakeInvoice &stakeInvoice) { stakeInvoice.realAmount = stakeInvoice.stake + 500'000'000; },
-        [&](WithdrawalInvoice &withdrawalInvoice) { withdrawalInvoice.realAmount = 500'000'000; },
+        [&](StakeInvoice &stakeInvoice) {
+          stakeInvoice.realAmount = stakeInvoice.stake + Ton::StakeTransactionToSend::depoolFee;
+        },
+        [&](WithdrawalInvoice &withdrawalInvoice) {
+          withdrawalInvoice.realAmount = Ton::WithdrawalTransactionToSend::depoolFee;
+        },
         [&](CancelWithdrawalInvoice &cancelWithdrawalInvoice) {
-          // stay same
+          cancelWithdrawalInvoice.realAmount = Ton::CancelWithdrawalTransactionToSend::depoolFee;
         });
 
     showSendConfirmation(invoice, *result, showInvoiceError);
@@ -1011,6 +1023,8 @@ void Window::showSendConfirmation(const PreparedInvoice &invoice, const Ton::Tra
     return gramsAvailable > realAmount + checkResult.sourceFees.sum();
   };
 
+  const auto sourceFees = checkResult.sourceFees.sum();
+
   auto box = v::match(
       invoice,
       [&](const TonTransferInvoice &tonTransferInvoice) -> object_ptr<Ui::GenericBox> {
@@ -1020,7 +1034,7 @@ void Window::showSendConfirmation(const PreparedInvoice &invoice, const Ton::Tra
         }
 
         return Box(
-            ConfirmTransactionBox<TonTransferInvoice>, tonTransferInvoice, checkResult.sourceFees.sum(),
+            ConfirmTransactionBox<TonTransferInvoice>, tonTransferInvoice, sourceFees,
             [=, targetAddress = tonTransferInvoice.address] {
               if (targetAddress == _packedAddress) {
                 _layers->showBox(Box([=](not_null<Ui::GenericBox *> box) {
@@ -1048,7 +1062,8 @@ void Window::showSendConfirmation(const PreparedInvoice &invoice, const Ton::Tra
           return nullptr;
         }
 
-        return Box(ConfirmTransactionBox<TokenTransferInvoice>, tokenTransferInvoice, tokenTransferInvoice.realAmount,
+        return Box(ConfirmTransactionBox<TokenTransferInvoice>, tokenTransferInvoice,
+                   tokenTransferInvoice.realAmount + sourceFees,
                    [=] { askSendPassword(tokenTransferInvoice, showInvoiceError); });
       },
       [&](const StakeInvoice &stakeInvoice) -> object_ptr<Ui::GenericBox> {
@@ -1057,7 +1072,8 @@ void Window::showSendConfirmation(const PreparedInvoice &invoice, const Ton::Tra
           return nullptr;
         }
 
-        return Box(ConfirmTransactionBox<StakeInvoice>, stakeInvoice, stakeInvoice.realAmount - stakeInvoice.stake,
+        return Box(ConfirmTransactionBox<StakeInvoice>, stakeInvoice,
+                   stakeInvoice.realAmount - stakeInvoice.stake + sourceFees,
                    [=] { askSendPassword(stakeInvoice, showInvoiceError); });
       },
       [&](const WithdrawalInvoice &withdrawalInvoice) -> object_ptr<Ui::GenericBox> {
@@ -1066,17 +1082,18 @@ void Window::showSendConfirmation(const PreparedInvoice &invoice, const Ton::Tra
           return nullptr;
         }
 
-        return Box(ConfirmTransactionBox<WithdrawalInvoice>, withdrawalInvoice, withdrawalInvoice.realAmount,
+        return Box(ConfirmTransactionBox<WithdrawalInvoice>, withdrawalInvoice,
+                   withdrawalInvoice.realAmount + sourceFees,
                    [=] { askSendPassword(withdrawalInvoice, showInvoiceError); });
       },
       [&](const CancelWithdrawalInvoice &cancelWithdrawalInvoice) -> object_ptr<Ui::GenericBox> {
-        const auto realAmount = Ton::CancelWithdrawalTransactionToSend::depoolFee;
-        if (!checkAmount(realAmount)) {
+        if (!checkAmount(cancelWithdrawalInvoice.realAmount)) {
           showInvoiceError(InvoiceField::Amount);
           return nullptr;
         }
 
-        return Box(ConfirmTransactionBox<CancelWithdrawalInvoice>, cancelWithdrawalInvoice, realAmount,
+        return Box(ConfirmTransactionBox<CancelWithdrawalInvoice>, cancelWithdrawalInvoice,
+                   cancelWithdrawalInvoice.realAmount + sourceFees,
                    [=] { askSendPassword(cancelWithdrawalInvoice, showInvoiceError); });
       });
 
@@ -1151,6 +1168,43 @@ void Window::showSendingDone(std::optional<Ton::Transaction> result, const Prepa
   if (_sendBox) {
     _sendBox->closeBox();
   }
+}
+
+void Window::addAsset() {
+  if (_sendBox) {
+    _sendBox->closeBox();
+  }
+
+  const auto onNewDepool = [this](Ton::Result<> result) {
+    if (result.has_value()) {
+      refreshNow();
+      showToast(ph::lng_wallet_add_depool_succeeded(ph::now));
+    } else {
+      showSimpleError(ph::lng_wallet_add_depool_failed_title(), ph::lng_wallet_add_depool_failed_text(),
+                      ph::lng_wallet_continue());
+    }
+  };
+
+  const auto checking = std::make_shared<bool>();
+  const auto send = [=](const CustomAsset &newAsset, const Fn<void(AddAssetField)> &showError) {
+    if (*checking) {
+      return;
+    }
+
+    if (!Ton::Wallet::CheckAddress(newAsset.address)) {
+      return showError(AddAssetField::Address);
+    }
+    const auto address = Ton::Wallet::ConvertIntoRaw(newAsset.address);
+    if (newAsset.type == CustomAssetType::DePool) {
+      _wallet->addDePool(_wallet->publicKeys().front(), address, crl::guard(this, onNewDepool));
+    }
+
+    _sendBox->closeBox();
+  };
+
+  auto box = Box(AddAssetBox, send);
+  _sendBox = box.data();
+  _layers->showBox(std::move(box));
 }
 
 void Window::receiveTokens(const Ton::Symbol &selectedToken) {

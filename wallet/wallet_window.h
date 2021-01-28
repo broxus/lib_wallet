@@ -101,6 +101,7 @@ class Window final : public base::has_weak_ptr {
   void showSendingTransaction(const Ton::PendingTransaction &transaction, const PreparedInvoice &invoice,
                               rpl::producer<> confirmed);
   void showSendingDone(std::optional<Ton::Transaction> result, const PreparedInvoice &invoice);
+  void addAsset();
   void refreshNow();
   void receiveTokens(const Ton::Symbol &selectedToken);
   void createInvoice(const Ton::Symbol &selectedToken);

@@ -146,26 +146,30 @@ void ConfirmTransactionBox(not_null<Ui::GenericBox *> box, const T &invoice, int
     }
   }
 
-  box->events() | rpl::start_with_next(
-                      [=](not_null<QEvent *> e) {
-                        if (e->type() == QEvent::KeyPress) {
-                          const auto key = dynamic_cast<QKeyEvent *>(e.get())->key();
-                          if (key == Qt::Key_Enter || key == Qt::Key_Return) {
-                            confirmed();
-                          }
-                        }
-                      },
-                      box->lifetime());
+  box->events()  //
+      | rpl::start_with_next(
+            [=](not_null<QEvent *> e) {
+              if (e->type() == QEvent::KeyPress) {
+                const auto key = dynamic_cast<QKeyEvent *>(e.get())->key();
+                if (key == Qt::Key_Enter || key == Qt::Key_Return) {
+                  confirmed();
+                }
+              }
+            },
+            box->lifetime());
 
   const auto replaceTickerTag = [](const Ton::Symbol &selectedToken) {
     return rpl::map([selectedToken](QString &&text) { return text.replace("{ticker}", selectedToken.name()); });
   };
 
-  box->addButton((isWithdrawal         ? ph::lng_wallet_confirm_withdrawal()
-                  : isCancelWithdrawal ? ph::lng_wallet_confirm_cancel_withdrawal()
-                                       : ph::lng_wallet_confirm_send()) |
-                     replaceTickerTag(token),
-                 confirmed);
+  box->addButton(    //
+      (isWithdrawal  //
+           ? ph::lng_wallet_confirm_withdrawal()
+           : isCancelWithdrawal  //
+                 ? ph::lng_wallet_confirm_cancel_withdrawal()
+                 : ph::lng_wallet_confirm_send())  //
+          | replaceTickerTag(token),
+      confirmed);
   box->addButton(ph::lng_wallet_cancel(), [=] { box->closeBox(); });
 }
 

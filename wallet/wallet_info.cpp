@@ -65,6 +65,10 @@ rpl::producer<Action> Info::actionRequests() const {
   return _actionRequests.events();
 }
 
+rpl::producer<CustomAsset> Info::removeAssetRequests() const {
+  return _removeAssetRequests.events();
+}
+
 rpl::producer<Ton::TransactionId> Info::preloadRequests() const {
   return _preloadRequests.events();
 }
@@ -102,6 +106,8 @@ void Info::setupControls(Data &&data) {
             },
             lifetime());
 
+  _inner->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+
   // create wrappers
   const auto assetsListWrapper = Ui::CreateChild<Ui::FixedHeightWidget>(_inner.get(), _widget->height());
   const auto tonHistoryWrapper = Ui::CreateChild<Ui::FixedHeightWidget>(_inner.get(), _widget->height());
@@ -115,6 +121,14 @@ void Info::setupControls(Data &&data) {
 
   assetsList->gateOpenRequests() |
       rpl::start_with_next([openGate = std::move(data.openGate)]() { openGate(); }, assetsList->lifetime());
+
+  assetsList->addAssetRequests() |
+      rpl::start_with_next([=] { _actionRequests.fire(Action::AddAsset); }, assetsList->lifetime());
+
+  assetsList->removeAssetRequests() |
+      rpl::start_with_next(
+          [=](CustomAsset &&customAsset) { _removeAssetRequests.fire(std::forward<CustomAsset>(customAsset)); },
+          assetsList->lifetime());
 
   // create ton history page
 

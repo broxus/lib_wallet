@@ -139,37 +139,38 @@ void SendGramsBox(not_null<Ui::GenericBox *> box, const T &invoice, rpl::produce
 
   auto isEthereumAddress = box->lifetime().make_state<rpl::variable<bool>>(false);
 
-  auto text = rpl::single(rpl::empty_value()) | rpl::then(base::qt_signal_producer(amount, &Ui::InputField::changed)) |
-              rpl::map([=, symbol = symbol]() -> rpl::producer<QString> {
-                const auto text = amount->getLastText();
-                const auto value = ParseAmountString(text, tokenDecimals).value_or(0);
-                if (value > 0) {
-                  return rpl::combine(                   //
-                             isEthereumAddress->value()  //
-                                 | rpl::map([](bool isEthereumAddress) {
-                                     if (isEthereumAddress) {
-                                       return ph::lng_wallet_send_button_swap_back_amount();
-                                     } else {
-                                       return ph::lng_wallet_send_button_amount();
-                                     }
-                                   })  //
-                                 | rpl::flatten_latest(),
-                             ph::lng_wallet_grams_count(FormatAmount(value, symbol).full, symbol)())  //
-                         | replaceAmountTag();
-                } else {
-                  return isEthereumAddress->value()  //
-                         | rpl::map([](bool isEthereumAddress) {
-                             if (isEthereumAddress) {
-                               return ph::lng_wallet_send_button_swap_back();
-                             } else {
-                               return ph::lng_wallet_send_button();
-                             }
-                           })                     //
-                         | rpl::flatten_latest()  //
-                         | replaceTickerTag();
-                }
-              }) |
-              rpl::flatten_latest();
+  auto text = rpl::single(rpl::empty_value())                                          //
+              | rpl::then(base::qt_signal_producer(amount, &Ui::InputField::changed))  //
+              | rpl::map([=, symbol = symbol]() -> rpl::producer<QString> {
+                  const auto text = amount->getLastText();
+                  const auto value = ParseAmountString(text, tokenDecimals).value_or(0);
+                  if (value > 0) {
+                    return rpl::combine(                   //
+                               isEthereumAddress->value()  //
+                                   | rpl::map([](bool isEthereumAddress) {
+                                       if (isEthereumAddress) {
+                                         return ph::lng_wallet_send_button_swap_back_amount();
+                                       } else {
+                                         return ph::lng_wallet_send_button_amount();
+                                       }
+                                     })  //
+                                   | rpl::flatten_latest(),
+                               ph::lng_wallet_grams_count(FormatAmount(value, symbol).full, symbol)())  //
+                           | replaceAmountTag();
+                  } else {
+                    return isEthereumAddress->value()  //
+                           | rpl::map([](bool isEthereumAddress) {
+                               if (isEthereumAddress) {
+                                 return ph::lng_wallet_send_button_swap_back();
+                               } else {
+                                 return ph::lng_wallet_send_button();
+                               }
+                             })                     //
+                           | rpl::flatten_latest()  //
+                           | replaceTickerTag();
+                  }
+                })  //
+              | rpl::flatten_latest();
 
   const auto showError = crl::guard(box, [=](InvoiceField field) {
     switch (field) {

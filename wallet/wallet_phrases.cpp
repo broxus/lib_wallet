@@ -103,6 +103,7 @@ phrase lng_wallet_update = "Update Wallet";
 phrase lng_wallet_update_short = "Update";
 
 phrase lng_wallet_tokens_list_accounts = "Accounts";
+phrase lng_wallet_tokens_list_add = "Add";
 phrase lng_wallet_tokens_list_delete_item = "Delete";
 phrase lng_wallet_tokens_list_swap = "Swap Tokens";
 
@@ -231,6 +232,11 @@ phrase lng_wallet_send_failed_title = "Sending failed";
 phrase lng_wallet_send_failed_text =
     "Could not perform the transaction. Please check your wallet's balance and try again.";
 
+phrase lng_wallet_add_depool_succeeded = "DePool added successfully!";
+phrase lng_wallet_add_depool_failed_title = "Failed to add DePool";
+phrase lng_wallet_add_depool_failed_text =
+    "The specified account was not found, or it is neither DePoolV1 nor DePoolV2";
+
 phrase lng_wallet_confirm_title = "Confirmation";
 phrase lng_wallet_confirm_text = "Do you want to send **{grams}** to:";
 phrase lng_wallet_confirm_withdrawal_text = "Do you want to withdraw **{grams}** from:";
@@ -260,6 +266,14 @@ phrase lng_wallet_sent_title = "Done!";
 phrase lng_wallet_sent_cancel_withdrawal = "Withdrawal cancelled";
 phrase lng_wallet_sent_close = "Close";
 phrase lng_wallet_sent_close_view = "View";
+
+phrase lng_wallet_add_asset_title = "New Asset";
+phrase lng_wallet_add_asset_token = "Add TIP3 Token";
+phrase lng_wallet_add_asset_depool = "Add DePool";
+phrase lng_wallet_add_asset_address = "Address";
+phrase lng_wallet_add_asset_token_address = "Root token contract address";
+phrase lng_wallet_add_asset_depool_address = "DePool address";
+phrase lng_wallet_add_asset_confirm = "Confirm";
 
 phrase lng_wallet_settings_title = "Settings";
 phrase lng_wallet_settings_version_title = "Version and updates";

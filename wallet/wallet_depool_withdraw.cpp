@@ -4,10 +4,7 @@
 #include "wallet/wallet_common.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/input_fields.h"
-#include "ui/widgets/labels.h"
-#include "ui/widgets/buttons.h"
 #include "ui/inline_token_icon.h"
-#include "base/algorithm.h"
 #include "base/qt_signal_producer.h"
 #include "styles/style_wallet.h"
 #include "styles/style_layers.h"
@@ -47,16 +44,18 @@ void DePoolWithdrawBox(not_null<Ui::GenericBox *> box, const WithdrawalInvoice &
       box->lifetime().make_state<rpl::variable<WithdrawalType>>(static_cast<WithdrawalType>(invoice.all));
   const auto withdrawalKindSelector = std::make_shared<Ui::RadiobuttonGroup>(invoice.all);
   const auto radioButtonMargin = QMargins(st::walletSendAmountPadding.left(), 0, 0, 0);
-  const auto withdrawAll = Ui::CreateChild<Ui::Radiobutton>(
-      box->addRow(object_ptr<Ui::FixedHeightWidget>(box, st::defaultCheckbox.margin.top() + st::defaultRadio.diameter +
-                                                             st::defaultCheckbox.margin.bottom()),
-                  radioButtonMargin),
-      withdrawalKindSelector, WithdrawalType::All, ph::lng_wallet_withdraw_all(ph::now));
-  const auto withdrawPart = Ui::CreateChild<Ui::Radiobutton>(
-      box->addRow(object_ptr<Ui::FixedHeightWidget>(box, st::defaultCheckbox.margin.top() + st::defaultRadio.diameter +
-                                                             st::defaultCheckbox.margin.bottom()),
-                  radioButtonMargin),
-      withdrawalKindSelector, WithdrawalType::Part, ph::lng_wallet_withdraw_part(ph::now));
+  const auto radioButtonItemHeight =
+      st::defaultCheckbox.margin.top() + st::defaultRadio.diameter + st::defaultCheckbox.margin.bottom();
+
+  const auto withdrawAll = box->addRow(  //
+      object_ptr<Ui::FixedHeightWidget>(box, radioButtonItemHeight), radioButtonMargin);
+  Ui::CreateChild<Ui::Radiobutton>(withdrawAll, withdrawalKindSelector, WithdrawalType::All,
+                                   ph::lng_wallet_withdraw_all(ph::now));
+
+  const auto withdrawPart = box->addRow(  //
+      object_ptr<Ui::FixedHeightWidget>(box, radioButtonItemHeight), radioButtonMargin);
+  Ui::CreateChild<Ui::Radiobutton>(withdrawPart, withdrawalKindSelector, WithdrawalType::Part,
+                                   ph::lng_wallet_withdraw_part(ph::now));
 
   const auto amountWrapper = box->addRow(object_ptr<Ui::VerticalLayout>(box), QMargins{});
 

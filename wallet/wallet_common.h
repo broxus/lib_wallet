@@ -50,6 +50,13 @@ using SelectedAsset = std::variant<SelectedToken, SelectedDePool>;
 
 auto operator==(const SelectedAsset &a, const SelectedAsset &b) -> bool;
 
+enum CustomAssetType { Token = 0, DePool = 1 };
+
+struct CustomAsset {
+  CustomAssetType type;
+  QString address;
+};
+
 struct FormattedAmount {
   Ton::Symbol token;
   QString gramsString;
@@ -96,6 +103,7 @@ struct WithdrawalInvoice {
 
 struct CancelWithdrawalInvoice {
   QString dePool{};
+  int64 realAmount{};
 
   auto asTransaction() const -> Ton::CancelWithdrawalTransactionToSend;
 };
@@ -110,6 +118,7 @@ enum class Action {
   Receive,
   ChangePassword,
   ShowSettings,
+  AddAsset,
   LogOut,
   Back,
 };

@@ -62,6 +62,8 @@ PRIVATE
     wallet/create/wallet_create_step.h
     wallet/create/wallet_create_view.cpp
     wallet/create/wallet_create_view.h
+    wallet/wallet_add_asset.cpp
+    wallet/wallet_add_asset.h
     wallet/wallet_change_passcode.cpp
     wallet/wallet_change_passcode.h
     wallet/wallet_common.cpp
