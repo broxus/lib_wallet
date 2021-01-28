@@ -483,6 +483,8 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
               switch (asset.type) {
                 case CustomAssetType::DePool:
                   return _wallet->removeDePool(_wallet->publicKeys().front(), asset.address);
+                case CustomAssetType::Token:
+                  return _wallet->removeToken(_wallet->publicKeys().front(), asset.address);
                 default:
                   return;
               }
