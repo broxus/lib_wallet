@@ -26,7 +26,7 @@ struct CoverState {
   bool useTestNetwork = false;
   bool reinvest = false;
 
-  auto selectedToken() const -> Ton::Symbol;
+  [[nodiscard]] auto selectedToken() const -> Ton::Symbol;
 };
 
 class Cover final {

@@ -21,7 +21,7 @@ class FlatLabel;
 
 [[nodiscard]] style::TextStyle ComputeAddressStyle(const style::TextStyle &parent);
 
-[[nodiscard]] not_null<RpWidget *> CreateAddressLabel(not_null<RpWidget *> parent, const QString &text,
+[[nodiscard]] not_null<RpWidget *> CreateAddressLabel(not_null<RpWidget *> parent, rpl::producer<QString> &&text,
                                                       const style::FlatLabel &st,
                                                       const Fn<void()> &onClickOverride = nullptr,
                                                       const std::optional<QColor> &bg = std::nullopt);

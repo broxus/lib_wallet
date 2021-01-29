@@ -66,26 +66,50 @@ void EmptyHistory::setupControls(rpl::producer<EmptyHistoryState> &&state) {
           },
           label->lifetime());
 
-  std::move(state) | rpl::map([](const EmptyHistoryState &state) { return state.address; }) | rpl::take(1) |
+  const auto currentAddress = _widget.lifetime().make_state<rpl::variable<QString>>();
+  std::move(state) |
+      rpl::start_with_next([currentAddress](const EmptyHistoryState &state) { *currentAddress = state.address; },
+                           _widget.lifetime());
+
+  const auto address = Ui::CreateAddressLabel(&_widget, currentAddress->value(), st::walletEmptyHistoryAddress,
+                                              [this, currentAddress] { _share(QImage(), currentAddress->current()); });
+
+  rpl::combine(_widget.sizeValue(), address->widthValue()) |
       rpl::start_with_next(
-          [=](const QString &text) {
-            const auto address =
-                Ui::CreateAddressLabel(&_widget, text, st::walletEmptyHistoryAddress, [=] { _share(QImage(), text); });
-            rpl::combine(_widget.sizeValue(), address->widthValue()) |
-                rpl::start_with_next(
-                    [=](QSize size, int width) {
-                      const auto blockTop = (size.height() - st::walletEmptyHistoryHeight) / 2;
-                      address->moveToLeft((size.width() - address->widthNoMargins()) / 2,
-                                          blockTop + st::walletEmptyHistoryAddressTop, size.width());
-                    },
-                    address->lifetime());
+          [=](QSize size, int width) {
+            const auto blockTop = (size.height() - st::walletEmptyHistoryHeight) / 2;
+            address->moveToLeft((size.width() - address->widthNoMargins()) / 2,
+                                blockTop + st::walletEmptyHistoryAddressTop, size.width());
           },
-          lifetime());
+          address->lifetime());
 }
 
-rpl::producer<EmptyHistoryState> MakeEmptyHistoryState(rpl::producer<Ton::WalletViewerState> state, bool justCreated) {
-  return std::move(state) | rpl::map([=](const Ton::WalletViewerState &state) {
-           return EmptyHistoryState{state.wallet.address, justCreated};
-         });
+rpl::producer<EmptyHistoryState> MakeEmptyHistoryState(rpl::producer<Ton::WalletViewerState> state,
+                                                       rpl::producer<std::optional<SelectedAsset>> selectedAsset,
+                                                       bool justCreated) {
+  return rpl::combine(std::move(state), std::move(selectedAsset))  //
+         | rpl::map(
+               [justCreated](const Ton::WalletViewerState &state, const std::optional<SelectedAsset> &selectedAsset) {
+                 const auto asset = selectedAsset.value_or(SelectedToken{.token = Ton::Symbol::ton()});
+
+                 const auto address = v::match(
+                     asset,
+                     [&](const SelectedToken &selectedToken) {
+                       if (selectedToken.token.isTon()) {
+                         return state.wallet.address;
+                       }
+
+                       const auto it = state.wallet.tokenStates.find(selectedToken.token);
+                       if (it != state.wallet.tokenStates.end()) {
+                         return it->second.walletContractAddress;
+                       } else {
+                         // Unreachable in theory
+                         return state.wallet.address;
+                       }
+                     },
+                     [&](const SelectedDePool &selectedDePool) { return selectedDePool.address; });
+
+                 return EmptyHistoryState{address, justCreated};
+               });
 }
 }  // namespace Wallet

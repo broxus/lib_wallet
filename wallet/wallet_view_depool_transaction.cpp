@@ -119,8 +119,8 @@ void ViewDePoolTransactionBox(not_null<Ui::GenericBox *> box, const Ton::Transac
   AddBoxSubtitle(box, ph::lng_wallet_view_depool());
 
   box->addRow(  //
-      object_ptr<Ui::RpWidget>::fromRaw(
-          Ui::CreateAddressLabel(box, address, st::walletTransactionAddress, [=] { share(QImage(), address); })),
+      object_ptr<Ui::RpWidget>::fromRaw(Ui::CreateAddressLabel(box, rpl::single(address), st::walletTransactionAddress,
+                                                               [=] { share(QImage(), address); })),
       {
           st::boxRowPadding.left(),
           st::boxRowPadding.top(),

@@ -148,7 +148,8 @@ void Info::setupControls(Data &&data) {
       std::move(data.updateDecrypted), _selectedAsset.value());
 
   const auto emptyHistory = _widget->lifetime().make_state<EmptyHistory>(
-      tonHistoryWrapper, MakeEmptyHistoryState(rpl::duplicate(state), data.justCreated), data.share);
+      tonHistoryWrapper, MakeEmptyHistoryState(rpl::duplicate(state), _selectedAsset.value(), data.justCreated),
+      data.share);
 
   //  const auto dePoolInfo = _widget->lifetime().make_state<DePoolInfo>(
   //      tonHistoryWrapper,

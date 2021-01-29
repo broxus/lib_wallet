@@ -23,12 +23,13 @@ not_null<Ui::RoundButton *> CreateCoverButton(not_null<QWidget *> parent, rpl::p
   const auto result = Ui::CreateChild<Ui::RoundButton>(parent.get(), rpl::single(QString()), st::walletCoverButton);
   const auto label = Ui::CreateChild<Ui::FlatLabel>(result, std::move(text), st::walletCoverButtonLabel);
   label->setAttribute(Qt::WA_TransparentForMouseEvents);
-  label->paintRequest() | rpl::start_with_next(
-                              [=, &icon](QRect clip) {
-                                auto p = QPainter(label);
-                                icon.paint(p, st::walletCoverIconPosition, label->width());
-                              },
-                              label->lifetime());
+  label->paintRequest()  //
+      | rpl::start_with_next(
+            [=, &icon](QRect clip) {
+              auto p = QPainter(label);
+              icon.paint(p, st::walletCoverIconPosition, label->width());
+            },
+            label->lifetime());
   rpl::combine(result->widthValue(), label->widthValue()) |
       rpl::start_with_next(
           [=](int outer, int width) { label->move((outer - width) / 2, st::walletCoverButton.textTop); },

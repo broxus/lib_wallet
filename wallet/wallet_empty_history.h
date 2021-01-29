@@ -8,6 +8,8 @@
 
 #include "ui/rp_widget.h"
 
+#include "wallet_common.h"
+
 namespace Ton {
 struct WalletViewerState;
 }  // namespace Ton
@@ -36,7 +38,8 @@ class EmptyHistory final {
   Fn<void(QImage, QString)> _share;
 };
 
-[[nodiscard]] rpl::producer<EmptyHistoryState> MakeEmptyHistoryState(rpl::producer<Ton::WalletViewerState> state,
-                                                                     bool justCreated);
+[[nodiscard]] rpl::producer<EmptyHistoryState> MakeEmptyHistoryState(
+    rpl::producer<Ton::WalletViewerState> state, rpl::producer<std::optional<SelectedAsset>> selectedAsset,
+    bool justCreated);
 
 }  // namespace Wallet

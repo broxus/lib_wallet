@@ -124,8 +124,8 @@ void ConfirmTransactionBox(not_null<Ui::GenericBox *> box, const T &invoice, int
 
   box->addRow(object_ptr<Ui::FlatLabel>(box, std::move(text), st::walletLabel), st::walletConfirmationLabelPadding);
 
-  box->addRow(object_ptr<Ui::RpWidget>::fromRaw(Ui::CreateAddressLabel(box, address, st::walletConfirmationAddressLabel,
-                                                                       nullptr, st::windowBgOver->c)),
+  box->addRow(object_ptr<Ui::RpWidget>::fromRaw(Ui::CreateAddressLabel(
+                  box, rpl::single(address), st::walletConfirmationAddressLabel, nullptr, st::windowBgOver->c)),
               st::walletConfirmationAddressPadding);
 
   const auto feeParsed = FormatAmount(fee, Ton::Symbol::ton()).full;

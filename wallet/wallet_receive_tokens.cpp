@@ -63,14 +63,14 @@ void ReceiveTokensBox(not_null<Ui::GenericBox *> box, const QString &packedAddre
       Ui::CreateChild<Ui::SlideWrap<Ui::RpWidget>>(
           addressWrap,
           object_ptr<Ui::RpWidget>::fromRaw(Ui::CreateAddressLabel(
-              addressWrap, packedAddress, st::walletReceiveAddressLabel, [=] { share(QImage(), packedAddress); })))
+              addressWrap, rpl::single(packedAddress), st::walletReceiveAddressLabel, [=] { share(QImage(), packedAddress); })))
           ->setDuration(0);
 
   const auto rawAddressLabel =
       Ui::CreateChild<Ui::SlideWrap<Ui::RpWidget>>(
           addressWrap,
           object_ptr<Ui::RpWidget>::fromRaw(Ui::CreateAddressLabel(
-              addressWrap, rawAddress, st::walletReceiveAddressLabel, [=] { share(QImage(), rawAddress); })))
+              addressWrap, rpl::single(rawAddress), st::walletReceiveAddressLabel, [=] { share(QImage(), rawAddress); })))
           ->setDuration(0);
 
   addressWrap->setFixedHeight(rawAddressLabel->height());

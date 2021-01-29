@@ -239,8 +239,8 @@ void ViewTransactionBox(not_null<Ui::GenericBox *> box, Ton::Transaction &&data,
   if (!service) {
     AddBoxSubtitle(box, incoming ? ph::lng_wallet_view_sender() : ph::lng_wallet_view_recipient());
     box->addRow(  //
-        object_ptr<Ui::RpWidget>::fromRaw(
-            Ui::CreateAddressLabel(box, address, st::walletTransactionAddress, [=] { share(QImage(), address); })),
+        object_ptr<Ui::RpWidget>::fromRaw(Ui::CreateAddressLabel(
+            box, rpl::single(address), st::walletTransactionAddress, [=] { share(QImage(), address); })),
         {
             st::boxRowPadding.left(),
             st::boxRowPadding.top(),

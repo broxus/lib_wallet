@@ -24,14 +24,15 @@ style::TextStyle ComputeAddressStyle(const style::TextStyle &parent) {
   return result;
 }
 
-not_null<RpWidget *> CreateAddressLabel(not_null<RpWidget *> parent, const QString &text, const style::FlatLabel &st,
-                                        const Fn<void()> &onClickOverride, const std::optional<QColor> &bg) {
+not_null<RpWidget *> CreateAddressLabel(not_null<RpWidget *> parent, rpl::producer<QString> &&text,
+                                        const style::FlatLabel &st, const Fn<void()> &onClickOverride,
+                                        const std::optional<QColor> &bg) {
   const auto mono = parent->lifetime().make_state<style::FlatLabel>(st);
   mono->style = ComputeAddressStyle(mono->style);
   mono->minWidth = 50;
 
   const auto result = CreateChild<Ui::RpWidget>(parent.get());
-  const auto label = CreateChild<Ui::FlatLabel>(result, rpl::single(text), *mono);
+  const auto label = CreateChild<Ui::FlatLabel>(result, rpl::duplicate(text), *mono);
   label->setBreakEverywhere(true);
   if (onClickOverride) {
     label->setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -44,16 +45,23 @@ not_null<RpWidget *> CreateAddressLabel(not_null<RpWidget *> parent, const QStri
     label->setContextCopyText(ph::lng_wallet_copy_address(ph::now));
   }
 
-  const auto half = text.size() / 2;
-  const auto first = text.mid(0, half);
-  const auto second = text.mid(half);
-  const auto width =
-      std::max(mono->style.font->width(first), mono->style.font->width(second)) + mono->style.font->spacew / 2;
-  label->resizeToWidth(width);
   if (!onClickOverride) {
     label->setSelectable(true);
   }
-  result->resize(label->size());
+
+  std::move(text)  //
+      | rpl::start_with_next(
+            [mono, label, result](QString &&text) {
+              const auto half = text.size() / 2;
+              const auto first = text.mid(0, half);
+              const auto second = text.mid(half);
+              const auto width = std::max(mono->style.font->width(first), mono->style.font->width(second)) +
+                                 mono->style.font->spacew / 2;
+              label->resizeToWidth(width);
+              result->resize(label->size());
+            },
+            parent->lifetime());
+
   result->widthValue()  //
       | rpl::start_with_next(
             [=](int width) {
