@@ -69,7 +69,7 @@ rpl::producer<CustomAsset> Info::removeAssetRequests() const {
   return _removeAssetRequests.events();
 }
 
-rpl::producer<Ton::TransactionId> Info::preloadRequests() const {
+rpl::producer<std::pair<Ton::Symbol, Ton::TransactionId>> Info::preloadRequests() const {
   return _preloadRequests.events();
 }
 
@@ -89,9 +89,11 @@ void Info::setupControls(Data &&data) {
   topBar->actionRequests() | rpl::start_to_stream(_actionRequests, topBar->lifetime());
 
   // ton data stream
-  auto loaded = std::move(data.loaded) |
-                rpl::filter([](const Ton::Result<Ton::LoadedSlice> &value) { return value.has_value(); }) |
-                rpl::map([](Ton::Result<Ton::LoadedSlice> &&value) { return std::move(*value); });
+  auto loaded =
+      std::move(data.loaded)  //
+      | rpl::filter(
+            [](const Ton::Result<std::pair<Ton::Symbol, Ton::LoadedSlice>> &value) { return value.has_value(); })  //
+      | rpl::map([](Ton::Result<std::pair<Ton::Symbol, Ton::LoadedSlice>> &&value) { return std::move(*value); });
 
   std::move(data.transitionEvents)  //
       | rpl::start_with_next(

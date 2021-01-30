@@ -414,9 +414,10 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
 
   setupRefreshEach();
 
-  _viewer->loaded()                                                                               //
-      | rpl::filter([](const Ton::Result<Ton::LoadedSlice> &value) { return !value; })            //
-      | rpl::map([](Ton::Result<Ton::LoadedSlice> &&value) { return std::move(value.error()); })  //
+  _viewer->loaded()                                                                                             //
+      | rpl::filter([](const Ton::Result<std::pair<Ton::Symbol, Ton::LoadedSlice>> &value) { return !value; })  //
+      | rpl::map(
+            [](Ton::Result<std::pair<Ton::Symbol, Ton::LoadedSlice>> &&value) { return std::move(value.error()); })  //
       | rpl::start_with_next([=](const Ton::Error &error) { showGenericError(error); }, _info->lifetime());
 
   setupUpdateWithInfo();
@@ -507,8 +508,20 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
             },
             _info->lifetime());
 
-  _info->preloadRequests() |
-      rpl::start_with_next([=](const Ton::TransactionId &id) { _viewer->preloadSlice(id); }, _info->lifetime());
+  _info->preloadRequests()  //
+      | rpl::start_with_next(
+            [=](const std::pair<Ton::Symbol, Ton::TransactionId> &id) {
+              if (id.first.isTon()) {
+                _viewer->preloadSlice(id.second);
+              } else {
+                const auto state = _state.current();
+                const auto it = state.tokenStates.find(id.first);
+                if (it != end(state.tokenStates)) {
+                  _viewer->preloadTokenSlice(id.first, it->second.walletContractAddress, id.second);
+                }
+              }
+            },
+            _info->lifetime());
 
   _info->viewRequests() |
       rpl::start_with_next(

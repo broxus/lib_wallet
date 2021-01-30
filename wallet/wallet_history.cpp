@@ -166,15 +166,18 @@ void refreshTimeTexts(TransactionLayout &layout, bool forceDateText = false) {
 
 [[nodiscard]] TransactionLayout prepareLayout(const Ton::Symbol &token, const Ton::Transaction &transaction,
                                               const Ton::TokenTransaction &tokenTransaction) {
-  const auto [address, value, flags] = v::match(
+  const auto [address, value, incoming, flags] = v::match(
       tokenTransaction,
-      [](const Ton::TokenTransfer &transfer) { return std::make_tuple(transfer.dest, transfer.value, Flag(0)); },
+      [](const Ton::TokenTransfer &transfer) {
+        return std::make_tuple(Ton::Wallet::ConvertIntoRaw(transfer.address), transfer.value, transfer.incoming,
+                               Flag(0));
+      },
 
       [](const Ton::TokenSwapBack &tokenSwapBack) {
-        return std::make_tuple(tokenSwapBack.dest, tokenSwapBack.value, Flag::SwapBack);
+        return std::make_tuple(tokenSwapBack.address, tokenSwapBack.value, false, Flag::SwapBack);
       });
 
-  const auto amount = FormatAmount(-value, token, FormatFlag::Signed | FormatFlag::Rounded);
+  const auto amount = FormatAmount(incoming ? value : -value, token, FormatFlag::Signed | FormatFlag::Rounded);
   const auto addressPartWidth = [address = std::ref(address)](int from, int length = -1) {
     return addressStyle().font->width(address.get().mid(from, length));
   };
@@ -190,10 +193,10 @@ void refreshTimeTexts(TransactionLayout &layout, bool forceDateText = false) {
   result.comment = Ui::Text::String(st::walletAddressWidthMin);
   result.comment.setText(st::defaultTextStyle, {}, _textPlainOptions);
 
-  const auto fee = FormatAmount(-CalculateValue(transaction), Ton::Symbol::ton()).full;
+  const auto fee = FormatAmount(CalculateValue(transaction), Ton::Symbol::ton()).full;
   result.fees.setText(st::defaultTextStyle, ph::lng_wallet_row_fees(ph::now).replace("{amount}", fee));
 
-  result.flags = flags;
+  result.flags = flags | (incoming ? Flag::Incoming : Flag(0));
 
   refreshTimeTexts(result);
   return result;
@@ -232,7 +235,8 @@ class HistoryRow final {
   [[nodiscard]] bool isVisible() const;
 
   void clearAdditionalInfo();
-  void setAdditionalInfo(const AdditionalTransactionInfo &info);
+  void setAdditionalInfo(const Ton::Symbol &symbol, Ton::TokenTransaction &&tokenTransaction);
+  void setAdditionalInfo(Ton::DePoolTransaction &&dePoolTransaction);
 
   void paint(Painter &p, int x, int y);
   void paintDate(Painter &p, int x, int y);
@@ -381,20 +385,20 @@ bool HistoryRow::isVisible() const {
 
 void HistoryRow::clearAdditionalInfo() {
   additionalInfo_.reset();
+  symbol_ = Ton::Symbol::ton();
   layout_ = prepareLayout(transaction_, decrypt_, isInitTransaction_);
 }
 
-void HistoryRow::setAdditionalInfo(const AdditionalTransactionInfo &info) {
-  v::match(
-      info,
-      [&](const Ton::TokenTransaction &tokenTransaction) {
-        additionalInfo_ = tokenTransaction;
-        layout_ = prepareLayout(symbol_, transaction_, tokenTransaction);
-      },
-      [&](const Ton::DePoolTransaction &dePoolTransaction) {
-        additionalInfo_ = dePoolTransaction;
-        layout_ = prepareLayout(transaction_, dePoolTransaction);
-      });
+void HistoryRow::setAdditionalInfo(const Ton::Symbol &symbol, Ton::TokenTransaction &&tokenTransaction) {
+  layout_ = prepareLayout(symbol, transaction_, tokenTransaction);
+  additionalInfo_ = std::forward<Ton::TokenTransaction>(tokenTransaction);
+  symbol_ = symbol;
+}
+
+void HistoryRow::setAdditionalInfo(Ton::DePoolTransaction &&dePoolTransaction) {
+  layout_ = prepareLayout(transaction_, dePoolTransaction);
+  additionalInfo_ = std::forward<Ton::DePoolTransaction>(dePoolTransaction);
+  symbol_ = Ton::Symbol::ton();
 }
 
 void HistoryRow::paint(Painter &p, int x, int y) {
@@ -547,7 +551,7 @@ ClickHandlerPtr HistoryRow::handlerUnderCursor(QPoint point) const {
 }
 
 History::History(not_null<Ui::RpWidget *> parent, rpl::producer<HistoryState> state,
-                 rpl::producer<Ton::LoadedSlice> loaded,
+                 rpl::producer<std::pair<Ton::Symbol, Ton::LoadedSlice>> loaded,
                  rpl::producer<not_null<std::vector<Ton::Transaction> *>> collectEncrypted,
                  rpl::producer<not_null<const std::vector<Ton::Transaction> *>> updateDecrypted,
                  rpl::producer<std::optional<SelectedAsset>> selectedAsset)
@@ -557,8 +561,13 @@ History::History(not_null<Ui::RpWidget *> parent, rpl::producer<HistoryState> st
   base::unixtime::updates()  //
       | rpl::start_with_next(
             [=] {
-              for (const auto &row : ranges::views::concat(_pendingRows, _rows)) {
+              for (const auto &row : _pendingRows) {
                 row->refreshDate();
+              }
+              for (auto &items : _rows) {
+                for (auto &row : items.second) {
+                  row->refreshDate();
+                }
               }
               refreshShowDates();
               _widget.update();
@@ -568,17 +577,26 @@ History::History(not_null<Ui::RpWidget *> parent, rpl::producer<HistoryState> st
   std::move(collectEncrypted)  //
       | rpl::start_with_next(
             [=](not_null<std::vector<Ton::Transaction> *> list) {
-              auto &&encrypted = ranges::views::all(_listData) | ranges::views::filter(IsEncryptedMessage);
-              list->insert(list->end(), encrypted.begin(), encrypted.end());
+              auto it = _transactions.find(Ton::Symbol::ton());
+              if (it != end(_transactions)) {
+                auto &&encrypted = ranges::views::all(it->second.list) | ranges::views::filter(IsEncryptedMessage);
+                list->insert(list->end(), encrypted.begin(), encrypted.end());
+              }
             },
             _widget.lifetime());
 
   std::move(updateDecrypted)  //
       | rpl::start_with_next(
             [=](not_null<const std::vector<Ton::Transaction> *> list) {
+              auto it = _transactions.find(Ton::Symbol::ton());
+              if (it == end(_transactions)) {
+                return;
+              }
+              auto &transactions = it->second;
+
               auto changed = false;
-              for (auto i = 0, count = int(_listData.size()); i != count; ++i) {
-                if (IsEncryptedMessage(_listData[i])) {
+              for (auto i = 0, count = static_cast<int>(transactions.list.size()); i != count; ++i) {
+                if (IsEncryptedMessage(transactions.list[i])) {
                   if (takeDecrypted(i, *list)) {
                     changed = true;
                   }
@@ -600,13 +618,30 @@ void History::updateGeometry(QPoint position, int width) {
 }
 
 void History::resizeToWidth(int width) {
+  auto symbol = v::match(
+      _selectedAsset.current(), [](const SelectedToken &selectedToken) { return selectedToken.token; },
+      [](const SelectedDePool &selectedDePool) { return Ton::Symbol::ton(); });
+
   if (!width) {
     return;
   }
 
-  auto top = (_pendingRows.empty() && _rows.empty()) ? 0 : st::walletRowsSkip;
+  auto rowsIt = _rows.find(symbol);
+  if (rowsIt == end(_rows)) {
+    return;
+  }
+  auto &rows = rowsIt->second;
+
+  auto top = ((symbol.isTon() && _pendingRows.empty() || symbol.isToken()) && rows.empty()) ? 0 : st::walletRowsSkip;
   int height = 0;
-  for (const auto &row : ranges::views::concat(_pendingRows, _rows)) {
+  if (symbol.isTon()) {
+    for (const auto &row : _pendingRows) {
+      row->setTop(top + height);
+      row->resizeToWidth(width);
+      height += row->height();
+    }
+  }
+  for (const auto &row : rows) {
     row->setTop(top + height);
     row->resizeToWidth(width);
     height += row->height();
@@ -625,15 +660,23 @@ void History::setVisible(bool visible) {
 }
 
 void History::setVisibleTopBottom(int top, int bottom) {
+  auto symbol = v::match(
+      _selectedAsset.current(), [](const SelectedToken &selectedToken) { return selectedToken.token; },
+      [](const SelectedDePool &selectedDePool) { return Ton::Symbol::ton(); });
+
   _visibleTop = top - _widget.y();
   _visibleBottom = bottom - _widget.y();
-  if (_visibleBottom <= _visibleTop || !_previousId.lt || _rows.empty()) {
+
+  auto transactionsIt = _transactions.find(symbol);
+  auto rowsIt = _rows.find(symbol);
+  if (_visibleBottom <= _visibleTop || transactionsIt != end(_transactions) && !transactionsIt->second.previousId.lt ||
+      rowsIt != end(_rows) && rowsIt->second.empty()) {
     return;
   }
   checkPreload();
 }
 
-rpl::producer<Ton::TransactionId> History::preloadRequests() const {
+rpl::producer<std::pair<Ton::Symbol, Ton::TransactionId>> History::preloadRequests() const {
   return _preloadRequests.events();
 }
 
@@ -649,17 +692,27 @@ rpl::lifetime &History::lifetime() {
   return _widget.lifetime();
 }
 
-void History::setupContent(rpl::producer<HistoryState> &&state, rpl::producer<Ton::LoadedSlice> &&loaded,
+void History::setupContent(rpl::producer<HistoryState> &&state,
+                           rpl::producer<std::pair<Ton::Symbol, Ton::LoadedSlice>> &&loaded,
                            rpl::producer<std::optional<SelectedAsset>> &&selectedAsset) {
   std::move(state) | rpl::start_with_next([=](HistoryState &&state) { mergeState(std::move(state)); }, lifetime());
 
-  std::move(loaded)                                                                               //
-      | rpl::filter([=](const Ton::LoadedSlice &slice) { return (slice.after == _previousId); })  //
+  std::move(loaded)  //
       | rpl::start_with_next(
-            [=](Ton::LoadedSlice &&slice) {
-              const auto loadedLast = (_previousId.lt != 0) && (slice.data.previousId.lt == 0);
-              _previousId = slice.data.previousId;
-              _listData.insert(end(_listData), slice.data.list.begin(), slice.data.list.end());
+            [=](const std::pair<Ton::Symbol, Ton::LoadedSlice> &slice) {
+              auto it = _transactions.find(slice.first);
+              if (it == end(_transactions)) {
+                it = _transactions
+                         .emplace(std::piecewise_construct, std::forward_as_tuple(slice.first),
+                                  std::forward_as_tuple(TransactionsState{}))
+                         .first;
+              }
+              auto &transactions = it->second;
+
+              const auto loadedLast = (transactions.previousId.lt != 0) && (slice.second.data.previousId.lt == 0);
+              transactions.previousId = slice.second.data.previousId;
+              transactions.list.insert(end(transactions.list), slice.second.data.list.begin(),
+                                       slice.second.data.list.end());
               if (loadedLast) {
                 computeInitTransactionId();
               }
@@ -693,6 +746,8 @@ void History::setupContent(rpl::producer<HistoryState> &&state, rpl::producer<To
                 case QEvent::MouseButtonRelease:
                   releaseRow();
                   return;
+                default:
+                  return;
               }
             },
             lifetime());
@@ -712,28 +767,48 @@ void History::setupContent(rpl::producer<HistoryState> &&state, rpl::producer<To
 void History::selectRow(int selected, const ClickHandlerPtr &handler) {
   Expects(selected >= 0 || !handler);
 
+  auto symbol = v::match(
+      _selectedAsset.current(), [](const SelectedToken &selectedToken) { return selectedToken.token; },
+      [](const SelectedDePool &selectedDePool) { return Ton::Symbol::ton(); });
+  const auto rowsIt = _rows.find(symbol);
+  if (rowsIt == end(_rows)) {
+    return;
+  }
+  const auto &rows = rowsIt->second;
+
   if (_selected != selected) {
-    const auto was = (_selected >= 0 && _selected < int(_rows.size())) ? _rows[_selected].get() : nullptr;
-    if (was)
+    const auto was = (_selected >= 0 && _selected < int(rows.size())) ? rows[_selected].get() : nullptr;
+    if (was) {
       repaintRow(was);
+    }
     _selected = selected;
     _widget.setCursor((_selected >= 0) ? style::cur_pointer : style::cur_default);
   }
   if (ClickHandler::getActive() != handler) {
-    const auto now = (_selected >= 0 && _selected < int(_rows.size())) ? _rows[_selected].get() : nullptr;
-    if (now)
+    const auto now = (_selected >= 0 && _selected < int(rows.size())) ? rows[_selected].get() : nullptr;
+    if (now) {
       repaintRow(now);
+    }
     ClickHandler::setActive(handler);
   }
 }
 
 void History::selectRowByMouse() {
-  const auto point = _widget.mapFromGlobal(QCursor::pos());
-  const auto from = ranges::upper_bound(_rows, point.y(), ranges::less(), &HistoryRow::bottom);
-  const auto till = ranges::lower_bound(_rows, point.y(), ranges::less(), &HistoryRow::top);
+  auto symbol = v::match(
+      _selectedAsset.current(), [](const SelectedToken &selectedToken) { return selectedToken.token; },
+      [](const SelectedDePool &selectedDePool) { return Ton::Symbol::ton(); });
+  const auto rowsIt = _rows.find(symbol);
+  if (rowsIt == end(_rows)) {
+    return;
+  }
+  const auto &rows = rowsIt->second;
 
-  if (from != _rows.end() && from != till && (*from)->isUnderCursor(point)) {
-    selectRow(from - begin(_rows), (*from)->handlerUnderCursor(point));
+  const auto point = _widget.mapFromGlobal(QCursor::pos());
+  const auto from = ranges::upper_bound(rows, point.y(), ranges::less(), &HistoryRow::bottom);
+  const auto till = ranges::lower_bound(rows, point.y(), ranges::less(), &HistoryRow::top);
+
+  if (from != rows.end() && from != till && (*from)->isUnderCursor(point)) {
+    selectRow(from - begin(rows), (*from)->handlerUnderCursor(point));
   } else {
     selectRow(-1, nullptr);
   }
@@ -745,7 +820,18 @@ void History::pressRow() {
 }
 
 void History::releaseRow() {
-  Expects(_selected < int(_rows.size()));
+  auto symbol = v::match(
+      _selectedAsset.current(), [](const SelectedToken &selectedToken) { return selectedToken.token; },
+      [](const SelectedDePool &selectedDePool) { return Ton::Symbol::ton(); });
+  const auto transactionsIt = _transactions.find(symbol);
+  const auto rowsIt = _rows.find(symbol);
+  if (transactionsIt == end(_transactions) || rowsIt == end(_rows)) {
+    return;
+  }
+  const auto &transactions = transactionsIt->second;
+  const auto &rows = rowsIt->second;
+
+  Expects(_selected < static_cast<int>(rows.size()));
 
   const auto handler = ClickHandler::unpressed();
   if (std::exchange(_pressed, -1) != _selected || _selected < 0) {
@@ -756,22 +842,39 @@ void History::releaseRow() {
   if (handler) {
     handler->onClick(ClickContext());
   } else {
-    const auto i = ranges::find(_listData, _rows[_selected]->id(), &Ton::Transaction::id);
-    Assert(i != end(_listData));
+    const auto i = ranges::find(transactions.list, rows[_selected]->id(), &Ton::Transaction::id);
+    Assert(i != end(transactions.list));
     _viewRequests.fire_copy(*i);
   }
 }
 
 void History::decryptById(const Ton::TransactionId &id) {
-  const auto i = ranges::find(_listData, id, &Ton::Transaction::id);
-  Assert(i != end(_listData));
+  const auto transactionsIt = _transactions.find(Ton::Symbol::ton());
+  if (transactionsIt == _transactions.end()) {
+    return;
+  }
+  const auto &transactions = transactionsIt->second;
+
+  const auto i = ranges::find(transactions.list, id, &Ton::Transaction::id);
+  Assert(i != end(transactions.list));
   _decryptRequests.fire_copy(*i);
 }
 
 void History::paint(Painter &p, QRect clip) {
-  if (_pendingRows.empty() && _rows.empty()) {
+  const auto symbol = v::match(
+      _selectedAsset.current(), [](const SelectedToken &selectedToken) { return selectedToken.token; },
+      [](const SelectedDePool &selectedDePool) { return Ton::Symbol::ton(); });
+
+  auto rowsIt = _rows.find(symbol);
+  if (rowsIt == _rows.end()) {
     return;
   }
+  const auto &rows = rowsIt->second;
+
+  if ((symbol.isTon() && _pendingRows.empty() || symbol.isToken()) && rows.empty()) {
+    return;
+  }
+
   const auto paintRows = [&](const std::vector<std::unique_ptr<HistoryRow>> &rows) {
     const auto from = ranges::upper_bound(rows, clip.top(), ranges::less(), &HistoryRow::bottom);
     const auto till = ranges::lower_bound(rows, clip.top() + clip.height(), ranges::less(), &HistoryRow::top);
@@ -795,8 +898,10 @@ void History::paint(Painter &p, QRect clip) {
       lastDateTop = top;
     }
   };
-  paintRows(_pendingRows);
-  paintRows(_rows);
+  if (symbol.isTon()) {
+    paintRows(_pendingRows);
+  }
+  paintRows(rows);
 }
 
 void History::mergeState(HistoryState &&state) {
@@ -816,18 +921,31 @@ bool History::mergePendingChanged(std::vector<Ton::PendingTransaction> &&list) {
   return true;
 }
 
-bool History::mergeListChanged(Ton::TransactionsSlice &&data) {
-  const auto i = _listData.empty() ? data.list.cend() : ranges::find(std::as_const(data.list), _listData.front());
-  if (i == data.list.cend()) {
-    _listData = data.list | ranges::to_vector;
-    _previousId = std::move(data.previousId);
-    if (!_previousId.lt) {
-      computeInitTransactionId();
+bool History::mergeListChanged(std::map<Ton::Symbol, Ton::TransactionsSlice> &&data) {
+  for (auto &&[symbol, newTransactions] : data) {
+    auto transactionsIt = _transactions.find(symbol);
+    if (transactionsIt == _transactions.end()) {
+      transactionsIt = _transactions
+                           .emplace(std::piecewise_construct, std::forward_as_tuple(symbol),
+                                    std::forward_as_tuple(TransactionsState{}))
+                           .first;
     }
-    return true;
-  } else if (i != data.list.cbegin()) {
-    _listData.insert(begin(_listData), data.list.cbegin(), i);
-    return true;
+    auto &transactions = transactionsIt->second;
+
+    const auto i = transactions.list.empty()  //
+                       ? newTransactions.list.cend()
+                       : ranges::find(std::as_const(newTransactions.list), newTransactions.list.front());
+    if (i == newTransactions.list.cend()) {
+      transactions.list = newTransactions.list | ranges::to_vector;
+      transactions.previousId = std::move(newTransactions.previousId);
+      if (!transactions.previousId.lt) {
+        computeInitTransactionId();
+      }
+      return true;
+    } else if (i != newTransactions.list.cbegin()) {
+      transactions.list.insert(begin(transactions.list), newTransactions.list.cbegin(), i);
+      return true;
+    }
   }
   return false;
 }
@@ -838,65 +956,80 @@ void History::setRowShowDate(const std::unique_ptr<HistoryRow> &row, bool show) 
 }
 
 bool History::takeDecrypted(int index, const std::vector<Ton::Transaction> &decrypted) {
-  Expects(index >= 0 && index < _listData.size());
-  Expects(index >= 0 && index < _rows.size());
-  Expects(_rows[index]->id() == _listData[index].id);
+  const auto symbol = Ton::Symbol::ton();
+  auto rowsIt = _rows.find(symbol);
+  auto transactionsIt = _transactions.find(symbol);
+  Expects(rowsIt != _rows.end() && transactionsIt != _transactions.end());
+  auto &rows = rowsIt->second;
+  auto &transactions = transactionsIt->second;
 
-  const auto i = ranges::find(decrypted, _listData[index].id, &Ton::Transaction::id);
+  Expects(index >= 0 && index < transactions.list.size());
+  Expects(index >= 0 && index < rows.size());
+  Expects(rows[index]->id() == transactions.list[index].id);
+
+  const auto i = ranges::find(decrypted, transactions.list[index].id, &Ton::Transaction::id);
   if (i == end(decrypted)) {
     return false;
   }
   if (IsEncryptedMessage(*i)) {
-    _rows[index]->setDecryptionFailed();
+    rows[index]->setDecryptionFailed();
   } else {
-    _listData[index] = *i;
-    _rows[index] = makeRow(*i);
+    transactions.list[index] = *i;
+    rows[index] = makeRow(*i, i->id == transactions.initTransactionId);
   }
   return true;
 }
 
-std::unique_ptr<HistoryRow> History::makeRow(const Ton::Transaction &data) {
+std::unique_ptr<HistoryRow> History::makeRow(const Ton::Transaction &data, bool isInit) {
   const auto id = data.id;
   if (id.lt == 0) {
     // pending
     return std::make_unique<HistoryRow>(data);
   }
 
-  const auto isInitTransaction = (_initTransactionId == id);
   return std::make_unique<HistoryRow>(
-      data, [=] { decryptById(id); }, isInitTransaction);
+      data, [=] { decryptById(id); }, isInit);
 }
 
 void History::computeInitTransactionId() {
-  const auto was = _initTransactionId;
-  auto found = static_cast<Ton::Transaction *>(nullptr);
-  for (auto &row : ranges::views::reverse(_listData)) {
-    if (IsServiceTransaction(row)) {
-      found = &row;
-      break;
-    } else if (row.incoming.source.isEmpty()) {
-      break;
+  for (auto &[symbol, transactions] : _transactions) {
+    const auto was = transactions.initTransactionId;
+    auto found = static_cast<Ton::Transaction *>(nullptr);
+    for (auto &row : ranges::views::reverse(transactions.list)) {
+      if (IsServiceTransaction(row)) {
+        found = &row;
+        break;
+      } else if (row.incoming.source.isEmpty()) {
+        break;
+      }
     }
-  }
-  const auto now = found ? found->id : Ton::TransactionId();
-  if (was == now) {
-    return;
-  }
+    const auto now = found ? found->id : Ton::TransactionId();
+    if (was == now) {
+      return;
+    }
 
-  _initTransactionId = now;
-  const auto wasItem = ranges::find(_listData, was, &Ton::Transaction::id);
-  if (wasItem != end(_listData)) {
-    wasItem->initializing = false;
-    const auto wasRow = ranges::find(_rows, was, &HistoryRow::id);
-    if (wasRow != end(_rows)) {
-      *wasRow = makeRow(*wasItem);
+    transactions.initTransactionId = now;
+
+    auto it = _rows.find(symbol);
+    const auto wasItem = ranges::find(transactions.list, was, &Ton::Transaction::id);
+    if (wasItem != end(transactions.list)) {
+      wasItem->initializing = false;
+
+      if (it != end(_rows)) {
+        const auto wasRow = ranges::find(it->second, was, &HistoryRow::id);
+        if (wasRow != end(it->second)) {
+          *wasRow = makeRow(*wasItem, false);
+        }
+      }
     }
-  }
-  if (found) {
-    found->initializing = true;
-    const auto nowRow = ranges::find(_rows, now, &HistoryRow::id);
-    if (nowRow != end(_rows)) {
-      *nowRow = makeRow(*found);
+    if (found) {
+      found->initializing = true;
+      if (it != end(_rows)) {
+        const auto nowRow = ranges::find(it->second, now, &HistoryRow::id);
+        if (nowRow != end(it->second)) {
+          *nowRow = makeRow(*found, true);
+        }
+      }
     }
   }
 }
@@ -904,42 +1037,37 @@ void History::computeInitTransactionId() {
 void History::refreshShowDates() {
   const auto selectedAsset = _selectedAsset.current();
 
-  const auto targetAddress = v::match(
-      selectedAsset,
-      [this](const SelectedToken &) {
-        return _tokenContractAddress.current().isEmpty() ? QString{}
-                                                         : Ton::Wallet::ConvertIntoRaw(_tokenContractAddress.current());
-      },
-      [](const SelectedDePool &selectedDePool) { return Ton::Wallet::ConvertIntoRaw(selectedDePool.address); });
+  const auto [symbol, targetAddress] = v::match(
+      selectedAsset, [](const SelectedToken &selectedToken) { return std::make_pair(selectedToken.token, QString{}); },
+      [](const SelectedDePool &selectedDePool) {
+        return std::make_pair(Ton::Symbol::ton(), Ton::Wallet::ConvertIntoRaw(selectedDePool.address));
+      });
 
-  auto filterTransaction = [selectedAsset, targetAddress](decltype(_rows.front()) &row) {
+  const auto rowsIt = _rows.find(symbol);
+  const auto transactionsIt = _transactions.find(symbol);
+  if (rowsIt == _rows.end() || transactionsIt == _transactions.end()) {
+    return;
+  }
+  auto &rows = rowsIt->second;
+  auto &transactions = transactionsIt->second;
+
+  auto filterTransaction = [selectedAsset, targetAddress = targetAddress](decltype(rows.front()) &row) {
     const auto &transaction = row->transaction();
 
     v::match(
         selectedAsset,
         [&](const SelectedToken &selectedToken) {
+          row->setVisible(true);
           if (selectedToken.token.isTon()) {
-            row->setVisible(true);
             row->clearAdditionalInfo();
             return;
           }
 
-          //  for (const auto &out : transaction.outgoing) {
-          //    if (Ton::Wallet::ConvertIntoRaw(out.destination) != targetAddress) {
-          //      continue;
-          //    }
-          //
-          //    auto tokenTransaction = Ton::Wallet::ParseTokenTransaction(out.message);
-          //    if (tokenTransaction.has_value() && !Ton::CheckTokenTransaction(selectedToken.token, *tokenTransaction)) {
-          //      break;
-          //    }
-          //
-          //    row->setVisible(true);
-          //    row->attachTokenTransaction(std::move(tokenTransaction));
-          //    return;
-          //  }
-
-          row->setVisible(false);
+          auto tokenTransaction = Ton::Wallet::ParseTokenTransaction(transaction.incoming.message);
+          if (!tokenTransaction.has_value()) {
+            return row->setVisible(false);
+          }
+          row->setAdditionalInfo(selectedToken.token, std::move(*tokenTransaction));
         },
         [&](const SelectedDePool &selectedDePool) {
           const auto incoming = !transaction.incoming.source.isEmpty();
@@ -947,7 +1075,7 @@ void History::refreshShowDates() {
           if (incoming && Ton::Wallet::ConvertIntoRaw(transaction.incoming.source) == targetAddress) {
             auto parsedTransaction = Ton::Wallet::ParseDePoolTransaction(transaction.incoming.message, incoming);
             if (parsedTransaction.has_value()) {
-              row->setAdditionalInfo(*parsedTransaction);
+              row->setAdditionalInfo(std::move(*parsedTransaction));
               row->setVisible(true);
               return;
             }
@@ -962,7 +1090,7 @@ void History::refreshShowDates() {
                 break;
               }
 
-              row->setAdditionalInfo(*stakeTransaction);
+              row->setAdditionalInfo(std::move(*stakeTransaction));
               row->setVisible(true);
               return;
             }
@@ -973,7 +1101,7 @@ void History::refreshShowDates() {
   };
 
   auto previous = QDate();
-  for (auto &row : _rows) {
+  for (auto &row : rows) {
     filterTransaction(row);
 
     const auto current = row->date().date();
@@ -986,9 +1114,10 @@ void History::refreshShowDates() {
 }
 
 void History::refreshPending() {
-  _pendingRows = ranges::views::all(_pendingData)                                                                     //
-                 | ranges::views::transform([&](const Ton::PendingTransaction &data) { return makeRow(data.fake); })  //
-                 | ranges::to_vector;
+  _pendingRows =
+      ranges::views::all(_pendingData)                                                                            //
+      | ranges::views::transform([&](const Ton::PendingTransaction &data) { return makeRow(data.fake, false); })  //
+      | ranges::to_vector;
 
   if (!_pendingRows.empty()) {
     const auto &pendingRow = _pendingRows.front();
@@ -1000,31 +1129,42 @@ void History::refreshPending() {
 }
 
 void History::refreshRows() {
-  auto addedFront = std::vector<std::unique_ptr<HistoryRow>>();
-  auto addedBack = std::vector<std::unique_ptr<HistoryRow>>();
-  for (const auto &element : _listData) {
-    if (!_rows.empty() && element.id == _rows.front()->id()) {
-      break;
+  for (const auto &item : _transactions) {
+    const auto &symbol = item.first;
+    const auto &transactions = item.second;
+
+    auto rowsItem = _rows.emplace(std::piecewise_construct, std::forward_as_tuple(symbol),
+                                  std::forward_as_tuple(std::vector<std::unique_ptr<HistoryRow>>{}));
+    auto &rows = rowsItem.first->second;
+
+    auto addedFront = std::vector<std::unique_ptr<HistoryRow>>();
+    auto addedBack = std::vector<std::unique_ptr<HistoryRow>>();
+    for (const auto &element : transactions.list) {
+      if (!rows.empty() && element.id == rows.front()->id()) {
+        break;
+      }
+      addedFront.push_back(makeRow(element, element.id == transactions.initTransactionId));
     }
-    addedFront.push_back(makeRow(element));
-  }
-  if (!_rows.empty()) {
-    const auto from = ranges::find(_listData, _rows.back()->id(), &Ton::Transaction::id);
-    if (from != end(_listData)) {
-      addedBack = ranges::make_subrange(from + 1, end(_listData)) |
-                  ranges::views::transform([=](const Ton::Transaction &data) { return makeRow(data); }) |
-                  ranges::to_vector;
+    if (!rows.empty()) {
+      const auto from = ranges::find(transactions.list, rows.back()->id(), &Ton::Transaction::id);
+      if (from != end(transactions.list)) {
+        addedBack = ranges::make_subrange(from + 1, end(transactions.list))  //
+                    | ranges::views::transform([&](const Ton::Transaction &data) {
+                        return makeRow(data, data.id == transactions.initTransactionId);
+                      })  //
+                    | ranges::to_vector;
+      }
     }
-  }
-  if (addedFront.empty() && addedBack.empty()) {
-    return;
-  } else if (!addedFront.empty()) {
-    if (addedFront.size() < _listData.size()) {
-      addedFront.insert(end(addedFront), std::make_move_iterator(begin(_rows)), std::make_move_iterator(end(_rows)));
+    if (addedFront.empty() && addedBack.empty()) {
+      return;
+    } else if (!addedFront.empty()) {
+      if (addedFront.size() < transactions.list.size()) {
+        addedFront.insert(end(addedFront), std::make_move_iterator(begin(rows)), std::make_move_iterator(end(rows)));
+      }
+      rows = std::move(addedFront);
     }
-    _rows = std::move(addedFront);
+    rows.insert(end(rows), std::make_move_iterator(begin(addedBack)), std::make_move_iterator(end(addedBack)));
   }
-  _rows.insert(end(_rows), std::make_move_iterator(begin(addedBack)), std::make_move_iterator(end(addedBack)));
 
   refreshShowDates();
 }
@@ -1042,14 +1182,26 @@ void History::repaintShadow(not_null<HistoryRow *> row) {
 void History::checkPreload() const {
   const auto visibleHeight = (_visibleBottom - _visibleTop);
   const auto preloadHeight = kPreloadScreens * visibleHeight;
-  if (_visibleBottom + preloadHeight >= _widget.height() && _previousId.lt != 0) {
-    _preloadRequests.fire_copy(_previousId);
+
+  const auto symbol = v::match(
+      _selectedAsset.current(), [&](const SelectedToken &selectedToken) { return selectedToken.token; },
+      [](auto &&) { return Ton::Symbol::ton(); });
+
+  const auto it = _transactions.find(symbol);
+  if (it != _transactions.end() && _visibleBottom + preloadHeight >= _widget.height() &&
+      it->second.previousId.lt != 0) {
+    _preloadRequests.fire_copy(std::make_pair(symbol, it->second.previousId));
   }
 }
 
 rpl::producer<HistoryState> MakeHistoryState(rpl::producer<Ton::WalletViewerState> state) {
   return rpl::combine(std::move(state)) | rpl::map([](Ton::WalletViewerState &&state) {
-           return HistoryState{.lastTransactions = std::move(state.wallet.lastTransactions),
+           std::map<Ton::Symbol, Ton::TransactionsSlice> lastTransactions{
+               {Ton::Symbol::ton(), std::move(state.wallet.lastTransactions)}};
+           for (auto &&[symbol, token] : state.wallet.tokenStates) {
+             lastTransactions.emplace(symbol, std::move(token.lastTransactions));
+           }
+           return HistoryState{.lastTransactions = std::move(lastTransactions),
                                .pendingTransactions = std::move(state.wallet.pendingTransactions)};
          });
 }

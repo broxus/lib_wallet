@@ -31,43 +31,36 @@ struct TokenTransaction {
   Ton::Symbol token;
   QString recipient;
   int64 amount;
+  bool incoming;
   bool isSwapBack;
 };
 
-std::optional<TokenTransaction> TryGetTokenTransaction(const Ton::Transaction &data,
-                                                       const QString &tokenContractAddress,
-                                                       const Ton::Symbol &selectedToken) {
-  for (const auto &out : data.outgoing) {
-    if (Ton::Wallet::ConvertIntoRaw(out.destination) == tokenContractAddress) {
-      auto transaction = Ton::Wallet::ParseTokenTransaction(out.message);
-      if (transaction.has_value()) {
-        transaction.reset();
-      }
-      if (!transaction.has_value()) {
-        continue;
-      }
-
-      return v::match(
-          *transaction,
-          [=](const Ton::TokenTransfer &transfer) {
-            return TokenTransaction{
-                .token = selectedToken,
-                .recipient = transfer.dest,
-                .amount = transfer.value,
-                .isSwapBack = false,
-            };
-          },
-          [=](const Ton::TokenSwapBack &swapBack) {
-            return TokenTransaction{
-                .token = selectedToken,
-                .recipient = swapBack.dest,
-                .amount = swapBack.value,
-                .isSwapBack = true,
-            };
-          });
-    }
+std::optional<TokenTransaction> TryGetTokenTransaction(const Ton::Transaction &data, const Ton::Symbol &selectedToken) {
+  auto transaction = Ton::Wallet::ParseTokenTransaction(data.incoming.message);
+  if (!transaction.has_value()) {
+    return {};
   }
-  return {};
+
+  return v::match(
+      *transaction,
+      [=](const Ton::TokenTransfer &transfer) {
+        return TokenTransaction{
+            .token = selectedToken,
+            .recipient = Ton::Wallet::ConvertIntoRaw(transfer.address),
+            .amount = transfer.value,
+            .incoming = transfer.incoming,
+            .isSwapBack = false,
+        };
+      },
+      [=](const Ton::TokenSwapBack &swapBack) {
+        return TokenTransaction{
+            .token = selectedToken,
+            .recipient = swapBack.address,
+            .amount = swapBack.value,
+            .incoming = true,
+            .isSwapBack = true,
+        };
+      });
 }
 
 object_ptr<Ui::RpWidget> CreateSummary(not_null<Ui::RpWidget *> parent, const Ton::Transaction &data,
@@ -76,7 +69,7 @@ object_ptr<Ui::RpWidget> CreateSummary(not_null<Ui::RpWidget *> parent, const To
   const auto token = isTokenTransaction ? tokenTransaction->token : Ton::Symbol::ton();
 
   const auto showTransactionFee = isTokenTransaction || data.otherFee > 0;
-  const auto showStorageFee = !isTokenTransaction && data.storageFee;
+  const auto showStorageFee = data.storageFee > 0;
 
   const auto feeSkip = st::walletTransactionFeeSkip;
   const auto secondFeeSkip = st::walletTransactionSecondFeeSkip;
@@ -86,7 +79,11 @@ object_ptr<Ui::RpWidget> CreateSummary(not_null<Ui::RpWidget *> parent, const To
                       (showStorageFee ? (st::normalFont->height + (showTransactionFee ? secondFeeSkip : feeSkip)) : 0);
   auto result = object_ptr<Ui::FixedHeightWidget>(parent, height);
 
-  const auto value = isTokenTransaction ? -tokenTransaction->amount : CalculateValue(data);
+  const auto value = isTokenTransaction                //
+                         ? tokenTransaction->incoming  //
+                               ? tokenTransaction->amount
+                               : -tokenTransaction->amount
+                         : CalculateValue(data);
   const auto balance =
       service  //
           ? nullptr
@@ -99,7 +96,7 @@ object_ptr<Ui::RpWidget> CreateSummary(not_null<Ui::RpWidget *> parent, const To
                 result.data(),
                 ph::lng_wallet_view_transaction_fee(ph::now).replace(
                     "{amount}",
-                    FormatAmount(isTokenTransaction ? -CalculateValue(data) : data.otherFee, Ton::Symbol::ton()).full),
+                    FormatAmount(isTokenTransaction ? CalculateValue(data) : data.otherFee, Ton::Symbol::ton()).full),
                 st::walletTransactionFee)
           : nullptr;
 
@@ -185,10 +182,7 @@ void ViewTransactionBox(not_null<Ui::GenericBox *> box, Ton::Transaction &&data,
     bool success = false;
   };
 
-  // TODO: parse token transaction
-
-  const auto tokenTransaction =
-      std::optional<TokenTransaction>{};  // TryGetTokenTransaction(data, tokenContractAddress, selectedToken);
+  const auto tokenTransaction = selectedToken.isToken() ? TryGetTokenTransaction(data, selectedToken) : std::nullopt;
   const auto isTokenTransaction = tokenTransaction.has_value();
   const auto isSwapBack = isTokenTransaction && tokenTransaction->isSwapBack;
 
@@ -202,8 +196,9 @@ void ViewTransactionBox(not_null<Ui::GenericBox *> box, Ton::Transaction &&data,
   box->setStyle(service ? st::walletNoButtonsBox : st::walletBox);
 
   const auto id = data.id;
-  const auto address = isTokenTransaction ? tokenTransaction->recipient : Ton::Wallet::ConvertIntoRaw(ExtractAddress(data));
-  const auto incoming = data.outgoing.empty();
+  const auto address =
+      isTokenTransaction ? tokenTransaction->recipient : Ton::Wallet::ConvertIntoRaw(ExtractAddress(data));
+  const auto incoming = data.outgoing.empty() || isTokenTransaction && tokenTransaction->incoming;
   const auto encryptedComment = IsEncryptedMessage(data);
   const auto decryptedComment = encryptedComment ? QString() : ExtractMessage(data);
   const auto hasComment = encryptedComment || !decryptedComment.isEmpty();

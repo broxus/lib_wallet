@@ -25,7 +25,7 @@ class Info final {
  public:
   struct Data {
     rpl::producer<Ton::WalletViewerState> state;
-    rpl::producer<Ton::Result<Ton::LoadedSlice>> loaded;
+    rpl::producer<Ton::Result<std::pair<Ton::Symbol, Ton::LoadedSlice>>> loaded;
     rpl::producer<Ton::Update> updates;
     rpl::producer<not_null<std::vector<Ton::Transaction> *>> collectEncrypted;
     rpl::producer<not_null<const std::vector<Ton::Transaction> *>> updateDecrypted;
@@ -44,7 +44,7 @@ class Info final {
 
   [[nodiscard]] rpl::producer<Action> actionRequests() const;
   [[nodiscard]] rpl::producer<CustomAsset> removeAssetRequests() const;
-  [[nodiscard]] rpl::producer<Ton::TransactionId> preloadRequests() const;
+  [[nodiscard]] rpl::producer<std::pair<Ton::Symbol, Ton::TransactionId>> preloadRequests() const;
   [[nodiscard]] rpl::producer<Ton::Transaction> viewRequests() const;
   [[nodiscard]] rpl::producer<Ton::Transaction> decryptRequests() const;
 
@@ -61,7 +61,7 @@ class Info final {
 
   rpl::event_stream<Action> _actionRequests;
   rpl::event_stream<CustomAsset> _removeAssetRequests;
-  rpl::event_stream<Ton::TransactionId> _preloadRequests;
+  rpl::event_stream<std::pair<Ton::Symbol, Ton::TransactionId>> _preloadRequests;
   rpl::event_stream<Ton::Transaction> _viewRequests;
   rpl::event_stream<Ton::Transaction> _decryptRequests;
 };
