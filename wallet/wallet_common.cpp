@@ -460,4 +460,11 @@ auto CancelWithdrawalInvoice::asTransaction() const -> Ton::CancelWithdrawalTran
   };
 }
 
+auto DeployTokenWalletInvoice::asTransaction() const -> Ton::DeployTokenWalletTransactionToSend {
+  return Ton::DeployTokenWalletTransactionToSend{
+      .rootContractAddress = rootContractAddress,
+      .walletContractAddress = walletContractAddress,
+  };
+}
+
 }  // namespace Wallet

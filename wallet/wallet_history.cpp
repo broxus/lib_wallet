@@ -86,7 +86,7 @@ void refreshTimeTexts(TransactionLayout &layout, bool forceDateText = false) {
                                    FormatFlag::Signed | FormatFlag::Rounded);
   const auto incoming = !data.incoming.source.isEmpty();
   const auto pending = (data.id.lt == 0);
-  const auto address = ExtractAddress(data);
+  const auto address = Ton::Wallet::ConvertIntoRaw(ExtractAddress(data));
   const auto addressPartWidth = [&](int from, int length = -1) {
     return addressStyle().font->width(address.mid(from, length));
   };
@@ -136,7 +136,7 @@ void refreshTimeTexts(TransactionLayout &layout, bool forceDateText = false) {
 
   const auto incoming = !data.incoming.source.isEmpty();
   const auto pending = (data.id.lt == 0);
-  const auto address = ExtractAddress(data);
+  const auto address = Ton::Wallet::ConvertIntoRaw(ExtractAddress(data));
   const auto addressPartWidth = [&](int from, int length = -1) {
     return addressStyle().font->width(address.mid(from, length));
   };

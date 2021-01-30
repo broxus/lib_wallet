@@ -16,8 +16,11 @@ struct WalletViewerState;
 
 namespace Wallet {
 
+enum class AddressLabelType { YourAddress, TokenAddress, DePoolAddress };
+
 struct EmptyHistoryState {
   QString address;
+  AddressLabelType addressType = AddressLabelType::YourAddress;
   bool justCreated = false;
 };
 

@@ -19,6 +19,7 @@
 #include "wallet/wallet_send_stake.h"
 #include "wallet/wallet_depool_withdraw.h"
 #include "wallet/wallet_depool_cancel_withdrawal.h"
+#include "wallet/wallet_deploy_token_wallet.h"
 #include "wallet/wallet_enter_passcode.h"
 #include "wallet/wallet_change_passcode.h"
 #include "wallet/wallet_confirm_transaction.h"
@@ -468,6 +469,21 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
                   return showSettings();
                 case Action::AddAsset:
                   return addAsset();
+                case Action::DeployTokenWallet:
+                  v::match(
+                      _selectedAsset.current().value_or(SelectedToken::defaultToken()),
+                      [&](const SelectedToken &selectedToken) {
+                        auto state = _state.current();
+                        const auto it = state.tokenStates.find(selectedToken.token);
+                        if (it != state.tokenStates.end()) {
+                          deployTokenWallet(
+                              DeployTokenWalletInvoice{.rootContractAddress = it->second.rootContractAddress,
+                                                       .walletContractAddress = it->second.walletContractAddress,
+                                                       .owned = true});
+                        }
+                      },
+                      [](auto &&) {});
+                  return;
                 case Action::LogOut:
                   return logoutWithConfirmation();
                 case Action::Back:
@@ -866,6 +882,22 @@ void Window::dePoolCancelWithdrawal(const CancelWithdrawalInvoice &invoice) {
   _layers->showBox(std::move(box));
 }
 
+void Window::deployTokenWallet(const DeployTokenWalletInvoice &invoice) {
+  if (_sendBox) {
+    _sendBox->closeBox();
+  }
+
+  const auto checking = std::make_shared<bool>();
+  const auto send = [this, checking](const DeployTokenWalletInvoice &invoice) {
+    confirmTransaction(
+        invoice, [=](InvoiceField) {}, checking);
+  };
+
+  auto box = Box(DeployTokenWalletBox, invoice, send);
+  _sendBox = box.data();
+  _layers->showBox(std::move(box));
+}
+
 void Window::confirmTransaction(const PreparedInvoice &invoice, const Fn<void(InvoiceField)> &showInvoiceError,
                                 const std::shared_ptr<bool> &guard) {
   if (*guard || !_sendBox) {
@@ -911,6 +943,9 @@ void Window::confirmTransaction(const PreparedInvoice &invoice, const Fn<void(In
         },
         [&](CancelWithdrawalInvoice &cancelWithdrawalInvoice) {
           cancelWithdrawalInvoice.realAmount = Ton::CancelWithdrawalTransactionToSend::depoolFee;
+        },
+        [&](DeployTokenWalletInvoice &deployTokenWalletInvoice) {
+          deployTokenWalletInvoice.realAmount = Ton::DeployTokenWalletTransactionToSend::realAmount;
         });
 
     showSendConfirmation(invoice, *result, showInvoiceError);
@@ -937,6 +972,10 @@ void Window::confirmTransaction(const PreparedInvoice &invoice, const Fn<void(In
       [&](const CancelWithdrawalInvoice &cancelWithdrawalInvoice) {
         _wallet->checkCancelWithdraw(_wallet->publicKeys().front(), cancelWithdrawalInvoice.asTransaction(),
                                      crl::guard(_sendBox.data(), done));
+      },
+      [&](const DeployTokenWalletInvoice &deployTokenWalletInvoice) {
+        _wallet->checkDeployTokenWallet(_wallet->publicKeys().front(), deployTokenWalletInvoice.asTransaction(),
+                                        crl::guard(_sendBox.data(), done));
       });
 }
 
@@ -999,6 +1038,10 @@ void Window::askSendPassword(const PreparedInvoice &invoice, const Fn<void(Invoi
         [&](const CancelWithdrawalInvoice &cancelWithdrawalInvoice) {
           _wallet->cancelWithdrawal(publicKey, passcode, cancelWithdrawalInvoice.asTransaction(),
                                     crl::guard(this, ready), crl::guard(this, sent));
+        },
+        [&](const DeployTokenWalletInvoice &deployTokenWalletInvoice) {
+          _wallet->deployTokenWallet(publicKey, passcode, deployTokenWalletInvoice.asTransaction(),
+                                     crl::guard(this, ready), crl::guard(this, sent));
         });
   };
   if (_sendConfirmBox) {
@@ -1097,6 +1140,16 @@ void Window::showSendConfirmation(const PreparedInvoice &invoice, const Ton::Tra
         return Box(ConfirmTransactionBox<CancelWithdrawalInvoice>, cancelWithdrawalInvoice,
                    cancelWithdrawalInvoice.realAmount + sourceFees,
                    [=] { askSendPassword(cancelWithdrawalInvoice, showInvoiceError); });
+      },
+      [&](const DeployTokenWalletInvoice &deployTokenWalletInvoice) -> object_ptr<Ui::GenericBox> {
+        if (!checkAmount(deployTokenWalletInvoice.realAmount)) {
+          showInvoiceError(InvoiceField::Amount);
+          return nullptr;
+        }
+
+        return Box(ConfirmTransactionBox<DeployTokenWalletInvoice>, deployTokenWalletInvoice,
+                   deployTokenWalletInvoice.realAmount + sourceFees,
+                   [=] { askSendPassword(deployTokenWalletInvoice, showInvoiceError); });
       });
 
   if (box != nullptr) {
@@ -1159,6 +1212,10 @@ void Window::showSendingDone(std::optional<Ton::Transaction> result, const Prepa
         },
         [&](const CancelWithdrawalInvoice &cancelWithdrawalInvoice) {
           return Box(SendingDoneBox<CancelWithdrawalInvoice>, *result, cancelWithdrawalInvoice,
+                     [this] { refreshNow(); });
+        },
+        [&](const DeployTokenWalletInvoice &deployTokenWalletInvoice) {
+          return Box(SendingDoneBox<DeployTokenWalletInvoice>, *result, deployTokenWalletInvoice,
                      [this] { refreshNow(); });
         });
 
@@ -1230,9 +1287,18 @@ void Window::addAsset() {
 
 void Window::receiveTokens(const Ton::Symbol &selectedToken) {
   _layers->showBox(Box(
-      ReceiveTokensBox, _packedAddress, _rawAddress, selectedToken,
+      ReceiveTokensBox, _rawAddress, selectedToken,
       [this, selectedToken = selectedToken] { createInvoice(selectedToken); }, shareAddressCallback(),
-      [this, selectedToken = selectedToken] { _wallet->openGate(_rawAddress, selectedToken); }));
+      [this, selectedToken = selectedToken] { _wallet->openGate(_rawAddress, selectedToken); },
+      [this, selectedToken = selectedToken] {
+        auto state = _state.current();
+        const auto it = state.tokenStates.find(selectedToken);
+        if (it != state.tokenStates.end()) {
+          deployTokenWallet(DeployTokenWalletInvoice{.rootContractAddress = it->second.rootContractAddress,
+                                                     .walletContractAddress = it->second.walletContractAddress,
+                                                     .owned = true});
+        }
+      }));
 }
 
 void Window::createInvoice(const Ton::Symbol &selectedToken) {

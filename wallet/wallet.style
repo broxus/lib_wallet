@@ -521,6 +521,8 @@ walletSendStakeWarningPadding: margins(22px, 7px, 22px, 16px);
 
 walletCancelWithdrawalDescriptionPadding: margins(22px, 7px, 22px, 16px);
 
+walletDeployTokenWalletDescriptionPadding: margins(22px, 7px, 22px, 16px);
+
 walletPasscodeHeight: 190px;
 walletPasscodeLottieSize: 100px;
 walletPasscodeLottieTop: 8px;

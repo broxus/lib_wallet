@@ -21,11 +21,9 @@
 
 namespace Wallet {
 
-void ReceiveTokensBox(not_null<Ui::GenericBox *> box, const QString &packedAddress, const QString &rawAddress,
-                      const Ton::Symbol &symbol, const Fn<void()> &createInvoice,
-                      const Fn<void(QImage, QString)> &share, const Fn<void()> &swap) {
-  const auto showAsPackedOn = box->lifetime().make_state<rpl::variable<bool>>(true);
-
+void ReceiveTokensBox(not_null<Ui::GenericBox *> box, const QString &rawAddress, const Ton::Symbol &symbol,
+                      const Fn<void()> &createInvoice, const Fn<void(QImage, QString)> &share, const Fn<void()> &swap,
+                      const Fn<void()> &deploy) {
   const auto replaceTickerTag = [symbol = symbol] {
     return rpl::map([=](QString &&text) { return text.replace("{ticker}", symbol.name()); });
   };
@@ -39,11 +37,11 @@ void ReceiveTokensBox(not_null<Ui::GenericBox *> box, const QString &packedAddre
   const auto container = box->addRow(object_ptr<Ui::AbstractButton>(box));
 
   container->setClickedCallback(
-      [=, symbol = symbol] { share(Ui::TokenQrForShare(symbol, TransferLink(packedAddress, symbol)), QString()); });
+      [=, symbol = symbol] { share(Ui::TokenQrForShare(symbol, TransferLink(rawAddress, symbol)), QString()); });
 
   auto qr = container->lifetime().make_state<QImage>();
 
-  const auto link = TransferLink(packedAddress, symbol);
+  const auto link = TransferLink(rawAddress, symbol);
   *qr = Ui::TokenQr(symbol, link, st::walletReceiveQrPixel);
   const auto size = qr->width() / style::DevicePixelRatio();
   container->resize(size, size);
@@ -57,48 +55,15 @@ void ReceiveTokensBox(not_null<Ui::GenericBox *> box, const QString &packedAddre
           container->lifetime());
 
   // Address label
-  const auto addressWrap = box->addRow(object_ptr<Ui::FixedHeightWidget>(box, 1), st::walletReceiveAddressPadding);
+  const auto rawAddressLabel = box->addRow(
+      object_ptr<Ui::RpWidget>::fromRaw(Ui::CreateAddressLabel(
+          box, rpl::single(rawAddress), st::walletReceiveAddressLabel, [=] { share(QImage(), rawAddress); })),
+      st::walletReceiveAddressPadding);
 
-  const auto packedAddressLabel =
-      Ui::CreateChild<Ui::SlideWrap<Ui::RpWidget>>(
-          addressWrap,
-          object_ptr<Ui::RpWidget>::fromRaw(Ui::CreateAddressLabel(
-              addressWrap, rpl::single(packedAddress), st::walletReceiveAddressLabel, [=] { share(QImage(), packedAddress); })))
-          ->setDuration(0);
-
-  const auto rawAddressLabel =
-      Ui::CreateChild<Ui::SlideWrap<Ui::RpWidget>>(
-          addressWrap,
-          object_ptr<Ui::RpWidget>::fromRaw(Ui::CreateAddressLabel(
-              addressWrap, rpl::single(rawAddress), st::walletReceiveAddressLabel, [=] { share(QImage(), rawAddress); })))
-          ->setDuration(0);
-
-  addressWrap->setFixedHeight(rawAddressLabel->height());
-
-  addressWrap->widthValue()  //
-      | rpl::start_with_next(
-            [=](int width) {
-              packedAddressLabel->move((width - packedAddressLabel->width()) / 2, 0);
-              rawAddressLabel->move((width - rawAddressLabel->width()) / 2, 0);
-            },
-            addressWrap->lifetime());
-
-  rawAddressLabel->hide(anim::type::instant);
-
-  // Address present group
-  const auto showAsPacked =
-      box->addRow(  //
-             object_ptr<Ui::SettingsButton>(box, ph::lng_wallet_receive_show_as_packed(), st::defaultSettingsButton),
-             QMargins())
-          ->toggleOn(showAsPackedOn->value());
-
-  showAsPacked->toggledValue()  //
-      | rpl::start_with_next(
-            [=](bool toggled) {
-              packedAddressLabel->toggle(toggled, anim::type::normal);
-              rawAddressLabel->toggle(!toggled, anim::type::normal);
-            },
-            showAsPacked->lifetime());
+  //
+  //  box->widthValue()  //
+  //      | rpl::start_with_next([=](int width) { rawAddressLabel->move((width - rawAddressLabel->width()) / 2, 0); },
+  //                             box->lifetime());
 
   box->addRow(object_ptr<Ui::BoxContentDivider>(box), st::walletSettingsDividerMargin);
 
@@ -123,17 +88,22 @@ void ReceiveTokensBox(not_null<Ui::GenericBox *> box, const QString &packedAddre
                                  : ph::lng_wallet_receive_swap(ph::now).replace("{ticker}", symbol.name());
 
   // Submit button
-  box->addButton(
-         rpl::single(submitText),
-         [=, symbol = symbol] {
-           if (symbol.isTon()) {
-             share(QImage(), TransferLink(packedAddress, symbol));
-           } else {
-             swap();
-           }
-         },
-         st::walletBottomButton)
-      ->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+  if (symbol.isToken()) {
+    box->addButton(ph::lng_wallet_receive_deploy(), deploy, st::walletBottomButton)
+        ->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+  } else {
+    box->addButton(
+           rpl::single(submitText),
+           [=, symbol = symbol] {
+             if (symbol.isTon()) {
+               share(QImage(), TransferLink(rawAddress, symbol));
+             } else {
+               swap();
+             }
+           },
+           st::walletBottomButton)
+        ->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+  }
 }
 
 }  // namespace Wallet

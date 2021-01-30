@@ -93,6 +93,8 @@ class Window final : public base::has_weak_ptr {
   void sendStake(const StakeInvoice &invoice);
   void dePoolWithdraw(const WithdrawalInvoice &invoice);
   void dePoolCancelWithdrawal(const CancelWithdrawalInvoice &invoice);
+  void deployTokenWallet(const DeployTokenWalletInvoice &invoice);
+
   void confirmTransaction(const PreparedInvoice &invoice, const Fn<void(InvoiceField)> &showInvoiceError,
                           const std::shared_ptr<bool> &guard);
   void showSendConfirmation(const PreparedInvoice &invoice, const Ton::TransactionCheckResult &checkResult,
@@ -101,6 +103,7 @@ class Window final : public base::has_weak_ptr {
   void showSendingTransaction(const Ton::PendingTransaction &transaction, const PreparedInvoice &invoice,
                               rpl::producer<> confirmed);
   void showSendingDone(std::optional<Ton::Transaction> result, const PreparedInvoice &invoice);
+
   void addAsset();
   void refreshNow();
   void receiveTokens(const Ton::Symbol &selectedToken);

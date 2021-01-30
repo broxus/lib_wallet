@@ -110,6 +110,8 @@ phrase lng_wallet_tokens_list_swap = "Swap Tokens";
 phrase lng_wallet_empty_history_title = "Wallet Created";
 phrase lng_wallet_empty_history_welcome = "Welcome";
 phrase lng_wallet_empty_history_address = "Your wallet address";
+phrase lng_wallet_empty_history_depool_address = "DePool address";
+phrase lng_wallet_empty_history_token_address = "TIP3 Token wallet address";
 
 phrase lng_wallet_depool_info_title = "DePool Added";
 phrase lng_wallet_depool_info_stakes_title = "Stakes";
@@ -158,6 +160,7 @@ phrase lng_wallet_receive_show_as_packed = "Show as packed";
 phrase lng_wallet_receive_create_invoice = "Create Invoice";
 phrase lng_wallet_receive_share = "Share Wallet Address";
 phrase lng_wallet_receive_swap = "Swap {ticker}";
+phrase lng_wallet_receive_deploy = "Deploy wallet";
 phrase lng_wallet_receive_copied = "Transfer link copied to clipboard.";
 phrase lng_wallet_receive_address_copied = "Wallet address copied to clipboard.";
 phrase lng_wallet_receive_copied_qr = "QR Code copied to clipboard.";
@@ -228,6 +231,13 @@ phrase lng_wallet_cancel_withdrawal_title = "Cancel withdrawal";
 phrase lng_wallet_cancel_withdrawal_description = "It will reset withdrawal amount and enable reinvestment.";
 phrase lng_wallet_cancel_withdrawal_button = "Confirm";
 
+phrase lng_wallet_deploy_token_wallet_title = "Deploy token wallet";
+phrase lng_wallet_deploy_token_wallet_owned_description =
+    "Deployed TIP3 token wallet can decrease transaction fee for sender.";
+phrase lng_wallet_deploy_token_wallet_target_description =
+    "The recipient does not have a token wallet. In order for it to receive tokens, it must be created.";
+phrase lng_wallet_deploy_token_wallet_button = "Confirm";
+
 phrase lng_wallet_send_failed_title = "Sending failed";
 phrase lng_wallet_send_failed_text =
     "Could not perform the transaction. Please check your wallet's balance and try again.";
@@ -245,10 +255,12 @@ phrase lng_wallet_confirm_title = "Confirmation";
 phrase lng_wallet_confirm_text = "Do you want to send **{grams}** to:";
 phrase lng_wallet_confirm_withdrawal_text = "Do you want to withdraw **{grams}** from:";
 phrase lng_wallet_confirm_cancel_withdrawal_text = "Do you want to cancel withdrawal from:";
+phrase lng_wallet_confirm_deploy_token_wallet_text = "Do you want to deploy a token wallet for:";
 phrase lng_wallet_confirm_fee = "Fee: ~{grams}";
 phrase lng_wallet_confirm_send = "Send {ticker}";
 phrase lng_wallet_confirm_withdrawal = "Withdraw";
 phrase lng_wallet_confirm_cancel_withdrawal = "Confirm";
+phrase lng_wallet_confirm_deploy_token_wallet = "Deploy";
 phrase lng_wallet_confirm_warning = "**Note:** your comment \xC2\xAB{comment}\xC2\xBB **will not be encrypted**.";
 
 phrase lng_wallet_same_address_title = "Warning";
@@ -268,6 +280,7 @@ phrase lng_wallet_sending_all_stake = "All stake was requested for withdrawal.";
 
 phrase lng_wallet_sent_title = "Done!";
 phrase lng_wallet_sent_cancel_withdrawal = "Withdrawal cancelled";
+phrase lng_wallet_sent_deploy_token_wallet = "Deployed";
 phrase lng_wallet_sent_close = "Close";
 phrase lng_wallet_sent_close_view = "View";
 

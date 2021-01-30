@@ -101,6 +101,8 @@ extern phrase lng_wallet_tokens_list_swap;
 extern phrase lng_wallet_empty_history_title;
 extern phrase lng_wallet_empty_history_welcome;
 extern phrase lng_wallet_empty_history_address;
+extern phrase lng_wallet_empty_history_depool_address;
+extern phrase lng_wallet_empty_history_token_address;
 
 extern phrase lng_wallet_depool_info_title;
 extern phrase lng_wallet_depool_info_stakes_title;
@@ -147,6 +149,7 @@ extern phrase lng_wallet_receive_show_as_packed;
 extern phrase lng_wallet_receive_create_invoice;
 extern phrase lng_wallet_receive_share;
 extern phrase lng_wallet_receive_swap;
+extern phrase lng_wallet_receive_deploy;
 extern phrase lng_wallet_receive_copied;
 extern phrase lng_wallet_receive_address_copied;
 extern phrase lng_wallet_receive_copied_qr;
@@ -209,6 +212,11 @@ extern phrase lng_wallet_cancel_withdrawal_title;
 extern phrase lng_wallet_cancel_withdrawal_description;
 extern phrase lng_wallet_cancel_withdrawal_button;
 
+extern phrase lng_wallet_deploy_token_wallet_title;
+extern phrase lng_wallet_deploy_token_wallet_owned_description;
+extern phrase lng_wallet_deploy_token_wallet_target_description;
+extern phrase lng_wallet_deploy_token_wallet_button;
+
 extern phrase lng_wallet_send_failed_title;
 extern phrase lng_wallet_send_failed_text;
 
@@ -224,10 +232,12 @@ extern phrase lng_wallet_confirm_title;
 extern phrase lng_wallet_confirm_text;
 extern phrase lng_wallet_confirm_withdrawal_text;
 extern phrase lng_wallet_confirm_cancel_withdrawal_text;
+extern phrase lng_wallet_confirm_deploy_token_wallet_text;
 extern phrase lng_wallet_confirm_fee;
 extern phrase lng_wallet_confirm_send;
 extern phrase lng_wallet_confirm_withdrawal;
 extern phrase lng_wallet_confirm_cancel_withdrawal;
+extern phrase lng_wallet_confirm_deploy_token_wallet;
 extern phrase lng_wallet_confirm_warning;
 
 extern phrase lng_wallet_same_address_title;
@@ -245,6 +255,7 @@ extern phrase lng_wallet_sending_all_stake;
 
 extern phrase lng_wallet_sent_title;
 extern phrase lng_wallet_sent_cancel_withdrawal;
+extern phrase lng_wallet_sent_deploy_token_wallet;
 extern phrase lng_wallet_sent_close;
 extern phrase lng_wallet_sent_close_view;
 

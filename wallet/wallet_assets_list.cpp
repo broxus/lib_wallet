@@ -6,7 +6,7 @@
 #include "ui/widgets/popup_menu.h"
 #include "ui/address_label.h"
 #include "ui/image/image_prepare.h"
-#include "ton/ton_state.h"
+#include "ton/ton_wallet.h"
 #include "styles/style_wallet.h"
 #include "styles/palette.h"
 #include "ui/layers/generic_box.h"
@@ -14,7 +14,6 @@
 #include "wallet_phrases.h"
 
 #include <QtWidgets/qlayout.h>
-#include <QContextMenuEvent>
 #include <iostream>
 
 namespace Wallet {
@@ -41,7 +40,9 @@ auto addressPartWidth(const QString &address, int from, int length = -1) {
 [[nodiscard]] AssetItemLayout prepareLayout(const AssetItem &data) {
   const auto [title, token, address, balance] = v::match(
       data,
-      [](const TokenItem &item) { return std::make_tuple(item.token.name(), item.token, item.address, item.balance); },
+      [](const TokenItem &item) {
+        return std::make_tuple(item.token.name(), item.token, Ton::Wallet::ConvertIntoRaw(item.address), item.balance);
+      },
       [](const DePoolItem &item) {
         return std::make_tuple(QString{"DePool"}, Ton::Symbol::ton(), item.address, item.total);
       });

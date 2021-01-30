@@ -99,7 +99,7 @@ void ViewDePoolTransactionBox(not_null<Ui::GenericBox *> box, const Ton::Transac
   box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
 
   const auto id = data.id;
-  const auto address = ExtractAddress(data);
+  const auto address = Ton::Wallet::ConvertIntoRaw(ExtractAddress(data));
 
   if (dePoolTransaction.has_value()) {
     v::match(

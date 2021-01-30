@@ -2,10 +2,6 @@
 
 #include "ui/layers/generic_box.h"
 
-namespace Ton {
-struct WalletState;
-}  // namespace Ton
-
 namespace Wallet {
 
 struct CancelWithdrawalInvoice;

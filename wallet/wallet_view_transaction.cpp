@@ -202,7 +202,7 @@ void ViewTransactionBox(not_null<Ui::GenericBox *> box, Ton::Transaction &&data,
   box->setStyle(service ? st::walletNoButtonsBox : st::walletBox);
 
   const auto id = data.id;
-  const auto address = isTokenTransaction ? tokenTransaction->recipient : ExtractAddress(data);
+  const auto address = isTokenTransaction ? tokenTransaction->recipient : Ton::Wallet::ConvertIntoRaw(ExtractAddress(data));
   const auto incoming = data.outgoing.empty();
   const auto encryptedComment = IsEncryptedMessage(data);
   const auto decryptedComment = encryptedComment ? QString() : ExtractMessage(data);

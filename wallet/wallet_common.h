@@ -108,8 +108,17 @@ struct CancelWithdrawalInvoice {
   auto asTransaction() const -> Ton::CancelWithdrawalTransactionToSend;
 };
 
-using PreparedInvoice =
-    std::variant<TonTransferInvoice, TokenTransferInvoice, StakeInvoice, WithdrawalInvoice, CancelWithdrawalInvoice>;
+struct DeployTokenWalletInvoice {
+  QString rootContractAddress;
+  QString walletContractAddress;
+  int64 realAmount{};
+  bool owned{};
+
+  auto asTransaction() const -> Ton::DeployTokenWalletTransactionToSend;
+};
+
+using PreparedInvoice = std::variant<TonTransferInvoice, TokenTransferInvoice, StakeInvoice, WithdrawalInvoice,
+                                     CancelWithdrawalInvoice, DeployTokenWalletInvoice>;
 
 enum class Action {
   Refresh,
@@ -119,6 +128,7 @@ enum class Action {
   ChangePassword,
   ShowSettings,
   AddAsset,
+  DeployTokenWallet,
   LogOut,
   Back,
 };
@@ -163,5 +173,8 @@ not_null<Ui::FlatLabel *> AddBoxSubtitle(not_null<Ui::GenericBox *> box, rpl::pr
 [[nodiscard]] bool IsIncorrectPasswordError(const Ton::Error &error);
 [[nodiscard]] bool IsIncorrectMnemonicError(const Ton::Error &error);
 [[nodiscard]] std::optional<InvoiceField> ErrorInvoiceField(const Ton::Error &error);
+
+template <typename A, typename T, typename... Ts>
+constexpr auto is_any_of = std::is_same_v<A, T> || (std::is_same_v<A, Ts> || ...);
 
 }  // namespace Wallet

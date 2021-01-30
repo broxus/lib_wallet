@@ -26,15 +26,11 @@ constexpr auto kWarningPreviewLength = 30;
 
 template <typename T>
 [[nodiscard]] rpl::producer<TextWithEntities> PrepareEncryptionWarning(const T &invoice) {
-  constexpr auto isTonTransfer = std::is_same_v<T, TonTransferInvoice>;
-  constexpr auto isTokenTransfer = std::is_same_v<T, TokenTransferInvoice>;
-  constexpr auto isStakeTransfer = std::is_same_v<T, StakeInvoice>;
-  constexpr auto isWithdrawal = std::is_same_v<T, WithdrawalInvoice>;
-  constexpr auto isCancelWithdrawal = std::is_same_v<T, WithdrawalInvoice>;
-  static_assert(isTonTransfer || isTokenTransfer || isStakeTransfer || isWithdrawal || isCancelWithdrawal);
+  static_assert(is_any_of<T, TonTransferInvoice, TokenTransferInvoice, StakeInvoice, WithdrawalInvoice,
+                          WithdrawalInvoice, DeployTokenWalletInvoice>);
 
   QString text{};
-  if constexpr (isTonTransfer) {
+  if constexpr (std::is_same_v<T, TonTransferInvoice>) {
     text = (invoice.comment.size() > kWarningPreviewLength)
                ? (invoice.comment.mid(0, kWarningPreviewLength - 3) + "...")
                : invoice.comment;
@@ -82,7 +78,9 @@ void ConfirmTransactionBox(not_null<Ui::GenericBox *> box, const T &invoice, int
   constexpr auto isStakeTransfer = std::is_same_v<T, StakeInvoice>;
   constexpr auto isWithdrawal = std::is_same_v<T, WithdrawalInvoice>;
   constexpr auto isCancelWithdrawal = std::is_same_v<T, CancelWithdrawalInvoice>;
-  static_assert(isTonTransfer || isTokenTransfer || isStakeTransfer || isWithdrawal || isCancelWithdrawal);
+  constexpr auto isDeployTokenWallet = std::is_same_v<T, DeployTokenWalletInvoice>;
+  static_assert(isTonTransfer || isTokenTransfer || isStakeTransfer || isWithdrawal || isCancelWithdrawal ||
+                isDeployTokenWallet);
 
   auto token = Ton::Symbol::ton();
   if constexpr (isTokenTransfer) {
@@ -94,6 +92,8 @@ void ConfirmTransactionBox(not_null<Ui::GenericBox *> box, const T &invoice, int
     address = invoice.address;
   } else if constexpr (isStakeTransfer || isWithdrawal || isCancelWithdrawal) {
     address = invoice.dePool;
+  } else if constexpr (isDeployTokenWallet) {
+    address = invoice.rootContractAddress;
   }
 
   box->setTitle(ph::lng_wallet_confirm_title());
@@ -108,19 +108,29 @@ void ConfirmTransactionBox(not_null<Ui::GenericBox *> box, const T &invoice, int
       return FormatAmount(invoice.stake, token).full;
     } else if constexpr (isWithdrawal) {
       return FormatAmount(invoice.amount, token).full;
-    } else if constexpr (isCancelWithdrawal) {
+    } else if constexpr (isCancelWithdrawal || isDeployTokenWallet) {
       return FormatAmount(0, token).full;
     }
   }
   ();
 
-  auto text = rpl::combine(isWithdrawal         ? ph::lng_wallet_confirm_withdrawal_text()
-                           : isCancelWithdrawal ? ph::lng_wallet_confirm_cancel_withdrawal_text()
-                                                : ph::lng_wallet_confirm_text(),
-                           ph::lng_wallet_grams_count(amount, token)()) |
-              rpl::map([=](QString &&text, const QString &grams) {
-                return Ui::Text::RichLangValue(text.replace("{grams}", grams));
-              });
+  auto confirmationText = [=]() constexpr {
+    if constexpr (isWithdrawal) {
+      return ph::lng_wallet_confirm_withdrawal_text();
+    } else if constexpr (isCancelWithdrawal) {
+      return ph::lng_wallet_confirm_cancel_withdrawal_text();
+    } else if constexpr (isDeployTokenWallet) {
+      return ph::lng_wallet_confirm_deploy_token_wallet_text();
+    } else {
+      return ph::lng_wallet_confirm_text();
+    }
+  }
+  ();
+
+  auto text = rpl::combine(std::move(confirmationText), ph::lng_wallet_grams_count(amount, token)())  //
+              | rpl::map([=](QString &&text, const QString &grams) {
+                  return Ui::Text::RichLangValue(text.replace("{grams}", grams));
+                });
 
   box->addRow(object_ptr<Ui::FlatLabel>(box, std::move(text), st::walletLabel), st::walletConfirmationLabelPadding);
 
@@ -135,10 +145,10 @@ void ConfirmTransactionBox(not_null<Ui::GenericBox *> box, const T &invoice, int
   const auto feeWrap = box->addRow(object_ptr<Ui::FixedHeightWidget>(
       box, (st::walletConfirmationFee.style.font->height + st::walletConfirmationSkip)));
   const auto feeLabel = Ui::CreateChild<Ui::FlatLabel>(feeWrap, std::move(feeText), st::walletConfirmationFee);
-  rpl::combine(feeLabel->widthValue(), feeWrap->widthValue()) |
-      rpl::start_with_next(
-          [=](int innerWidth, int outerWidth) { feeLabel->moveToLeft((outerWidth - innerWidth) / 2, 0, outerWidth); },
-          feeLabel->lifetime());
+  rpl::combine(feeLabel->widthValue(), feeWrap->widthValue())  //
+      | rpl::start_with_next(
+            [=](int innerWidth, int outerWidth) { feeLabel->moveToLeft((outerWidth - innerWidth) / 2, 0, outerWidth); },
+            feeLabel->lifetime());
 
   if constexpr (isTonTransfer) {
     if (invoice.sendUnencryptedText && !invoice.comment.isEmpty()) {
@@ -162,14 +172,20 @@ void ConfirmTransactionBox(not_null<Ui::GenericBox *> box, const T &invoice, int
     return rpl::map([selectedToken](QString &&text) { return text.replace("{ticker}", selectedToken.name()); });
   };
 
-  box->addButton(    //
-      (isWithdrawal  //
-           ? ph::lng_wallet_confirm_withdrawal()
-           : isCancelWithdrawal  //
-                 ? ph::lng_wallet_confirm_cancel_withdrawal()
-                 : ph::lng_wallet_confirm_send())  //
-          | replaceTickerTag(token),
-      confirmed);
+  auto buttonText = [=]() constexpr {
+    if constexpr (isWithdrawal) {
+      return ph::lng_wallet_confirm_withdrawal();
+    } else if constexpr (isCancelWithdrawal) {
+      return ph::lng_wallet_confirm_cancel_withdrawal();
+    } else if constexpr (isDeployTokenWallet) {
+      return ph::lng_wallet_confirm_deploy_token_wallet();
+    } else {
+      return ph::lng_wallet_confirm_send();
+    }
+  }
+  ();
+
+  box->addButton(std::move(buttonText) | replaceTickerTag(token), confirmed);
   box->addButton(ph::lng_wallet_cancel(), [=] { box->closeBox(); });
 }
 
@@ -186,6 +202,9 @@ template void ConfirmTransactionBox(not_null<Ui::GenericBox *> box, const Withdr
                                     const Fn<void()> &confirmed);
 
 template void ConfirmTransactionBox(not_null<Ui::GenericBox *> box, const CancelWithdrawalInvoice &invoice, int64 fee,
+                                    const Fn<void()> &confirmed);
+
+template void ConfirmTransactionBox(not_null<Ui::GenericBox *> box, const DeployTokenWalletInvoice &invoice, int64 fee,
                                     const Fn<void()> &confirmed);
 
 }  // namespace Wallet
