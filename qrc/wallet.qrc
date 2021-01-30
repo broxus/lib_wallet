@@ -15,6 +15,11 @@
     <file alias="art/gem@4x.png">../art/gem@4x.png</file>
     <file alias="art/gem@large.png">../art/gem@large.png</file>
 
+    <file alias="art/unknown.png">../art/unknown.png</file>
+    <file alias="art/unknown@2x.png">../art/unknown@2x.png</file>
+    <file alias="art/unknown@4x.png">../art/unknown@4x.png</file>
+    <file alias="art/unknown@large.png">../art/unknown@large.png</file>
+
     <file alias="art/pepe.png">../art/pepe.png</file>
     <file alias="art/pepe@2x.png">../art/pepe@2x.png</file>
     <file alias="art/pepe@4x.png">../art/pepe@4x.png</file>

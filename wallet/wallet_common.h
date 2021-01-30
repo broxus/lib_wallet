@@ -78,6 +78,7 @@ struct TokenTransferInvoice {
   Ton::Symbol token;
   int64 amount{};
   int64 realAmount{};
+  QString walletContractAddress{};
   QString address{};
   bool swapBack = false;
 

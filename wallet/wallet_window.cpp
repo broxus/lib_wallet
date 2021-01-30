@@ -933,6 +933,11 @@ void Window::confirmTransaction(const PreparedInvoice &invoice, const Fn<void(In
           // stay same
         },
         [&](TokenTransferInvoice &tokenTransferInvoice) {
+          const auto state = _state.current();
+          const auto it = state.tokenStates.find(tokenTransferInvoice.token);
+          if (it != state.tokenStates.end()) {
+            tokenTransferInvoice.walletContractAddress = it->second.walletContractAddress;
+          }
           tokenTransferInvoice.realAmount = Ton::TokenTransactionToSend::realAmount;
         },
         [&](StakeInvoice &stakeInvoice) {

@@ -12,6 +12,12 @@ namespace {
 constexpr auto kShareQrSize = 768;
 constexpr auto kShareQrPadding = 16;
 
+const std::vector<std::pair<int, QString>> &UnknownTokenVariants() {
+  static const auto unknownToken = std::vector<std::pair<int, QString>>{
+      {22, "unknown.png"}, {44, "unknown@2x.png"}, {88, "unknown@4x.png"}, {192, "unknown@large.png"}};
+  return unknownToken;
+}
+
 const std::vector<std::pair<int, QString>> &Variants(const Ton::Symbol &symbol) {
   static const auto iconTon = std::vector<std::pair<int, QString>>{
       {22, "gem.png"},
@@ -66,18 +72,21 @@ const std::vector<std::pair<int, QString>> &Variants(const Ton::Symbol &symbol) 
   if (it != tokenIcons.end()) {
     return it->second;
   } else {
-    return iconTon;  // TODO: add unknown token icon
+    return UnknownTokenVariants();
   }
 }
 
-QString ChooseVariant(const Ton::Symbol &kind, int desiredSize) {
-  const auto &variants = Variants(kind);
+QString ChooseVariant(const std::vector<std::pair<int, QString>> &variants, int desiredSize) {
   for (const auto &[size, name] : variants) {
     if (size == desiredSize || size >= desiredSize * 2) {
       return name;
     }
   }
   return variants.back().second;
+}
+
+QString ChooseVariant(const Ton::Symbol &kind, int desiredSize) {
+  return ChooseVariant(Variants(kind), desiredSize);
 }
 
 QImage CreateImage(const Ton::Symbol &symbol, int size) {
@@ -91,8 +100,20 @@ QImage CreateImage(const Ton::Symbol &symbol, int size) {
   return result;
 }
 
+QImage UnknownImage(int size) {
+  Expects(size > 0);
+
+  const auto variant = ChooseVariant(UnknownTokenVariants(), size);
+  auto result = QImage(":/gui/art/" + variant).scaled(size, size, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+  result.setDevicePixelRatio(1.);
+
+  Ensures(!result.isNull());
+  return result;
+}
+
 const QImage &Image(const Ton::Symbol &symbol) {
   static const auto iconTon = CreateImage(Ton::Symbol::ton(), st::walletTokenIconSize * style::DevicePixelRatio());
+  static const auto iconUnknown = UnknownImage(st::walletTokenIconSize * style::DevicePixelRatio());
 
   static const std::map<QString, QImage> tokenIcons = {
       {"usdt", CreateImage(Ton::Symbol::tip3("USDT", 0), st::walletTokenIconSize * style::DevicePixelRatio())},
@@ -111,7 +132,7 @@ const QImage &Image(const Ton::Symbol &symbol) {
   if (it != tokenIcons.end()) {
     return it->second;
   } else {
-    return iconTon;  // TODO: add unknown token icon
+    return iconUnknown;
   }
 }
 

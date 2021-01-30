@@ -435,8 +435,8 @@ auto TonTransferInvoice::asTransaction() const -> Ton::TransactionToSend {
 }
 
 auto TokenTransferInvoice::asTransaction() const -> Ton::TokenTransactionToSend {
-  // TODO: add transaction fee
-  return Ton::TokenTransactionToSend{.recipient = address, .swapBack = swapBack};
+  return Ton::TokenTransactionToSend{
+      .walletContractAddress = walletContractAddress, .amount = amount, .recipient = address, .swapBack = swapBack};
 }
 
 auto StakeInvoice::asTransaction() const -> Ton::StakeTransactionToSend {
