@@ -755,11 +755,8 @@ void History::setupContent(rpl::producer<HistoryState> &&state,
   rpl::combine(std::move(selectedAsset))  //
       | rpl::start_with_next(
             [=](const std::optional<SelectedAsset> &asset) {
-              auto newAsset = asset.value_or(SelectedToken::defaultToken());
-              _selectedAsset = std::move(newAsset);
+              _selectedAsset = asset.value_or(SelectedToken::defaultToken());
               refreshShowDates();
-              _widget.update();
-              _widget.repaint();
             },
             _widget.lifetime());
 }
@@ -922,9 +919,10 @@ bool History::mergePendingChanged(std::vector<Ton::PendingTransaction> &&list) {
 }
 
 bool History::mergeListChanged(std::map<Ton::Symbol, Ton::TransactionsSlice> &&data) {
+  auto changed = false;
   for (auto &&[symbol, newTransactions] : data) {
     auto transactionsIt = _transactions.find(symbol);
-    if (transactionsIt == _transactions.end()) {
+    if (transactionsIt == end(_transactions)) {
       transactionsIt = _transactions
                            .emplace(std::piecewise_construct, std::forward_as_tuple(symbol),
                                     std::forward_as_tuple(TransactionsState{}))
@@ -934,20 +932,20 @@ bool History::mergeListChanged(std::map<Ton::Symbol, Ton::TransactionsSlice> &&d
 
     const auto i = transactions.list.empty()  //
                        ? newTransactions.list.cend()
-                       : ranges::find(std::as_const(newTransactions.list), newTransactions.list.front());
+                       : ranges::find(std::as_const(newTransactions.list), transactions.list.front());
     if (i == newTransactions.list.cend()) {
       transactions.list = newTransactions.list | ranges::to_vector;
       transactions.previousId = std::move(newTransactions.previousId);
       if (!transactions.previousId.lt) {
         computeInitTransactionId();
       }
-      return true;
+      changed = true;
     } else if (i != newTransactions.list.cbegin()) {
       transactions.list.insert(begin(transactions.list), newTransactions.list.cbegin(), i);
-      return true;
+      changed = true;
     }
   }
-  return false;
+  return changed;
 }
 
 void History::setRowShowDate(const std::unique_ptr<HistoryRow> &row, bool show) {
@@ -1133,9 +1131,14 @@ void History::refreshRows() {
     const auto &symbol = item.first;
     const auto &transactions = item.second;
 
-    auto rowsItem = _rows.emplace(std::piecewise_construct, std::forward_as_tuple(symbol),
-                                  std::forward_as_tuple(std::vector<std::unique_ptr<HistoryRow>>{}));
-    auto &rows = rowsItem.first->second;
+    auto rowsIt = _rows.find(symbol);
+    if (rowsIt == end(_rows)) {
+      rowsIt = _rows
+                   .emplace(std::piecewise_construct, std::forward_as_tuple(symbol),
+                            std::forward_as_tuple(std::vector<std::unique_ptr<HistoryRow>>{}))
+                   .first;
+    }
+    auto &rows = rowsIt->second;
 
     auto addedFront = std::vector<std::unique_ptr<HistoryRow>>();
     auto addedBack = std::vector<std::unique_ptr<HistoryRow>>();
@@ -1156,7 +1159,7 @@ void History::refreshRows() {
       }
     }
     if (addedFront.empty() && addedBack.empty()) {
-      return;
+      continue;
     } else if (!addedFront.empty()) {
       if (addedFront.size() < transactions.list.size()) {
         addedFront.insert(end(addedFront), std::make_move_iterator(begin(rows)), std::make_move_iterator(end(rows)));
@@ -1197,9 +1200,9 @@ void History::checkPreload() const {
 rpl::producer<HistoryState> MakeHistoryState(rpl::producer<Ton::WalletViewerState> state) {
   return rpl::combine(std::move(state)) | rpl::map([](Ton::WalletViewerState &&state) {
            std::map<Ton::Symbol, Ton::TransactionsSlice> lastTransactions{
-               {Ton::Symbol::ton(), std::move(state.wallet.lastTransactions)}};
+               {Ton::Symbol::ton(), state.wallet.lastTransactions}};
            for (auto &&[symbol, token] : state.wallet.tokenStates) {
-             lastTransactions.emplace(symbol, std::move(token.lastTransactions));
+             lastTransactions.emplace(symbol, token.lastTransactions);
            }
            return HistoryState{.lastTransactions = std::move(lastTransactions),
                                .pendingTransactions = std::move(state.wallet.pendingTransactions)};
