@@ -184,6 +184,10 @@ rpl::producer<CustomAsset> AssetsList::removeAssetRequests() const {
   return _removeAssetRequests.events();
 }
 
+rpl::producer<std::pair<int, int>> AssetsList::reorderAssetRequests() const {
+  return _reorderAssetRequests.events();
+}
+
 rpl::producer<int> AssetsList::heightValue() const {
   return _height.value();
 }
@@ -227,6 +231,7 @@ void AssetsList::setupContent(rpl::producer<AssetsListState> &&state) {
                   for (int i = 0; i < _buttons.size(); ++i) {
                     *_buttons[i].index = i;
                   }
+                  _reorderAssetRequests.fire(std::make_pair(event.oldPosition, event.newPosition));
                 }
                 default:
                   return;
@@ -424,23 +429,39 @@ rpl::producer<AssetsListState> MakeTokensListState(rpl::producer<Ton::WalletView
            const auto unlockedTonBalance = account.fullBalance - account.lockedBalance;
 
            AssetsListState result{};
+           result.items.reserve(data.wallet.assetsList.size());
 
-           result.items.emplace_back(TokenItem{
-               .token = Ton::Symbol::ton(),
-               .address = data.wallet.address,
-               .balance = unlockedTonBalance,
-           });
-
-           for (const auto &[address, state] : data.wallet.dePoolParticipantStates) {
-             result.items.emplace_back(DePoolItem{.address = address, .total = state.total, .reward = state.reward});
-           }
-
-           for (const auto &[token, state] : data.wallet.tokenStates) {
-             result.items.emplace_back(TokenItem{
-                 .token = token,
-                 .address = state.walletContractAddress,
-                 .balance = state.balance,
-             });
+           for (const auto &item : data.wallet.assetsList) {
+             result.items.emplace_back(v::match(
+                 item,
+                 [&](const Ton::AssetListItemWallet &) -> AssetItem {
+                   return TokenItem{
+                       .token = Ton::Symbol::ton(),
+                       .address = data.wallet.address,
+                       .balance = unlockedTonBalance,
+                   };
+                 },
+                 [&](const Ton::AssetListItemDePool &dePool) -> AssetItem {
+                   const auto it = data.wallet.dePoolParticipantStates.find(dePool.address);
+                   if (it != end(data.wallet.dePoolParticipantStates)) {
+                     return DePoolItem{
+                         .address = dePool.address, .total = it->second.total, .reward = it->second.reward};
+                   } else {
+                     return DePoolItem{.address = dePool.address};
+                   }
+                 },
+                 [&](const Ton::AssetListItemToken &token) -> AssetItem {
+                   const auto it = data.wallet.tokenStates.find(token.symbol);
+                   if (it != end(data.wallet.tokenStates)) {
+                     return TokenItem{
+                         .token = token.symbol,
+                         .address = it->second.walletContractAddress,
+                         .balance = it->second.balance,
+                     };
+                   } else {
+                     return TokenItem{.token = token.symbol};
+                   }
+                 }));
            }
            return result;
          });

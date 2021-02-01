@@ -53,6 +53,7 @@ class AssetsList final {
   [[nodiscard]] rpl::producer<> gateOpenRequests() const;
   [[nodiscard]] rpl::producer<> addAssetRequests() const;
   [[nodiscard]] rpl::producer<CustomAsset> removeAssetRequests() const;
+  [[nodiscard]] rpl::producer<std::pair<int, int>> reorderAssetRequests() const;
   [[nodiscard]] rpl::producer<int> heightValue() const;
 
   [[nodiscard]] rpl::lifetime &lifetime();
@@ -79,6 +80,7 @@ class AssetsList final {
   rpl::event_stream<> _gateOpenRequests;
   rpl::event_stream<> _addAssetRequests;
   rpl::event_stream<CustomAsset> _removeAssetRequests;
+  rpl::event_stream<std::pair<int, int>> _reorderAssetRequests;
 };
 
 [[nodiscard]] rpl::producer<AssetsListState> MakeTokensListState(rpl::producer<Ton::WalletViewerState> state);

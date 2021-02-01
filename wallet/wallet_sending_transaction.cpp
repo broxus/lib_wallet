@@ -35,8 +35,9 @@ void SendingTransactionBox(not_null<Ui::GenericBox *> box, const Ton::Symbol &sy
   box->setCloseByEscape(false);
   box->setCloseByOutsideClick(false);
 
-  rpl::merge(std::move(confirmed), base::timer_once(kShowCloseDelay)) | rpl::take(1) |
-      rpl::start_with_next([=] { box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); }); }, box->lifetime());
+  rpl::merge(std::move(confirmed), base::timer_once(kShowCloseDelay))  //
+      | rpl::take(1)                                                   //
+      | rpl::start_with_next([=] { box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); }); }, box->lifetime());
 
   const auto title = Ui::CreateChild<Ui::FlatLabel>(
       inner, ph::lng_wallet_sending_title() | rpl::map([symbol = symbol](QString &&title) {

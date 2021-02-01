@@ -108,18 +108,6 @@ void Window::init() {
 void Window::startWallet() {
   const auto &was = _wallet->settings().net();
 
-  // TODO: handle event
-
-  //  _wallet->updates()  //
-  //      | rpl::start_with_next(
-  //            [this](const Ton::Update &update) {
-  //              if (v::is<Ton::NewRootTokenContract>(update.data)) {
-  //                auto &event = v::get<Ton::NewRootTokenContract>(update.data);
-  //                _tokenContractAddress = event.newTokenContractAddress;
-  //              }
-  //            },
-  //            _window->lifetime());
-
   if (was.useCustomConfig) {
     return;
   }
@@ -505,6 +493,13 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
                 default:
                   return;
               }
+            },
+            _info->lifetime());
+
+  _info->assetsReorderRequests()  //
+      | rpl::start_with_next(
+            [this](const std::pair<int, int> &indices) {
+              _wallet->reorderAssets(_wallet->publicKeys().front(), indices.first, indices.second);
             },
             _info->lifetime());
 

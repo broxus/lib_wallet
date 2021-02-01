@@ -69,6 +69,10 @@ rpl::producer<CustomAsset> Info::removeAssetRequests() const {
   return _removeAssetRequests.events();
 }
 
+rpl::producer<std::pair<int, int>> Info::assetsReorderRequests() const {
+  return _assetsReorderRequests.events();
+}
+
 rpl::producer<std::pair<Ton::Symbol, Ton::TransactionId>> Info::preloadRequests() const {
   return _preloadRequests.events();
 }
@@ -131,6 +135,13 @@ void Info::setupControls(Data &&data) {
       rpl::start_with_next(
           [=](CustomAsset &&customAsset) { _removeAssetRequests.fire(std::forward<CustomAsset>(customAsset)); },
           assetsList->lifetime());
+
+  assetsList->reorderAssetRequests()  //
+      | rpl::start_with_next(
+            [this](std::pair<int, int> &&indices) {
+              _assetsReorderRequests.fire(std::forward<std::pair<int, int>>(indices));
+            },
+            assetsList->lifetime());
 
   // create ton history page
 

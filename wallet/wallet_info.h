@@ -45,6 +45,7 @@ class Info final {
   [[nodiscard]] rpl::producer<Action> actionRequests() const;
   [[nodiscard]] rpl::producer<CustomAsset> removeAssetRequests() const;
   [[nodiscard]] rpl::producer<std::pair<Ton::Symbol, Ton::TransactionId>> preloadRequests() const;
+  [[nodiscard]] rpl::producer<std::pair<int, int>> assetsReorderRequests() const;
   [[nodiscard]] rpl::producer<Ton::Transaction> viewRequests() const;
   [[nodiscard]] rpl::producer<Ton::Transaction> decryptRequests() const;
 
@@ -61,6 +62,7 @@ class Info final {
 
   rpl::event_stream<Action> _actionRequests;
   rpl::event_stream<CustomAsset> _removeAssetRequests;
+  rpl::event_stream<std::pair<int, int>> _assetsReorderRequests;
   rpl::event_stream<std::pair<Ton::Symbol, Ton::TransactionId>> _preloadRequests;
   rpl::event_stream<Ton::Transaction> _viewRequests;
   rpl::event_stream<Ton::Transaction> _decryptRequests;

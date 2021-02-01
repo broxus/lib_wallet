@@ -412,6 +412,7 @@ walletReceiveAddressLabel: FlatLabel(defaultFlatLabel) {
 	align: align(top);
 }
 walletReceiveLinkPadding: margins(22px, 18px, 22px, 2px);
+walletDeployButtonPadding: margins(16px, 4px, 16px, 0px);
 
 walletInvoiceBox: Box(defaultBox) {
 	buttonPadding: margins(16px, 52px, 16px, 16px);
