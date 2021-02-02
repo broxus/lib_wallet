@@ -190,6 +190,33 @@ std::optional<int64> ParseAmountString(const QString &amount, size_t decimals) {
   return *amountInt + (*amountInt < 0 ? (-*amountFraction) : (*amountFraction));
 }
 
+ParsedAddress ParseAddress(const QString &address) {
+  const auto colonPosition = address.indexOf(':');
+  const auto hexPrefixPosition = address.indexOf("0x");
+  if (colonPosition > 0) {
+    const auto hasMinus = address[0] == '-';
+
+    return ParsedAddressTon{
+        .address = (hasMinus ? QString{"-"} : QString{}) +
+                   address.mid(hasMinus, colonPosition).replace(QRegularExpression("[^\\d]"), QString()).mid(0, 2) +
+                   ":" +
+                   address.mid(colonPosition, -1)
+                       .replace(QRegularExpression("[^a-fA-F0-9]"), QString())
+                       .mid(0, kRawAddressLength),
+        .packed = false};
+  } else if (hexPrefixPosition == 0) {
+    return ParsedAddressEth{
+        .address =
+            QString{"0x"} +
+            address.mid(2, -1).replace(QRegularExpression("[^a-fA-F0-9]"), QString()).mid(0, kEtheriumAddressLength)};
+  } else {
+    return ParsedAddressTon{
+        .address =
+            address.mid(0, -1).replace(QRegularExpression("[^a-zA-Z0-9_\\-]"), QString()).mid(0, kEncodedAddressLength),
+        .packed = true};
+  }
+}
+
 PreparedInvoice ParseInvoice(QString invoice) {
   enum class InvoiceKind { Transfer, Stake } invoiceKind;
 
@@ -435,8 +462,12 @@ auto TonTransferInvoice::asTransaction() const -> Ton::TransactionToSend {
 }
 
 auto TokenTransferInvoice::asTransaction() const -> Ton::TokenTransactionToSend {
-  return Ton::TokenTransactionToSend{
-      .walletContractAddress = walletContractAddress, .amount = amount, .recipient = address, .swapBack = swapBack};
+  return Ton::TokenTransactionToSend{.rootContractAddress = rootContractAddress,
+                                     .walletContractAddress = walletContractAddress,
+                                     .amount = amount,
+                                     .recipient = address,
+                                     .callbackAddress = callbackAddress,
+                                     .tokenTransferType = transferType};
 }
 
 auto StakeInvoice::asTransaction() const -> Ton::StakeTransactionToSend {

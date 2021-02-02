@@ -11,6 +11,7 @@
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/checkbox.h"
 #include "ui/inline_token_icon.h"
 #include "base/algorithm.h"
 #include "base/qt_signal_producer.h"
@@ -28,11 +29,13 @@ struct FixedAddress {
   int position = 0;
 };
 
-[[nodiscard]] FixedAddress FixAddressInput(const QString &text, int position) {
-  const auto address = v::match(
-      ParseInvoice(text), [](const TonTransferInvoice &tonTransferInvoice) { return tonTransferInvoice.address; },
-      [](const TokenTransferInvoice &tokenTransferInvoice) { return tokenTransferInvoice.address; },
-      [](auto &&) { return QString{}; });
+[[nodiscard]] FixedAddress FixAddressInput(const QString &text, int position, bool acceptEthereumAddress) {
+  auto [address, isEth] = v::match(
+      ParseAddress(text), [](const ParsedAddressTon &ton) { return std::make_pair(ton.address, false); },
+      [](const ParsedAddressEth &eth) { return std::make_pair(eth.address, true); });
+  if (!acceptEthereumAddress && isEth) {
+    address = address.mid(0, address.indexOf('x'));
+  }
 
   auto result = FixedAddress{address, position};
 
@@ -130,6 +133,44 @@ void SendGramsBox(not_null<Ui::GenericBox *> box, const T &invoice, rpl::produce
           },
           balanceLabel->lifetime());
 
+  Ui::InputField *callbackAddress = nullptr;
+  Ui::VerticalLayout *callbackAddressWrapper = nullptr;
+  rpl::variable<Ton::TokenTransferType> *transferType = nullptr;
+  std::shared_ptr<Ui::RadiobuttonGroup> transferTypeSelector{};
+  if constexpr (isTokenTransfer) {
+    transferType = box->lifetime().make_state<rpl::variable<Ton::TokenTransferType>>(prepared->transferType);
+    transferTypeSelector = std::make_shared<Ui::RadiobuttonGroup>(static_cast<int>(prepared->transferType));
+    const auto radioButtonMargin = QMargins{st::walletSendAmountPadding.left(), 0, 0, 0};
+    const auto radioButtonItemHeight =
+        st::defaultCheckbox.margin.top() + st::defaultRadio.diameter + st::defaultCheckbox.margin.bottom();
+
+    const auto transferDirect = box->addRow(  //
+        object_ptr<Ui::FixedHeightWidget>(box, radioButtonItemHeight), radioButtonMargin);
+    Ui::CreateChild<Ui::Radiobutton>(transferDirect, transferTypeSelector,
+                                     static_cast<int>(Ton::TokenTransferType::Direct),
+                                     ph::lng_wallet_send_token_transfer_direct(ph::now));
+
+    const auto transferToOwner = box->addRow(  //
+        object_ptr<Ui::FixedHeightWidget>(box, radioButtonItemHeight), radioButtonMargin);
+    Ui::CreateChild<Ui::Radiobutton>(transferToOwner, transferTypeSelector,
+                                     static_cast<int>(Ton::TokenTransferType::ToOwner),
+                                     ph::lng_wallet_send_token_transfer_to_owner(ph::now));
+
+    const auto transferSwapBack = box->addRow(  //
+        object_ptr<Ui::FixedHeightWidget>(box, radioButtonItemHeight), radioButtonMargin);
+    Ui::CreateChild<Ui::Radiobutton>(transferSwapBack, transferTypeSelector,
+                                     static_cast<int>(Ton::TokenTransferType::SwapBack),
+                                     ph::lng_wallet_send_token_transfer_swapback(ph::now));
+
+    callbackAddressWrapper = box->addRow(object_ptr<Ui::VerticalLayout>(box), QMargins{});
+
+    AddBoxSubtitle(callbackAddressWrapper, ph::lng_wallet_send_token_proxy_address());
+    callbackAddress = callbackAddressWrapper->add(
+        object_ptr<Ui::InputField>(box, st::walletSendInput, Ui::InputField::Mode::NoNewlines,
+                                   ph::lng_wallet_send_token_proxy_address_placeholder(), prepared->callbackAddress),
+        st::boxRowPadding);
+  }
+
   Ui::InputField *comment = nullptr;
   if constexpr (isTonTransfer) {
     comment = box->addRow(
@@ -138,6 +179,45 @@ void SendGramsBox(not_null<Ui::GenericBox *> box, const T &invoice, rpl::produce
   }
 
   auto isEthereumAddress = box->lifetime().make_state<rpl::variable<bool>>(false);
+
+  if (transferTypeSelector != nullptr && transferType != nullptr) {
+    isEthereumAddress->value()                                     //
+        | rpl::filter([](bool isSwapBack) { return isSwapBack; })  //
+        | rpl::start_with_next(
+              [=](bool) { transferTypeSelector->setValue(static_cast<int>(Ton::TokenTransferType::SwapBack)); },
+              box->lifetime());
+
+    transferTypeSelector->setChangedCallback([=](int value) {
+      const auto type = static_cast<Ton::TokenTransferType>(value);
+      const auto currentType = transferType->current();
+      const auto isSwapBack = type == Ton::TokenTransferType::SwapBack;
+
+      if (currentType == Ton::TokenTransferType::SwapBack && !isSwapBack && isEthereumAddress->current() ||
+          currentType != Ton::TokenTransferType::SwapBack && isSwapBack && !isEthereumAddress->current()) {
+        address->clear();
+      }
+
+      callbackAddress->setEnabled(isSwapBack);
+      callbackAddressWrapper->setMaximumHeight(isSwapBack ? QWIDGETSIZE_MAX : 0);
+      callbackAddressWrapper->adjustSize();
+      *transferType = type;
+    });
+
+    address->setPlaceholder(  //
+        transferType->value() | rpl::map([](Ton::TokenTransferType type) {
+          switch (type) {
+            case Ton::TokenTransferType::Direct:
+              return ph::lng_wallet_send_token_direct_address();
+            case Ton::TokenTransferType::ToOwner:
+              return ph::lng_wallet_send_token_owner_address();
+            case Ton::TokenTransferType::SwapBack:
+              return ph::lng_wallet_send_token_ethereum_address();
+            default:
+              return ph::lng_wallet_send_address();  // unreachable
+          }
+        }) |
+        rpl::flatten_latest());
+  }
 
   auto text =                                                                  //
       rpl::single(rpl::empty_value())                                          //
@@ -159,9 +239,15 @@ void SendGramsBox(not_null<Ui::GenericBox *> box, const T &invoice, rpl::produce
                        ph::lng_wallet_grams_count(FormatAmount(value, symbol).full, symbol)())  //
                    | replaceAmountTag();
           } else {
-            return isEthereumAddress->value()  //
-                   | rpl::map([](bool isEthereumAddress) {
-                       if (isEthereumAddress) {
+            return rpl::combine(  //
+                       isEthereumAddress->value(),
+                       (transferType == nullptr  //
+                            ? rpl::single(false)
+                            : transferType->value() | rpl::map([](Ton::TokenTransferType type) {
+                                return type == Ton::TokenTransferType::SwapBack;
+                              })))  //
+                   | rpl::map([](bool isEthereumAddress, bool isSwapBack) {
+                       if (isEthereumAddress || isSwapBack) {
                          return ph::lng_wallet_send_button_swap_back();
                        } else {
                          return ph::lng_wallet_send_button();
@@ -185,6 +271,12 @@ void SendGramsBox(not_null<Ui::GenericBox *> box, const T &invoice, rpl::produce
         }
         return;
       }
+      case InvoiceField::CallbackAddress: {
+        if (callbackAddress != nullptr) {
+          callbackAddress->showError();
+        }
+        return;
+      }
     }
     Unexpected("Field value in SendGramsBox error callback.");
   });
@@ -201,8 +293,9 @@ void SendGramsBox(not_null<Ui::GenericBox *> box, const T &invoice, rpl::produce
     if constexpr (isTonTransfer) {
       collected.comment = comment->getLastText();
     } else if constexpr (isTokenTransfer) {
-      collected.swapBack = collected.address.startsWith("0x");
       collected.token = symbol;
+      collected.callbackAddress = callbackAddress->getLastText();
+      collected.transferType = transferType->current();
     }
     done(collected, showError);
   };
@@ -232,7 +325,7 @@ void SendGramsBox(not_null<Ui::GenericBox *> box, const T &invoice, rpl::produce
     Ui::PostponeCall(address, [=] {
       const auto position = address->textCursor().position();
       const auto now = address->getLastText();
-      const auto fixed = FixAddressInput(now, position);
+      const auto fixed = FixAddressInput(now, position, isTokenTransfer);
       if (fixed.address != now) {
         address->setText(fixed.address);
         address->setFocusFast();
@@ -259,11 +352,31 @@ void SendGramsBox(not_null<Ui::GenericBox *> box, const T &invoice, rpl::produce
         }
 
         if constexpr (isTonTransfer) {
-          comment->setFocus();
+          return comment->setFocus();
+        }
+
+        if (callbackAddress != nullptr && transferType != nullptr &&
+            transferType->current() == Ton::TokenTransferType::SwapBack) {
+          callbackAddress->setFocus();
         }
       }
     });
   });
+
+  if (callbackAddress != nullptr) {
+    Ui::Connect(callbackAddress, &Ui::InputField::changed, [=] {
+      Ui::PostponeCall(callbackAddress, [=] {
+        const auto position = callbackAddress->textCursor().position();
+        const auto now = callbackAddress->getLastText();
+        const auto fixed = FixAddressInput(now, position, false);
+        if (fixed.address != now) {
+          callbackAddress->setText(fixed.address);
+          callbackAddress->setFocusFast();
+          callbackAddress->setCursorPosition(fixed.position);
+        }
+      });
+    });
+  }
 
   box->setFocusCallback([=] {
     if (prepared->address.isEmpty() || address->getLastText() != prepared->address) {
@@ -308,6 +421,10 @@ void SendGramsBox(not_null<Ui::GenericBox *> box, const T &invoice, rpl::produce
 
   if (comment != nullptr) {
     Ui::Connect(comment, &Ui::InputField::submitted, submit);
+  }
+
+  if (callbackAddressWrapper != nullptr) {
+    callbackAddressWrapper->setMaximumHeight(0);
   }
 }
 

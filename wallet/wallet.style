@@ -579,7 +579,7 @@ walletSettingsUpdateStatePosition: point(22px, 29px);
 walletSettingsDividerMargin: margins(0px, 12px, 0px, 12px);
 walletSettingsBlockchainNameSkip: 12px;
 
-walletWindowSize: size(392px, 520px);
+walletWindowSize: size(392px, 555px);
 walletWindowSizeMin: size(392px, 520px);
 walletWindowTitle: WindowTitle(defaultWindowTitle) {
 	bg: walletTitleBg;

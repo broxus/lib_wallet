@@ -181,8 +181,16 @@ extern phrase lng_wallet_delete_about;
 extern phrase lng_wallet_delete_disconnect;
 
 extern phrase lng_wallet_send_title;
+extern phrase lng_wallet_send_token_transfer_direct;
+extern phrase lng_wallet_send_token_transfer_to_owner;
+extern phrase lng_wallet_send_token_transfer_swapback;
+extern phrase lng_wallet_send_token_proxy_address;
 extern phrase lng_wallet_send_recipient;
 extern phrase lng_wallet_send_address;
+extern phrase lng_wallet_send_token_direct_address;
+extern phrase lng_wallet_send_token_owner_address;
+extern phrase lng_wallet_send_token_ethereum_address;
+extern phrase lng_wallet_send_token_proxy_address_placeholder;
 extern phrase lng_wallet_send_about;
 extern phrase lng_wallet_send_amount;
 extern phrase lng_wallet_send_balance;
@@ -227,6 +235,9 @@ extern phrase lng_wallet_add_depool_failed_text;
 extern phrase lng_wallet_add_token_succeeded;
 extern phrase lng_wallet_add_token_failed_title;
 extern phrase lng_wallet_add_token_failed_text;
+
+extern phrase lng_wallet_send_tokens_recipient_not_found;
+extern phrase lng_wallet_send_tokens_recipient_changed;
 
 extern phrase lng_wallet_confirm_title;
 extern phrase lng_wallet_confirm_text;

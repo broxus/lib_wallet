@@ -198,8 +198,16 @@ phrase lng_wallet_delete_about =
 phrase lng_wallet_delete_disconnect = "Disconnect";
 
 phrase lng_wallet_send_title = "Send {ticker}";
+phrase lng_wallet_send_token_transfer_direct = "By token wallet address";
+phrase lng_wallet_send_token_transfer_to_owner = "By owner address";
+phrase lng_wallet_send_token_transfer_swapback = "Swap back";
+phrase lng_wallet_send_token_proxy_address = "Event proxy address";
 phrase lng_wallet_send_recipient = "Recipient wallet address";
 phrase lng_wallet_send_address = "Enter wallet address";
+phrase lng_wallet_send_token_direct_address = "Enter token wallet address";
+phrase lng_wallet_send_token_owner_address = "Enter owner address";
+phrase lng_wallet_send_token_ethereum_address = "Enter Ethereum address";
+phrase lng_wallet_send_token_proxy_address_placeholder = "Enter event proxy address";
 phrase lng_wallet_send_about =
     "Copy the wallet address of the recipient here or ask them to send you a freeton:// link.";
 phrase lng_wallet_send_amount = "Amount";
@@ -250,6 +258,9 @@ phrase lng_wallet_add_depool_failed_text =
 phrase lng_wallet_add_token_succeeded = "TIP3 Token added successfully!";
 phrase lng_wallet_add_token_failed_title = "Failed to add TIP3 Token";
 phrase lng_wallet_add_token_failed_text = "The specified account was not found, or it is not a root token contract";
+
+phrase lng_wallet_send_tokens_recipient_not_found = "Recipient token wallet not found";
+phrase lng_wallet_send_tokens_recipient_changed = "Sending directly to the token wallet";
 
 phrase lng_wallet_confirm_title = "Confirmation";
 phrase lng_wallet_confirm_text = "Do you want to send **{grams}** to:";

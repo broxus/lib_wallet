@@ -95,7 +95,7 @@ class Window final : public base::has_weak_ptr {
   void dePoolCancelWithdrawal(const CancelWithdrawalInvoice &invoice);
   void deployTokenWallet(const DeployTokenWalletInvoice &invoice);
 
-  void confirmTransaction(const PreparedInvoice &invoice, const Fn<void(InvoiceField)> &showInvoiceError,
+  void confirmTransaction(PreparedInvoice invoice, const Fn<void(InvoiceField)> &showInvoiceError,
                           const std::shared_ptr<bool> &guard);
   void showSendConfirmation(const PreparedInvoice &invoice, const Ton::TransactionCheckResult &checkResult,
                             const Fn<void(InvoiceField)> &showInvoiceError);

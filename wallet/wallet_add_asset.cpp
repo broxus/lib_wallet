@@ -19,7 +19,7 @@ struct FixedAddress {
   int position = 0;
 };
 
-[[nodiscard]] FixedAddress FixAddressInput(const QString &text, int position) {
+[[nodiscard]] FixedAddress FixAddressInputExtended(const QString &text, int position) {
   const auto address = v::match(
       ParseInvoice(text), [](const TonTransferInvoice &tonTransferInvoice) { return tonTransferInvoice.address; },
       [](auto &&) { return QString{}; });
@@ -75,7 +75,7 @@ void AddAssetBox(not_null<Ui::GenericBox *> box, const Fn<void(CustomAsset, Fn<v
     Ui::PostponeCall(address, [=] {
       const auto position = address->textCursor().position();
       const auto now = address->getLastText();
-      const auto fixed = FixAddressInput(now, position);
+      const auto fixed = FixAddressInputExtended(now, position);
       if (fixed.address != now) {
         address->setText(fixed.address);
         address->setFocusFast();

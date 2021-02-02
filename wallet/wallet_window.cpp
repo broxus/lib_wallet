@@ -790,10 +790,14 @@ void Window::sendMoney(const PreparedInvoiceOrLink &invoice) {
       },
       [=](const TokenTransferInvoice &tokenTransferInvoice) {
         const auto send = [=](const TokenTransferInvoice &finalInvoice, const Fn<void(InvoiceField)> &showError) {
-          if (!tokenTransferInvoice.swapBack && !Ton::Wallet::CheckAddress(finalInvoice.address)) {
+          if (finalInvoice.transferType != Ton::TokenTransferType::SwapBack &&
+              !Ton::Wallet::CheckAddress(finalInvoice.address)) {
             showError(InvoiceField::Address);
           } else if (finalInvoice.amount > available(finalInvoice.token) || finalInvoice.amount <= 0) {
             showError(InvoiceField::Amount);
+          } else if (finalInvoice.transferType == Ton::TokenTransferType::SwapBack &&
+                     !Ton::Wallet::CheckAddress(finalInvoice.callbackAddress)) {
+            showError(InvoiceField::CallbackAddress);
           } else {
             confirmTransaction(finalInvoice, showError, checking);
           }
@@ -906,15 +910,43 @@ void Window::deployTokenWallet(const DeployTokenWalletInvoice &invoice) {
   _layers->showBox(std::move(box));
 }
 
-void Window::confirmTransaction(const PreparedInvoice &invoice, const Fn<void(InvoiceField)> &showInvoiceError,
+void Window::confirmTransaction(PreparedInvoice invoice, const Fn<void(InvoiceField)> &showInvoiceError,
                                 const std::shared_ptr<bool> &guard) {
   if (*guard || !_sendBox) {
     return;
   }
   *guard = true;
-  auto done = [=, invoice = invoice](Ton::Result<Ton::TransactionCheckResult> result) mutable {
+
+  v::match(
+      invoice,
+      [&](TonTransferInvoice &tonTransferInvoice) {
+        // stay same
+      },
+      [&](TokenTransferInvoice &tokenTransferInvoice) {
+        const auto state = _state.current();
+        const auto it = state.tokenStates.find(tokenTransferInvoice.token);
+        if (it != state.tokenStates.end()) {
+          tokenTransferInvoice.rootContractAddress = it->second.rootContractAddress;
+          tokenTransferInvoice.walletContractAddress = it->second.walletContractAddress;
+        }
+        tokenTransferInvoice.realAmount = Ton::TokenTransactionToSend::realAmount;
+      },
+      [&](StakeInvoice &stakeInvoice) {
+        stakeInvoice.realAmount = stakeInvoice.stake + Ton::StakeTransactionToSend::depoolFee;
+      },
+      [&](WithdrawalInvoice &withdrawalInvoice) {
+        withdrawalInvoice.realAmount = Ton::WithdrawalTransactionToSend::depoolFee;
+      },
+      [&](CancelWithdrawalInvoice &cancelWithdrawalInvoice) {
+        cancelWithdrawalInvoice.realAmount = Ton::CancelWithdrawalTransactionToSend::depoolFee;
+      },
+      [&](DeployTokenWalletInvoice &deployTokenWalletInvoice) {
+        deployTokenWalletInvoice.realAmount = Ton::DeployTokenWalletTransactionToSend::realAmount;
+      });
+
+  auto done = [=](Ton::Result<Ton::TransactionCheckResult> result, PreparedInvoice &&invoice) mutable {
     *guard = false;
-    if (!result) {
+    if (!result.has_value()) {
       if (const auto field = ErrorInvoiceField(result.error())) {
         return showInvoiceError(*field);
       }
@@ -935,60 +967,63 @@ void Window::confirmTransaction(const PreparedInvoice &invoice, const Fn<void(In
       return;
     }
 
-    v::match(
-        invoice,
-        [&](TonTransferInvoice &tonTransferInvoice) {
-          // stay same
-        },
-        [&](TokenTransferInvoice &tokenTransferInvoice) {
-          const auto state = _state.current();
-          const auto it = state.tokenStates.find(tokenTransferInvoice.token);
-          if (it != state.tokenStates.end()) {
-            tokenTransferInvoice.walletContractAddress = it->second.walletContractAddress;
-          }
-          tokenTransferInvoice.realAmount = Ton::TokenTransactionToSend::realAmount;
-        },
-        [&](StakeInvoice &stakeInvoice) {
-          stakeInvoice.realAmount = stakeInvoice.stake + Ton::StakeTransactionToSend::depoolFee;
-        },
-        [&](WithdrawalInvoice &withdrawalInvoice) {
-          withdrawalInvoice.realAmount = Ton::WithdrawalTransactionToSend::depoolFee;
-        },
-        [&](CancelWithdrawalInvoice &cancelWithdrawalInvoice) {
-          cancelWithdrawalInvoice.realAmount = Ton::CancelWithdrawalTransactionToSend::depoolFee;
-        },
-        [&](DeployTokenWalletInvoice &deployTokenWalletInvoice) {
-          deployTokenWalletInvoice.realAmount = Ton::DeployTokenWalletTransactionToSend::realAmount;
-        });
-
     showSendConfirmation(invoice, *result, showInvoiceError);
+  };
+
+  auto doneUnchanged = [done, invoice = invoice](const Ton::Result<Ton::TransactionCheckResult> &result) mutable {
+    done(result, std::move(invoice));
   };
 
   v::match(
       invoice,
       [&](const TonTransferInvoice &tonTransferInvoice) {
         _wallet->checkSendGrams(_wallet->publicKeys().front(), tonTransferInvoice.asTransaction(),
-                                crl::guard(_sendBox.data(), done));
+                                crl::guard(_sendBox.data(), doneUnchanged));
       },
       [&](const TokenTransferInvoice &tokenTransferInvoice) {
+        auto tokenHandler =
+            [this, guard, showInvoiceError, done, invoice = tokenTransferInvoice](
+                Ton::Result<std::pair<Ton::TransactionCheckResult, Ton::TokenTransferCheckResult>> result) mutable {
+              if (!result.has_value()) {
+                done(result.error(), std::move(invoice));
+              } else {
+                v::match(
+                    result.value().second,
+                    [&](const Ton::TokenTransferUnchanged &) {
+                      done(std::move(result.value().first), std::move(invoice));
+                    },
+                    [&](const Ton::DirectAccountNotFound &) {
+                      *guard = false;
+                      showToast(ph::lng_wallet_send_tokens_recipient_not_found(ph::now));
+                      showInvoiceError(InvoiceField::Address);
+                    },
+                    [&](const Ton::DirectRecipient &directRecipient) {
+                      invoice.transferType = Ton::TokenTransferType::Direct;
+                      invoice.address = directRecipient.address;
+                      showToast(ph::lng_wallet_send_tokens_recipient_changed(ph::now));
+                      done(std::move(result.value().first), std::move(invoice));
+                    });
+              };
+            };
+
         _wallet->checkSendTokens(_wallet->publicKeys().front(), tokenTransferInvoice.asTransaction(),
-                                 crl::guard(_sendBox.data(), done));
+                                 crl::guard(_sendBox.data(), std::move(tokenHandler)));
       },
       [&](const StakeInvoice &stakeInvoice) {
         _wallet->checkSendStake(_wallet->publicKeys().front(), stakeInvoice.asTransaction(),
-                                crl::guard(_sendBox.data(), done));
+                                crl::guard(_sendBox.data(), doneUnchanged));
       },
       [&](const WithdrawalInvoice &withdrawalInvoice) {
         _wallet->checkWithdraw(_wallet->publicKeys().front(), withdrawalInvoice.asTransaction(),
-                               crl::guard(_sendBox.data(), done));
+                               crl::guard(_sendBox.data(), doneUnchanged));
       },
       [&](const CancelWithdrawalInvoice &cancelWithdrawalInvoice) {
         _wallet->checkCancelWithdraw(_wallet->publicKeys().front(), cancelWithdrawalInvoice.asTransaction(),
-                                     crl::guard(_sendBox.data(), done));
+                                     crl::guard(_sendBox.data(), doneUnchanged));
       },
       [&](const DeployTokenWalletInvoice &deployTokenWalletInvoice) {
         _wallet->checkDeployTokenWallet(_wallet->publicKeys().front(), deployTokenWalletInvoice.asTransaction(),
-                                        crl::guard(_sendBox.data(), done));
+                                        crl::guard(_sendBox.data(), doneUnchanged));
       });
 }
 
@@ -1212,7 +1247,7 @@ void Window::showSendingDone(std::optional<Ton::Transaction> result, const Prepa
         [&](const TokenTransferInvoice &tokenTransferInvoice) {
           return Box(SendingDoneBox<TokenTransferInvoice>, *result, tokenTransferInvoice, [this, tokenTransferInvoice] {
             refreshNow();
-            if (tokenTransferInvoice.swapBack) {
+            if (tokenTransferInvoice.transferType == Ton::TokenTransferType::SwapBack) {
               _wallet->openReveal(_rawAddress, tokenTransferInvoice.address);
             }
           });
@@ -1299,8 +1334,18 @@ void Window::addAsset() {
 }
 
 void Window::receiveTokens(const Ton::Symbol &selectedToken) {
+  auto rawAddress = _rawAddress;
+  if (selectedToken.isToken()) {
+    const auto state = _state.current();
+    const auto it = state.tokenStates.find(selectedToken);
+    if (it == state.tokenStates.end()) {
+      return;
+    }
+    rawAddress = it->second.walletContractAddress;
+  }
+
   _layers->showBox(Box(
-      ReceiveTokensBox, _rawAddress, selectedToken,
+      ReceiveTokensBox, rawAddress, selectedToken,
       [this, selectedToken = selectedToken] { createInvoice(selectedToken); }, shareAddressCallback(),
       [this, selectedToken = selectedToken] { _wallet->openGate(_rawAddress, selectedToken); },
       [this, selectedToken = selectedToken] {

@@ -78,9 +78,11 @@ struct TokenTransferInvoice {
   Ton::Symbol token;
   int64 amount{};
   int64 realAmount{};
-  QString walletContractAddress{};
-  QString address{};
-  bool swapBack = false;
+  QString rootContractAddress;
+  QString walletContractAddress;
+  QString address;
+  QString callbackAddress{};
+  Ton::TokenTransferType transferType{Ton::TokenTransferType::Direct};
 
   auto asTransaction() const -> Ton::TokenTransactionToSend;
 };
@@ -148,9 +150,19 @@ constexpr bool is_flag_type(FormatFlag) {
 };
 using FormatFlags = base::flags<FormatFlag>;
 
+struct ParsedAddressTon {
+  QString address;
+  bool packed{};
+};
+struct ParsedAddressEth {
+  QString address;
+};
+using ParsedAddress = std::variant<ParsedAddressTon, ParsedAddressEth>;
+
 [[nodiscard]] FormattedAmount FormatAmount(int64 amount, const Ton::Symbol &symbol, FormatFlags flags = FormatFlags());
 [[nodiscard]] QString AmountSeparator();
 [[nodiscard]] std::optional<int64> ParseAmountString(const QString &amount, size_t decimals);
+[[nodiscard]] ParsedAddress ParseAddress(const QString &address);
 [[nodiscard]] PreparedInvoice ParseInvoice(QString invoice);
 [[nodiscard]] int64 CalculateValue(const Ton::Transaction &data);
 [[nodiscard]] QString ExtractAddress(const Ton::Transaction &data);
