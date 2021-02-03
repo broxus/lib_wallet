@@ -466,7 +466,7 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
                         const auto it = state.tokenStates.find(selectedToken.symbol);
                         if (it != state.tokenStates.end()) {
                           deployTokenWallet(
-                              DeployTokenWalletInvoice{.rootContractAddress = it->second.rootContractAddress,
+                              DeployTokenWalletInvoice{.rootContractAddress = it->first.rootContractAddress(),
                                                        .walletContractAddress = it->second.walletContractAddress,
                                                        .owned = true});
                         }
@@ -489,7 +489,7 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
                 case CustomAssetType::DePool:
                   return _wallet->removeDePool(_wallet->publicKeys().front(), asset.address);
                 case CustomAssetType::Token:
-                  return _wallet->removeToken(_wallet->publicKeys().front(), asset.address);
+                  return _wallet->removeToken(_wallet->publicKeys().front(), asset.symbol);
                 default:
                   return;
               }
@@ -926,7 +926,7 @@ void Window::confirmTransaction(PreparedInvoice invoice, const Fn<void(InvoiceFi
         const auto state = _state.current();
         const auto it = state.tokenStates.find(tokenTransferInvoice.token);
         if (it != state.tokenStates.end()) {
-          tokenTransferInvoice.rootContractAddress = it->second.rootContractAddress;
+          tokenTransferInvoice.rootContractAddress = it->first.rootContractAddress();
           tokenTransferInvoice.walletContractAddress = it->second.walletContractAddress;
         }
         tokenTransferInvoice.realAmount = Ton::TokenTransactionToSend::realAmount;
@@ -1282,7 +1282,7 @@ void Window::addAsset() {
     _sendBox->closeBox();
   }
 
-  const auto onNewDepool = [this](Ton::Result<> result) {
+  const auto onNewDepool = [this](const Ton::Result<>& result) {
     if (result.has_value()) {
       refreshNow();
       showToast(ph::lng_wallet_add_depool_succeeded(ph::now));
@@ -1292,7 +1292,7 @@ void Window::addAsset() {
     }
   };
 
-  const auto onNewToken = [this](Ton::Result<> result) {
+  const auto onNewToken = [this](const Ton::Result<>& result) {
     if (result.has_value()) {
       refreshNow();
       showToast(ph::lng_wallet_add_token_succeeded(ph::now));

@@ -345,7 +345,7 @@ void AssetsList::setupContent(rpl::producer<AssetsListState> &&state) {
                               _removeAssetRequests.fire(v::match(
                                   _rows[*i]->data(),
                                   [](const TokenItem &tokenItem) {
-                                    return CustomAsset{.type = CustomAssetType::Token, .address = tokenItem.address};
+                                    return CustomAsset{.type = CustomAssetType::Token, .symbol = tokenItem.token};
                                   },
                                   [](const DePoolItem &dePoolItem) {
                                     return CustomAsset{.type = CustomAssetType::DePool, .address = dePoolItem.address};
@@ -459,7 +459,7 @@ rpl::producer<AssetsListState> MakeTokensListState(rpl::producer<Ton::WalletView
                          .balance = it->second.balance,
                      };
                    } else {
-                     return TokenItem{.token = token.symbol};
+                     return TokenItem{.token = token.symbol, .address = Ton::kZeroAddress};
                    }
                  }));
            }

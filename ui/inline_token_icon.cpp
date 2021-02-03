@@ -12,20 +12,19 @@ namespace {
 constexpr auto kShareQrSize = 768;
 constexpr auto kShareQrPadding = 16;
 
+const std::vector<std::pair<int, QString>> &TonVariants() {
+  static const auto iconTon = std::vector<std::pair<int, QString>>{
+      {22, "gem.png"}, {44, "gem@2x.png"}, {88, "gem@4x.png"}, {192, "gem@large.png"}};
+  return iconTon;
+}
+
 const std::vector<std::pair<int, QString>> &UnknownTokenVariants() {
   static const auto unknownToken = std::vector<std::pair<int, QString>>{
       {22, "unknown.png"}, {44, "unknown@2x.png"}, {88, "unknown@4x.png"}, {192, "unknown@large.png"}};
   return unknownToken;
 }
 
-const std::vector<std::pair<int, QString>> &Variants(const Ton::Symbol &symbol) {
-  static const auto iconTon = std::vector<std::pair<int, QString>>{
-      {22, "gem.png"},
-      {44, "gem@2x.png"},
-      {88, "gem@4x.png"},
-      {192, "gem@large.png"},
-  };
-
+const std::vector<std::pair<int, QString>> &TokenVariants(const QString &name) {
   static const std::map<QString, std::vector<std::pair<int, QString>>> tokenIcons =  //
       {{"usdt",
         {
@@ -63,12 +62,7 @@ const std::vector<std::pair<int, QString>> &Variants(const Ton::Symbol &symbol) 
             {192, "weth@large.png"},
         }}};
 
-  if (symbol.isTon()) {
-    return iconTon;
-  }
-
-  const auto escaped = symbol.name().trimmed().toLower();
-  const auto it = tokenIcons.find(escaped);
+  const auto it = tokenIcons.find(name.trimmed().toLower());
   if (it != tokenIcons.end()) {
     return it->second;
   } else {
@@ -85,42 +79,45 @@ QString ChooseVariant(const std::vector<std::pair<int, QString>> &variants, int 
   return variants.back().second;
 }
 
-QString ChooseVariant(const Ton::Symbol &kind, int desiredSize) {
-  return ChooseVariant(Variants(kind), desiredSize);
+QString ChooseVariant(int desiredSize) {
+  return ChooseVariant(TonVariants(), desiredSize);
 }
 
-QImage CreateImage(const Ton::Symbol &symbol, int size) {
-  Expects(size > 0);
+QString ChooseVariant(const QString &name, int desiredSize) {
+  return ChooseVariant(TokenVariants(name), desiredSize);
+}
 
-  const auto variant = ChooseVariant(symbol, size);
+QImage CreateImage(const QString &variant, int size) {
+  Expects(size > 0);
   auto result = QImage(":/gui/art/" + variant).scaled(size, size, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
   result.setDevicePixelRatio(1.);
 
   Ensures(!result.isNull());
   return result;
+}
+
+QImage TonImage(int size) {
+  return CreateImage(ChooseVariant(size), size);
+}
+
+QImage TokenImage(const QString &name, int size) {
+  return CreateImage(ChooseVariant(name, size), size);
 }
 
 QImage UnknownImage(int size) {
-  Expects(size > 0);
-
-  const auto variant = ChooseVariant(UnknownTokenVariants(), size);
-  auto result = QImage(":/gui/art/" + variant).scaled(size, size, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
-  result.setDevicePixelRatio(1.);
-
-  Ensures(!result.isNull());
-  return result;
+  return CreateImage(ChooseVariant(UnknownTokenVariants(), size), size);
 }
 
 const QImage &Image(const Ton::Symbol &symbol) {
-  static const auto iconTon = CreateImage(Ton::Symbol::ton(), st::walletTokenIconSize * style::DevicePixelRatio());
+  static const auto iconTon = TonImage(st::walletTokenIconSize * style::DevicePixelRatio());
   static const auto iconUnknown = UnknownImage(st::walletTokenIconSize * style::DevicePixelRatio());
 
   static const std::map<QString, QImage> tokenIcons = {
-      {"usdt", CreateImage(Ton::Symbol::tip3("USDT", 0), st::walletTokenIconSize * style::DevicePixelRatio())},
-      {"usdc", CreateImage(Ton::Symbol::tip3("USDC", 0), st::walletTokenIconSize * style::DevicePixelRatio())},
-      {"dai", CreateImage(Ton::Symbol::tip3("DAI", 0), st::walletTokenIconSize * style::DevicePixelRatio())},
-      {"wbtc", CreateImage(Ton::Symbol::tip3("WBTC", 0), st::walletTokenIconSize * style::DevicePixelRatio())},
-      {"weth", CreateImage(Ton::Symbol::tip3("WETH", 0), st::walletTokenIconSize * style::DevicePixelRatio())},
+      {"usdt", TokenImage("USDT", st::walletTokenIconSize * style::DevicePixelRatio())},
+      {"usdc", TokenImage("USDC", st::walletTokenIconSize * style::DevicePixelRatio())},
+      {"dai", TokenImage("DAI", st::walletTokenIconSize * style::DevicePixelRatio())},
+      {"wbtc", TokenImage("WBTC", st::walletTokenIconSize * style::DevicePixelRatio())},
+      {"weth", TokenImage("WETH", st::walletTokenIconSize * style::DevicePixelRatio())},
   };
 
   if (symbol.isTon()) {
@@ -147,7 +144,11 @@ void PaintInlineTokenIcon(const Ton::Symbol &symbol, QPainter &p, int x, int y, 
 }
 
 QImage InlineTokenIcon(const Ton::Symbol &symbol, int size) {
-  return CreateImage(symbol, size);
+  if (symbol.isTon()) {
+    return TonImage(size);
+  } else {
+    return TokenImage(symbol.name(), size);
+  }
 }
 
 not_null<RpWidget *> CreateInlineTokenIcon(const Ton::Symbol &symbol, not_null<QWidget *> parent, int x, int y,

@@ -55,6 +55,7 @@ enum CustomAssetType { Token = 0, DePool = 1 };
 struct CustomAsset {
   CustomAssetType type;
   QString address;
+  Ton::Symbol symbol;
 };
 
 struct FormattedAmount {
