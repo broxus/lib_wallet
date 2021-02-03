@@ -34,7 +34,7 @@ auto mapAssetItem(const AssetItem &item) -> SelectedAsset {
       item,
       [](const TokenItem &item) {
         return SelectedAsset{SelectedToken{
-            .token = item.token,
+            .symbol = item.token,
         }};
       },
       [](const DePoolItem &item) { return SelectedAsset{SelectedDePool{.address = item.address}}; });
@@ -152,8 +152,9 @@ void Info::setupControls(Data &&data) {
 
   // register top cover events
   rpl::merge(cover->sendRequests() | rpl::map([] { return Action::Send; }),
-             cover->receiveRequests() | rpl::map([] { return Action::Receive; })) |
-      rpl::start_to_stream(_actionRequests, cover->lifetime());
+             cover->receiveRequests() | rpl::map([] { return Action::Receive; }),
+             cover->deployRequest() | rpl::map([] { return Action::DeployTokenWallet; }))  //
+      | rpl::start_to_stream(_actionRequests, cover->lifetime());
 
   // create transactions lists
   const auto history = _widget->lifetime().make_state<History>(

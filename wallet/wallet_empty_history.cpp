@@ -106,16 +106,16 @@ rpl::producer<EmptyHistoryState> MakeEmptyHistoryState(rpl::producer<Ton::Wallet
   return rpl::combine(std::move(state), std::move(selectedAsset))  //
          | rpl::map(
                [justCreated](const Ton::WalletViewerState &state, const std::optional<SelectedAsset> &selectedAsset) {
-                 const auto asset = selectedAsset.value_or(SelectedToken{.token = Ton::Symbol::ton()});
+                 const auto asset = selectedAsset.value_or(SelectedToken{.symbol = Ton::Symbol::ton()});
 
                  const auto [address, isToken] = v::match(
                      asset,
                      [&](const SelectedToken &selectedToken) {
-                       if (selectedToken.token.isTon()) {
+                       if (selectedToken.symbol.isTon()) {
                          return std::make_pair(state.wallet.address, AddressLabelType::YourAddress);
                        }
 
-                       const auto it = state.wallet.tokenStates.find(selectedToken.token);
+                       const auto it = state.wallet.tokenStates.find(selectedToken.symbol);
                        if (it != state.wallet.tokenStates.end()) {
                          return std::make_pair(it->second.walletContractAddress, AddressLabelType::TokenAddress);
                        } else {

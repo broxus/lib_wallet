@@ -33,11 +33,11 @@ inline constexpr auto kRawAddressLength = 64;
 inline constexpr auto kEtheriumAddressLength = 40;
 
 struct SelectedToken {
-  Ton::Symbol token;
+  Ton::Symbol symbol;
 
   static auto defaultToken() -> SelectedToken {
     return SelectedToken{
-        .token = Ton::Symbol::ton(),
+        .symbol = Ton::Symbol::ton(),
     };
   }
 };

@@ -88,6 +88,7 @@ extern phrase lng_wallet_cover_receive;
 extern phrase lng_wallet_cover_cancel_withdrawal;
 extern phrase lng_wallet_cover_send;
 extern phrase lng_wallet_cover_stake;
+extern phrase lng_wallet_cover_deploy;
 extern phrase lng_wallet_cover_withdraw;
 
 extern phrase lng_wallet_update;

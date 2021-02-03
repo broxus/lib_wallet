@@ -424,10 +424,10 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
                   v::match(
                       _selectedAsset.current().value_or(SelectedToken::defaultToken()),
                       [&](const SelectedToken &selectedToken) {
-                        if (selectedToken.token.isTon()) {
+                        if (selectedToken.symbol.isTon()) {
                           sendMoney(TonTransferInvoice{});
                         } else {
-                          sendMoney(TokenTransferInvoice{.token = selectedToken.token});
+                          sendMoney(TokenTransferInvoice{.token = selectedToken.symbol});
                         }
                       },
                       [&](const SelectedDePool &selectedDePool) {
@@ -440,7 +440,7 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
                 case Action::Receive:
                   v::match(
                       _selectedAsset.current().value_or(SelectedToken::defaultToken()),
-                      [&](const SelectedToken &selectedToken) { receiveTokens(selectedToken.token); },
+                      [&](const SelectedToken &selectedToken) { receiveTokens(selectedToken.symbol); },
                       [&](const SelectedDePool &selectedDePool) {
                         auto state = _state.current();
                         const auto it = state.dePoolParticipantStates.find(selectedDePool.address);
@@ -463,7 +463,7 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
                       _selectedAsset.current().value_or(SelectedToken::defaultToken()),
                       [&](const SelectedToken &selectedToken) {
                         auto state = _state.current();
-                        const auto it = state.tokenStates.find(selectedToken.token);
+                        const auto it = state.tokenStates.find(selectedToken.symbol);
                         if (it != state.tokenStates.end()) {
                           deployTokenWallet(
                               DeployTokenWalletInvoice{.rootContractAddress = it->second.rootContractAddress,
@@ -527,13 +527,13 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
                 selectedAsset,
                 [&](const SelectedToken &selectedToken) {
                   const auto send = [=](const QString &address) {
-                    if (selectedToken.token.isTon()) {
+                    if (selectedToken.symbol.isTon()) {
                       sendMoney(TonTransferInvoice{
                           .address = address,
                       });
                     } else {
                       sendMoney(TokenTransferInvoice{
-                          .token = selectedToken.token,
+                          .token = selectedToken.symbol,
                           .address = address,
                       });
                     }
@@ -542,7 +542,7 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
                   const auto reveal = [=](const QString &address) { _wallet->openReveal(_rawAddress, address); };
 
                   _layers->showBox(Box(
-                      ViewTransactionBox, std::move(data), selectedToken.token, _collectEncryptedRequests.events(),
+                      ViewTransactionBox, std::move(data), selectedToken.symbol, _collectEncryptedRequests.events(),
                       _decrypted.events(), shareAddressCallback(), [=] { decryptEverything(publicKey); }, send,
                       reveal));
                 },
@@ -1347,16 +1347,7 @@ void Window::receiveTokens(const Ton::Symbol &selectedToken) {
   _layers->showBox(Box(
       ReceiveTokensBox, rawAddress, selectedToken,
       [this, selectedToken = selectedToken] { createInvoice(selectedToken); }, shareAddressCallback(),
-      [this, selectedToken = selectedToken] { _wallet->openGate(_rawAddress, selectedToken); },
-      [this, selectedToken = selectedToken] {
-        auto state = _state.current();
-        const auto it = state.tokenStates.find(selectedToken);
-        if (it != state.tokenStates.end()) {
-          deployTokenWallet(DeployTokenWalletInvoice{.rootContractAddress = it->second.rootContractAddress,
-                                                     .walletContractAddress = it->second.walletContractAddress,
-                                                     .owned = true});
-        }
-      }));
+      [this, selectedToken = selectedToken] { _wallet->openGate(_rawAddress, selectedToken); }));
 }
 
 void Window::createInvoice(const Ton::Symbol &selectedToken) {
@@ -1472,7 +1463,7 @@ void Window::saveSettings(const Ton::Settings &settings) {
     }
     checkConfigFromContent(*result, [=](QByteArray config) {
       auto copy = settings;
-      copy.net().config = config;
+      copy.net().config = std::move(config);
       saveSettingsWithLoaded(copy);
     });
   };
@@ -1480,6 +1471,7 @@ void Window::saveSettings(const Ton::Settings &settings) {
 }
 
 void Window::saveSettingsWithLoaded(const Ton::Settings &settings) {
+  const auto useTestNetwork = settings.useTestNetwork;
   const auto &current = _wallet->settings();
   const auto change = (settings.useTestNetwork != current.useTestNetwork);
   if (change) {

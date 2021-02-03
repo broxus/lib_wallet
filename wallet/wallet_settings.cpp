@@ -183,6 +183,8 @@ void SettingsBox(not_null<Ui::GenericBox *> box, const Ton::Settings &settings, 
                  const Fn<void(QString, Fn<void(QByteArray)>)> &checkConfig, const Fn<void(Ton::Settings)> &save) {
   using namespace rpl::mappers;
 
+  const auto useTestNetwork = box->lifetime().make_state<rpl::variable<bool>>(settings.useTestNetwork);
+
   const auto &was = settings.net();
   const auto modified = box->lifetime().make_state<QByteArray>(was.config);
   const auto downloadOn = box->lifetime().make_state<rpl::variable<bool>>(!was.useCustomConfig);
@@ -257,41 +259,46 @@ void SettingsBox(not_null<Ui::GenericBox *> box, const Ton::Settings &settings, 
 
   AddBoxSubtitle(box, ph::lng_wallet_settings_blockchain_name());
 
-  const auto testnetWrap =
-      box->addRow(object_ptr<Ui::FixedHeightWidget>(box, st::defaultCheckbox.margin.top() + st::defaultRadio.diameter +
-                                                             st::defaultCheckbox.margin.bottom()),
-                  QMargins());
-  const auto net = std::make_shared<Ui::RadiobuttonGroup>(settings.useTestNetwork ? 1 : 0);
-  const auto mainnet = Ui::CreateChild<Ui::Radiobutton>(testnetWrap, net, 0, ph::lng_wallet_settings_mainnet(ph::now));
+  const auto networkSelector = box->addRow(  //
+      object_ptr<Ui::FixedHeightWidget>(
+          box, st::defaultCheckbox.margin.top() + st::defaultRadio.diameter + st::defaultCheckbox.margin.bottom()),
+      QMargins());
 
-  const auto testnet = Ui::CreateChild<Ui::Radiobutton>(testnetWrap, net, 1, ph::lng_wallet_settings_testnet(ph::now));
-  testnetWrap->widthValue() |
+  const auto net = std::make_shared<Ui::RadiobuttonGroup>(useTestNetwork->current());
+  const auto mainnet =
+      Ui::CreateChild<Ui::Radiobutton>(networkSelector, net, false, ph::lng_wallet_settings_mainnet(ph::now));
+  const auto testnet =
+      Ui::CreateChild<Ui::Radiobutton>(networkSelector, net, true, ph::lng_wallet_settings_testnet(ph::now));
+
+  networkSelector->widthValue() |
       rpl::start_with_next(
           [=] {
             const auto left = st::boxRowPadding.left();
             mainnet->moveToLeft(left, st::defaultCheckbox.margin.top());
             testnet->moveToLeft(left + mainnet->widthNoMargins() + st::boxMediumSkip, st::defaultCheckbox.margin.top());
           },
-          testnetWrap->lifetime());
+          networkSelector->lifetime());
 
   const auto nameWrap =
       box->addRow(object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(box, object_ptr<Ui::VerticalLayout>(box)), QMargins());
   const auto nameContainer = nameWrap->entity();
   const auto name = nameContainer->add(
-      object_ptr<Ui::InputField>(nameContainer, st::walletInput, rpl::single(QString()), settings.main.blockchainName),
+      object_ptr<Ui::InputField>(nameContainer, st::walletInput, rpl::single(QString()), was.blockchainName),
       st::boxRowPadding);
   nameWrap->show(anim::type::instant);
 
-  net->setChangedCallback([=](int test) {
+  net->setChangedCallback([=](bool test) {
     const auto &now = settings.net(test);
     *modified = now.config;
     *downloadOn = !now.useCustomConfig;
-    name->setText(test == 1 ? settings.test.blockchainName : settings.main.blockchainName);
+    name->setText(test ? settings.test.blockchainName : settings.main.blockchainName);
     url->entity()->setText(now.configUrl);
+    *useTestNetwork = test;
   });
 
   const auto collectSettings = [=] {
     auto result = settings;
+    result.useTestNetwork = useTestNetwork->current();
     auto &change = result.net();
     change.blockchainName = name->getLastText().trimmed();
     change.useCustomConfig = custom->toggled();

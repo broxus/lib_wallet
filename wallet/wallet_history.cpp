@@ -555,7 +555,7 @@ History::History(not_null<Ui::RpWidget *> parent, rpl::producer<HistoryState> st
                  rpl::producer<not_null<std::vector<Ton::Transaction> *>> collectEncrypted,
                  rpl::producer<not_null<const std::vector<Ton::Transaction> *>> updateDecrypted,
                  rpl::producer<std::optional<SelectedAsset>> selectedAsset)
-    : _widget(parent), _selectedAsset(SelectedToken{.token = Ton::Symbol::ton()}) {
+    : _widget(parent), _selectedAsset(SelectedToken{.symbol = Ton::Symbol::ton()}) {
   setupContent(std::move(state), std::move(loaded), std::move(selectedAsset));
 
   base::unixtime::updates()  //
@@ -619,7 +619,7 @@ void History::updateGeometry(QPoint position, int width) {
 
 void History::resizeToWidth(int width) {
   auto symbol = v::match(
-      _selectedAsset.current(), [](const SelectedToken &selectedToken) { return selectedToken.token; },
+      _selectedAsset.current(), [](const SelectedToken &selectedToken) { return selectedToken.symbol; },
       [](const SelectedDePool &selectedDePool) { return Ton::Symbol::ton(); });
 
   if (!width) {
@@ -661,7 +661,7 @@ void History::setVisible(bool visible) {
 
 void History::setVisibleTopBottom(int top, int bottom) {
   auto symbol = v::match(
-      _selectedAsset.current(), [](const SelectedToken &selectedToken) { return selectedToken.token; },
+      _selectedAsset.current(), [](const SelectedToken &selectedToken) { return selectedToken.symbol; },
       [](const SelectedDePool &selectedDePool) { return Ton::Symbol::ton(); });
 
   _visibleTop = top - _widget.y();
@@ -765,7 +765,7 @@ void History::selectRow(int selected, const ClickHandlerPtr &handler) {
   Expects(selected >= 0 || !handler);
 
   auto symbol = v::match(
-      _selectedAsset.current(), [](const SelectedToken &selectedToken) { return selectedToken.token; },
+      _selectedAsset.current(), [](const SelectedToken &selectedToken) { return selectedToken.symbol; },
       [](const SelectedDePool &selectedDePool) { return Ton::Symbol::ton(); });
   const auto rowsIt = _rows.find(symbol);
   if (rowsIt == end(_rows)) {
@@ -792,7 +792,7 @@ void History::selectRow(int selected, const ClickHandlerPtr &handler) {
 
 void History::selectRowByMouse() {
   auto symbol = v::match(
-      _selectedAsset.current(), [](const SelectedToken &selectedToken) { return selectedToken.token; },
+      _selectedAsset.current(), [](const SelectedToken &selectedToken) { return selectedToken.symbol; },
       [](const SelectedDePool &selectedDePool) { return Ton::Symbol::ton(); });
   const auto rowsIt = _rows.find(symbol);
   if (rowsIt == end(_rows)) {
@@ -818,7 +818,7 @@ void History::pressRow() {
 
 void History::releaseRow() {
   auto symbol = v::match(
-      _selectedAsset.current(), [](const SelectedToken &selectedToken) { return selectedToken.token; },
+      _selectedAsset.current(), [](const SelectedToken &selectedToken) { return selectedToken.symbol; },
       [](const SelectedDePool &selectedDePool) { return Ton::Symbol::ton(); });
   const auto transactionsIt = _transactions.find(symbol);
   const auto rowsIt = _rows.find(symbol);
@@ -859,7 +859,7 @@ void History::decryptById(const Ton::TransactionId &id) {
 
 void History::paint(Painter &p, QRect clip) {
   const auto symbol = v::match(
-      _selectedAsset.current(), [](const SelectedToken &selectedToken) { return selectedToken.token; },
+      _selectedAsset.current(), [](const SelectedToken &selectedToken) { return selectedToken.symbol; },
       [](const SelectedDePool &selectedDePool) { return Ton::Symbol::ton(); });
 
   auto rowsIt = _rows.find(symbol);
@@ -1036,7 +1036,7 @@ void History::refreshShowDates() {
   const auto selectedAsset = _selectedAsset.current();
 
   const auto [symbol, targetAddress] = v::match(
-      selectedAsset, [](const SelectedToken &selectedToken) { return std::make_pair(selectedToken.token, QString{}); },
+      selectedAsset, [](const SelectedToken &selectedToken) { return std::make_pair(selectedToken.symbol, QString{}); },
       [](const SelectedDePool &selectedDePool) {
         return std::make_pair(Ton::Symbol::ton(), Ton::Wallet::ConvertIntoRaw(selectedDePool.address));
       });
@@ -1056,7 +1056,7 @@ void History::refreshShowDates() {
         selectedAsset,
         [&](const SelectedToken &selectedToken) {
           row->setVisible(true);
-          if (selectedToken.token.isTon()) {
+          if (selectedToken.symbol.isTon()) {
             row->clearAdditionalInfo();
             return;
           }
@@ -1065,7 +1065,7 @@ void History::refreshShowDates() {
           if (!tokenTransaction.has_value()) {
             return row->setVisible(false);
           }
-          row->setAdditionalInfo(selectedToken.token, std::move(*tokenTransaction));
+          row->setAdditionalInfo(selectedToken.symbol, std::move(*tokenTransaction));
         },
         [&](const SelectedDePool &selectedDePool) {
           const auto incoming = !transaction.incoming.source.isEmpty();
@@ -1187,7 +1187,7 @@ void History::checkPreload() const {
   const auto preloadHeight = kPreloadScreens * visibleHeight;
 
   const auto symbol = v::match(
-      _selectedAsset.current(), [&](const SelectedToken &selectedToken) { return selectedToken.token; },
+      _selectedAsset.current(), [&](const SelectedToken &selectedToken) { return selectedToken.symbol; },
       [](auto &&) { return Ton::Symbol::ton(); });
 
   const auto it = _transactions.find(symbol);

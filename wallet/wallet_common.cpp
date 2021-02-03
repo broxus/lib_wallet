@@ -445,7 +445,7 @@ auto operator==(const SelectedAsset &a, const SelectedAsset &b) -> bool {
       a,
       [&](const SelectedToken &left) {
         const auto &right = v::get<SelectedToken>(b);
-        return left.token == right.token;
+        return left.symbol == right.symbol;
       },
       [&](const SelectedDePool &left) {
         const auto &right = v::get<SelectedDePool>(b);
