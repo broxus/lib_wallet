@@ -1334,18 +1334,8 @@ void Window::addAsset() {
 }
 
 void Window::receiveTokens(const Ton::Symbol &selectedToken) {
-  auto rawAddress = _rawAddress;
-  if (selectedToken.isToken()) {
-    const auto state = _state.current();
-    const auto it = state.tokenStates.find(selectedToken);
-    if (it == state.tokenStates.end()) {
-      return;
-    }
-    rawAddress = it->second.walletContractAddress;
-  }
-
   _layers->showBox(Box(
-      ReceiveTokensBox, rawAddress, selectedToken,
+      ReceiveTokensBox, _rawAddress, selectedToken,
       [this, selectedToken = selectedToken] { createInvoice(selectedToken); }, shareAddressCallback(),
       [this, selectedToken = selectedToken] { _wallet->openGate(_rawAddress, selectedToken); }));
 }
