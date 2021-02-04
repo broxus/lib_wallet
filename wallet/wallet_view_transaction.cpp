@@ -31,8 +31,9 @@ struct TokenTransaction {
   Ton::Symbol token;
   QString recipient;
   int64 amount;
-  bool incoming;
-  bool isSwapBack;
+  bool incoming{};
+  bool swapback{};
+  bool mint{};
 };
 
 std::optional<TokenTransaction> TryGetTokenTransaction(const Ton::Transaction &data, const Ton::Symbol &selectedToken) {
@@ -49,7 +50,6 @@ std::optional<TokenTransaction> TryGetTokenTransaction(const Ton::Transaction &d
             .recipient = Ton::Wallet::ConvertIntoRaw(transfer.address),
             .amount = transfer.value,
             .incoming = transfer.incoming,
-            .isSwapBack = false,
         };
       },
       [=](const Ton::TokenSwapBack &swapBack) {
@@ -58,7 +58,15 @@ std::optional<TokenTransaction> TryGetTokenTransaction(const Ton::Transaction &d
             .recipient = swapBack.address,
             .amount = swapBack.value,
             .incoming = true,
-            .isSwapBack = true,
+            .swapback = true,
+        };
+      },
+      [=](const Ton::TokenMint &tokenMint) {
+        return TokenTransaction{
+            .token = selectedToken,
+            .amount = tokenMint.value,
+            .incoming = true,
+            .mint = true,
         };
       });
 }
@@ -184,7 +192,7 @@ void ViewTransactionBox(not_null<Ui::GenericBox *> box, Ton::Transaction &&data,
 
   const auto tokenTransaction = selectedToken.isToken() ? TryGetTokenTransaction(data, selectedToken) : std::nullopt;
   const auto isTokenTransaction = tokenTransaction.has_value();
-  const auto isSwapBack = isTokenTransaction && tokenTransaction->isSwapBack;
+  const auto isSwapBack = isTokenTransaction && tokenTransaction->swapback;
 
   const auto service = IsServiceTransaction(data);
 

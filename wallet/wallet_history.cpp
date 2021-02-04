@@ -172,7 +172,9 @@ void refreshTimeTexts(TransactionLayout &layout, bool forceDateText = false) {
         return std::make_tuple(Ton::Wallet::ConvertIntoRaw(transfer.address), transfer.value, transfer.incoming,
                                Flag(0));
       },
-
+      [](const Ton::TokenMint &tokenMint) {
+        return std::make_tuple(QString{}, tokenMint.value, true, Flag::Initialization);
+      },
       [](const Ton::TokenSwapBack &tokenSwapBack) {
         return std::make_tuple(tokenSwapBack.address, tokenSwapBack.value, false, Flag::SwapBack);
       });
@@ -1051,6 +1053,9 @@ void History::refreshShowDates() {
 
   auto filterTransaction = [selectedAsset, targetAddress = targetAddress](decltype(rows.front()) &row) {
     const auto &transaction = row->transaction();
+    if (transaction.aborted) {
+      row->setVisible(false);
+    }
 
     v::match(
         selectedAsset,

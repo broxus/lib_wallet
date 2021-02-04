@@ -136,32 +136,8 @@ void SendGramsBox(not_null<Ui::GenericBox *> box, const T &invoice, rpl::produce
   Ui::InputField *callbackAddress = nullptr;
   Ui::VerticalLayout *callbackAddressWrapper = nullptr;
   rpl::variable<Ton::TokenTransferType> *transferType = nullptr;
-  std::shared_ptr<Ui::RadiobuttonGroup> transferTypeSelector{};
   if constexpr (isTokenTransfer) {
     transferType = box->lifetime().make_state<rpl::variable<Ton::TokenTransferType>>(prepared->transferType);
-    transferTypeSelector = std::make_shared<Ui::RadiobuttonGroup>(static_cast<int>(prepared->transferType));
-    const auto radioButtonMargin = QMargins{st::walletSendAmountPadding.left(), 0, 0, 0};
-    const auto radioButtonItemHeight =
-        st::defaultCheckbox.margin.top() + st::defaultRadio.diameter + st::defaultCheckbox.margin.bottom();
-
-    const auto transferDirect = box->addRow(  //
-        object_ptr<Ui::FixedHeightWidget>(box, radioButtonItemHeight), radioButtonMargin);
-    Ui::CreateChild<Ui::Radiobutton>(transferDirect, transferTypeSelector,
-                                     static_cast<int>(Ton::TokenTransferType::Direct),
-                                     ph::lng_wallet_send_token_transfer_direct(ph::now));
-
-    const auto transferToOwner = box->addRow(  //
-        object_ptr<Ui::FixedHeightWidget>(box, radioButtonItemHeight), radioButtonMargin);
-    Ui::CreateChild<Ui::Radiobutton>(transferToOwner, transferTypeSelector,
-                                     static_cast<int>(Ton::TokenTransferType::ToOwner),
-                                     ph::lng_wallet_send_token_transfer_to_owner(ph::now));
-
-    const auto transferSwapBack = box->addRow(  //
-        object_ptr<Ui::FixedHeightWidget>(box, radioButtonItemHeight), radioButtonMargin);
-    Ui::CreateChild<Ui::Radiobutton>(transferSwapBack, transferTypeSelector,
-                                     static_cast<int>(Ton::TokenTransferType::SwapBack),
-                                     ph::lng_wallet_send_token_transfer_swapback(ph::now));
-
     callbackAddressWrapper = box->addRow(object_ptr<Ui::VerticalLayout>(box), QMargins{});
 
     AddBoxSubtitle(callbackAddressWrapper, ph::lng_wallet_send_token_proxy_address());
@@ -169,6 +145,7 @@ void SendGramsBox(not_null<Ui::GenericBox *> box, const T &invoice, rpl::produce
         object_ptr<Ui::InputField>(box, st::walletSendInput, Ui::InputField::Mode::NoNewlines,
                                    ph::lng_wallet_send_token_proxy_address_placeholder(), prepared->callbackAddress),
         st::boxRowPadding);
+    callbackAddress->setSizePolicy(QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Expanding);
   }
 
   Ui::InputField *comment = nullptr;
@@ -180,28 +157,23 @@ void SendGramsBox(not_null<Ui::GenericBox *> box, const T &invoice, rpl::produce
 
   auto isEthereumAddress = box->lifetime().make_state<rpl::variable<bool>>(false);
 
-  if (transferTypeSelector != nullptr && transferType != nullptr) {
-    isEthereumAddress->value()                                     //
-        | rpl::filter([](bool isSwapBack) { return isSwapBack; })  //
+  if (transferType != nullptr) {
+    isEthereumAddress->value()  //
         | rpl::start_with_next(
-              [=](bool) { transferTypeSelector->setValue(static_cast<int>(Ton::TokenTransferType::SwapBack)); },
+              [=](bool isSwapBack) {
+                *transferType = isSwapBack ? Ton::TokenTransferType::SwapBack : Ton::TokenTransferType::ToOwner;
+              },
               box->lifetime());
 
-    transferTypeSelector->setChangedCallback([=](int value) {
-      const auto type = static_cast<Ton::TokenTransferType>(value);
-      const auto currentType = transferType->current();
-      const auto isSwapBack = type == Ton::TokenTransferType::SwapBack;
-
-      if (currentType == Ton::TokenTransferType::SwapBack && !isSwapBack && isEthereumAddress->current() ||
-          currentType != Ton::TokenTransferType::SwapBack && isSwapBack && !isEthereumAddress->current()) {
-        address->clear();
-      }
-
-      callbackAddress->setEnabled(isSwapBack);
-      callbackAddressWrapper->setMaximumHeight(isSwapBack ? QWIDGETSIZE_MAX : 0);
-      callbackAddressWrapper->adjustSize();
-      *transferType = type;
-    });
+    transferType->value()  //
+        | rpl::start_with_next(
+              [=](const Ton::TokenTransferType &type) {
+                const auto isSwapBack = type == Ton::TokenTransferType::SwapBack;
+                callbackAddress->setEnabled(isSwapBack);
+                callbackAddressWrapper->setMaximumHeight(isSwapBack ? QWIDGETSIZE_MAX : 0);
+                callbackAddressWrapper->adjustSize();
+              },
+              box->lifetime());
 
     address->setPlaceholder(  //
         transferType->value() | rpl::map([](Ton::TokenTransferType type) {
@@ -294,7 +266,6 @@ void SendGramsBox(not_null<Ui::GenericBox *> box, const T &invoice, rpl::produce
       collected.comment = comment->getLastText();
     } else if constexpr (isTokenTransfer) {
       collected.token = symbol;
-      
       collected.callbackAddress = callbackAddress->getLastText();
       collected.transferType = transferType->current();
     }

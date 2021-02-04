@@ -83,7 +83,7 @@ struct TokenTransferInvoice {
   QString walletContractAddress;
   QString address;
   QString callbackAddress{};
-  Ton::TokenTransferType transferType{Ton::TokenTransferType::Direct};
+  Ton::TokenTransferType transferType{Ton::TokenTransferType::ToOwner};
 
   auto asTransaction() const -> Ton::TokenTransactionToSend;
 };

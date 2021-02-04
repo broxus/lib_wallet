@@ -788,7 +788,7 @@ void Window::sendMoney(const PreparedInvoiceOrLink &invoice) {
 
         return Box(SendGramsBox<TonTransferInvoice>, tonTransferInvoice, _state.value(), send);
       },
-      [=](const TokenTransferInvoice &tokenTransferInvoice) {
+      [=](TokenTransferInvoice &tokenTransferInvoice) {
         const auto send = [=](const TokenTransferInvoice &finalInvoice, const Fn<void(InvoiceField)> &showError) {
           if (finalInvoice.transferType != Ton::TokenTransferType::SwapBack &&
               !Ton::Wallet::CheckAddress(finalInvoice.address)) {
@@ -802,6 +802,14 @@ void Window::sendMoney(const PreparedInvoiceOrLink &invoice) {
             confirmTransaction(finalInvoice, showError, checking);
           }
         };
+
+        if (tokenTransferInvoice.callbackAddress.isEmpty()) {
+          const auto state = _state.current();
+          const auto it = state.tokenStates.find(tokenTransferInvoice.token);
+          if (it != state.tokenStates.end()) {
+            tokenTransferInvoice.callbackAddress = it->second.rootOwnerAddress;
+          }
+        }
 
         return Box(SendGramsBox<TokenTransferInvoice>, tokenTransferInvoice, _state.value(), send);
       },
@@ -989,6 +997,10 @@ void Window::confirmTransaction(PreparedInvoice invoice, const Fn<void(InvoiceFi
               } else {
                 v::match(
                     result.value().second,
+                    [&](const Ton::InvalidEthAddress &) {
+                      *guard = false;
+                      showInvoiceError(InvoiceField::Address);
+                    },
                     [&](const Ton::TokenTransferUnchanged &) {
                       done(std::move(result.value().first), std::move(invoice));
                     },
@@ -1282,7 +1294,7 @@ void Window::addAsset() {
     _sendBox->closeBox();
   }
 
-  const auto onNewDepool = [this](const Ton::Result<>& result) {
+  const auto onNewDepool = [this](const Ton::Result<> &result) {
     if (result.has_value()) {
       refreshNow();
       showToast(ph::lng_wallet_add_depool_succeeded(ph::now));
@@ -1292,7 +1304,7 @@ void Window::addAsset() {
     }
   };
 
-  const auto onNewToken = [this](const Ton::Result<>& result) {
+  const auto onNewToken = [this](const Ton::Result<> &result) {
     if (result.has_value()) {
       refreshNow();
       showToast(ph::lng_wallet_add_token_succeeded(ph::now));
