@@ -201,7 +201,6 @@ void ViewTransactionBox(not_null<Ui::GenericBox *> box, Ton::Transaction &&data,
                     : service  //
                           ? ph::lng_wallet_row_service()
                           : ph::lng_wallet_view_title());
-  box->setStyle(service ? st::walletNoButtonsBox : st::walletBox);
 
   const auto id = data.id;
   const auto address =
@@ -235,11 +234,14 @@ void ViewTransactionBox(not_null<Ui::GenericBox *> box, Ton::Transaction &&data,
                      ? (complexComment() | rpl::type_erased())
                      : rpl::single(Ui::Text::WithEntities(ExtractMessage(data)));
 
+
+  box->setStyle(service || address.isEmpty() ? st::walletNoButtonsBox : st::walletBox);
+
   box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
 
   box->addRow(CreateSummary(box, data, tokenTransaction));
 
-  if (!service) {
+  if (!service && !address.isEmpty()) {
     AddBoxSubtitle(box, incoming ? ph::lng_wallet_view_sender() : ph::lng_wallet_view_recipient());
     box->addRow(  //
         object_ptr<Ui::RpWidget>::fromRaw(Ui::CreateAddressLabel(
@@ -260,7 +262,9 @@ void ViewTransactionBox(not_null<Ui::GenericBox *> box, Ton::Transaction &&data,
           st::boxRowPadding.left(),
           st::boxRowPadding.top(),
           st::boxRowPadding.right(),
-          (hasComment ? st::walletTransactionCommentTop : st::boxRowPadding.bottom()),
+          (hasComment  //
+               ? st::walletTransactionCommentTop
+               : (!address.isEmpty() ? st::boxRowPadding.bottom() : 0)),
       });
 
   if (hasComment) {
@@ -293,9 +297,9 @@ void ViewTransactionBox(not_null<Ui::GenericBox *> box, Ton::Transaction &&data,
     SetupScrollByDrag(box, comment);
   }
 
-  box->addRow(object_ptr<Ui::FixedHeightWidget>(box, st::walletTransactionBottomSkip));
+  if (!service && !address.isEmpty()) {
+    box->addRow(object_ptr<Ui::FixedHeightWidget>(box, st::walletTransactionBottomSkip));
 
-  if (!service) {
     auto text = isSwapBack  //
                     ? ph::lng_wallet_view_reveal()
                     : incoming  //
