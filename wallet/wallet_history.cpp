@@ -1053,9 +1053,6 @@ void History::refreshShowDates() {
 
   auto filterTransaction = [selectedAsset, targetAddress = targetAddress](decltype(rows.front()) &row) {
     const auto &transaction = row->transaction();
-    if (transaction.aborted) {
-      row->setVisible(false);
-    }
 
     v::match(
         selectedAsset,
@@ -1066,10 +1063,15 @@ void History::refreshShowDates() {
             return;
           }
 
+          if (transaction.aborted || !transaction.incoming.bounce) {
+            return row->setVisible(false);
+          }
+
           auto tokenTransaction = Ton::Wallet::ParseTokenTransaction(transaction.incoming.message);
           if (!tokenTransaction.has_value()) {
             return row->setVisible(false);
           }
+
           row->setAdditionalInfo(selectedToken.symbol, std::move(*tokenTransaction));
         },
         [&](const SelectedDePool &selectedDePool) {
