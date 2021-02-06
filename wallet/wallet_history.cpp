@@ -169,14 +169,14 @@ void refreshTimeTexts(TransactionLayout &layout, bool forceDateText = false) {
   const auto [address, value, incoming, flags] = v::match(
       tokenTransaction,
       [](const Ton::TokenTransfer &transfer) {
-        return std::make_tuple(Ton::Wallet::ConvertIntoRaw(transfer.address), transfer.value, transfer.incoming,
-                               Flag(0));
+        return std::make_tuple(transfer.direct ? Ton::kZeroAddress : Ton::Wallet::ConvertIntoRaw(transfer.address),
+                               transfer.value, transfer.incoming, Flag(0));
       },
       [](const Ton::TokenMint &tokenMint) {
-        return std::make_tuple(QString{}, tokenMint.value, true, Flag::Initialization);
+        return std::make_tuple(QString{}, tokenMint.value, /*incoming*/ true, Flag::Initialization);
       },
       [](const Ton::TokenSwapBack &tokenSwapBack) {
-        return std::make_tuple(tokenSwapBack.address, tokenSwapBack.value, false, Flag::SwapBack);
+        return std::make_tuple(tokenSwapBack.address, tokenSwapBack.value, /*incoming*/ false, Flag::SwapBack);
       });
 
   const auto amount = FormatAmount(incoming ? value : -value, token, FormatFlag::Signed | FormatFlag::Rounded);
