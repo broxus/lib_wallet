@@ -30,6 +30,7 @@ class History final {
           rpl::producer<std::pair<Ton::Symbol, Ton::LoadedSlice>> loaded,
           rpl::producer<not_null<std::vector<Ton::Transaction> *>> collectEncrypted,
           rpl::producer<not_null<const std::vector<Ton::Transaction> *>> updateDecrypted,
+          rpl::producer<not_null<std::map<QString, QString> *>> updateWalletOwners,
           rpl::producer<std::optional<SelectedAsset>> selectedAsset);
   ~History();
 
@@ -41,6 +42,7 @@ class History final {
   [[nodiscard]] rpl::producer<std::pair<Ton::Symbol, Ton::TransactionId>> preloadRequests() const;
   [[nodiscard]] rpl::producer<Ton::Transaction> viewRequests() const;
   [[nodiscard]] rpl::producer<Ton::Transaction> decryptRequests() const;
+  [[nodiscard]] rpl::producer<QSet<QString>> ownerResolutionRequests() const;
 
   [[nodiscard]] rpl::lifetime &lifetime();
 
@@ -80,6 +82,7 @@ class History final {
     std::vector<Ton::Transaction> list;
     Ton::TransactionId previousId;
     Ton::TransactionId initTransactionId;
+    int64 leastScannedTransactionLt = std::numeric_limits<int64>::max();
   };
 
   Ui::RpWidget _widget;
@@ -90,6 +93,7 @@ class History final {
   rpl::variable<SelectedAsset> _selectedAsset;
   std::vector<std::unique_ptr<HistoryRow>> _pendingRows;
   std::map<Ton::Symbol, std::vector<std::unique_ptr<HistoryRow>>> _rows;
+  std::map<QString, QString> _tokenOwners;
   int _visibleTop = 0;
   int _visibleBottom = 0;
   int _selected = -1;
@@ -98,6 +102,7 @@ class History final {
   rpl::event_stream<std::pair<Ton::Symbol, Ton::TransactionId>> _preloadRequests;
   rpl::event_stream<Ton::Transaction> _viewRequests;
   rpl::event_stream<Ton::Transaction> _decryptRequests;
+  rpl::event_stream<QSet<QString>> _ownerResolutionRequests;
 };
 
 [[nodiscard]] rpl::producer<HistoryState> MakeHistoryState(rpl::producer<Ton::WalletViewerState> state);

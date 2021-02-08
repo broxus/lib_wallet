@@ -29,6 +29,7 @@ class Info final {
     rpl::producer<Ton::Update> updates;
     rpl::producer<not_null<std::vector<Ton::Transaction> *>> collectEncrypted;
     rpl::producer<not_null<const std::vector<Ton::Transaction> *>> updateDecrypted;
+    rpl::producer<not_null<std::map<QString, QString> *>> updateWalletOwners;
     rpl::producer<InfoTransition> transitionEvents;
     Fn<void(QImage, QString)> share;
     Fn<void()> openGate;

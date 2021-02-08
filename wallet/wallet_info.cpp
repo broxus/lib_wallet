@@ -159,7 +159,7 @@ void Info::setupControls(Data &&data) {
   // create transactions lists
   const auto history = _widget->lifetime().make_state<History>(
       tonHistoryWrapper, MakeHistoryState(rpl::duplicate(state)), std::move(loaded), std::move(data.collectEncrypted),
-      std::move(data.updateDecrypted), _selectedAsset.value());
+      std::move(data.updateDecrypted), std::move(data.updateWalletOwners), _selectedAsset.value());
 
   const auto emptyHistory = _widget->lifetime().make_state<EmptyHistory>(
       tonHistoryWrapper, MakeEmptyHistoryState(rpl::duplicate(state), _selectedAsset.value(), data.justCreated),
