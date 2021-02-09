@@ -386,6 +386,7 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
       .updates = _wallet->updates(),
       .collectEncrypted = _collectEncryptedRequests.events(),
       .updateDecrypted = _decrypted.events(),
+      .updateWalletOwners = _updateTokenOwners.events(),
       .transitionEvents = _infoTransitions.events(),
       .share = shareAddressCallback(),
       .openGate = [this] { _wallet->openGate(_rawAddress); },
@@ -516,6 +517,18 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
                 }
               }
             },
+            _info->lifetime());
+
+  _info->ownerResolutionRequests()  //
+      | rpl::start_with_next(       //
+            crl::guard(             //
+                this,
+                [=](std::pair<const Ton::Symbol *, const QSet<QString> *> event) {
+                  const auto &[symbol, wallets] = event;
+                  _wallet->getWalletOwners(
+                      symbol->rootContractAddress(), *wallets,
+                      crl::guard(this, [=](std::map<QString, QString> &&result) { _updateTokenOwners.fire(&result); }));
+                }),
             _info->lifetime());
 
   _info->viewRequests() |

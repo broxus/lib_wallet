@@ -717,7 +717,7 @@ rpl::producer<Ton::Transaction> History::decryptRequests() const {
   return _decryptRequests.events();
 }
 
-rpl::producer<std::vector<QString>> History::ownerResolutionRequests() const {
+rpl::producer<std::pair<const Ton::Symbol *, const QSet<QString> *>> History::ownerResolutionRequests() const {
   return _ownerResolutionRequests.events();
 }
 
@@ -1172,7 +1172,7 @@ void History::refreshShowDates() {
   resizeToWidth(_widget.width());
 
   if (!unknownOwners.empty()) {
-    _ownerResolutionRequests.fire(std::move(unknownOwners));
+    _ownerResolutionRequests.fire(std::make_pair(&symbol, &unknownOwners));
   }
 }
 

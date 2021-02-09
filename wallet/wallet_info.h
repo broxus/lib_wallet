@@ -49,6 +49,7 @@ class Info final {
   [[nodiscard]] rpl::producer<std::pair<int, int>> assetsReorderRequests() const;
   [[nodiscard]] rpl::producer<Ton::Transaction> viewRequests() const;
   [[nodiscard]] rpl::producer<Ton::Transaction> decryptRequests() const;
+  [[nodiscard]] rpl::producer<std::pair<const Ton::Symbol *, const QSet<QString> *>> ownerResolutionRequests() const;
 
   [[nodiscard]] rpl::lifetime &lifetime();
 
@@ -67,6 +68,7 @@ class Info final {
   rpl::event_stream<std::pair<Ton::Symbol, Ton::TransactionId>> _preloadRequests;
   rpl::event_stream<Ton::Transaction> _viewRequests;
   rpl::event_stream<Ton::Transaction> _decryptRequests;
+  rpl::event_stream<std::pair<const Ton::Symbol *, const QSet<QString> *>> _ownerResolutionRequests;
 };
 
 }  // namespace Wallet

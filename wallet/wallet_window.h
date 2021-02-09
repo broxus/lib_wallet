@@ -153,6 +153,7 @@ class Window final : public base::has_weak_ptr {
   rpl::event_stream<not_null<std::vector<Ton::Transaction> *>> _collectEncryptedRequests;
   rpl::event_stream<not_null<const std::vector<Ton::Transaction> *>> _decrypted;
   rpl::event_stream<InfoTransition> _infoTransitions;
+  rpl::event_stream<not_null<std::map<QString, QString> *>> _updateTokenOwners;
 
   QPointer<Ui::GenericBox> _sendBox;
   QPointer<Ui::GenericBox> _sendConfirmBox;

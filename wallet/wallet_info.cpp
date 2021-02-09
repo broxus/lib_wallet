@@ -85,6 +85,10 @@ rpl::producer<Ton::Transaction> Info::decryptRequests() const {
   return _decryptRequests.events();
 }
 
+rpl::producer<std::pair<const Ton::Symbol *, const QSet<QString> *>> Info::ownerResolutionRequests() const {
+  return _ownerResolutionRequests.events();
+}
+
 void Info::setupControls(Data &&data) {
   const auto &state = data.state;
   const auto topBar = _widget->lifetime().make_state<TopBar>(
@@ -247,9 +251,11 @@ void Info::setupControls(Data &&data) {
 
   history->decryptRequests() | rpl::start_to_stream(_decryptRequests, history->lifetime());
 
+  history->ownerResolutionRequests() | rpl::start_to_stream(_ownerResolutionRequests, history->lifetime());
+
   // initialize default layouts
   _selectedAsset.value() | rpl::start_with_next(
-                               [=](std::optional<SelectedAsset> token) {
+                               [=](const std::optional<SelectedAsset>& token) {
                                  assetsListWrapper->setVisible(!token.has_value());
                                  tonHistoryWrapper->setVisible(token.has_value());
                                },
