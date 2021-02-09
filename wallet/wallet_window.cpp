@@ -554,10 +554,19 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
 
                   const auto reveal = [=](const QString &address) { _wallet->openReveal(_rawAddress, address); };
 
+                  auto resolveOwner = crl::guard(this, [=](const QString &wallet, const Fn<void(QString &&)> &done) {
+                    _wallet->getWalletOwner(selectedToken.symbol.rootContractAddress(), wallet,
+                                            crl::guard(this, [=](Ton::Result<QString> result) {
+                                              if (result.has_value()) {
+                                                return done(std::move(result.value()));
+                                              }
+                                            }));
+                  });
+
                   _layers->showBox(Box(
                       ViewTransactionBox, std::move(data), selectedToken.symbol, _collectEncryptedRequests.events(),
-                      _decrypted.events(), shareAddressCallback(), [=] { decryptEverything(publicKey); }, send,
-                      reveal));
+                      _decrypted.events(), shareAddressCallback(), [=] { decryptEverything(publicKey); }, resolveOwner,
+                      send, reveal));
                 },
                 [&](const SelectedDePool &selectedDePool) {
                   _layers->showBox(Box(ViewDePoolTransactionBox, std::move(data), shareAddressCallback()));

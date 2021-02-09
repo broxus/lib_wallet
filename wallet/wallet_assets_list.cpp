@@ -455,7 +455,7 @@ rpl::producer<AssetsListState> MakeTokensListState(rpl::producer<Ton::WalletView
                    if (it != end(data.wallet.tokenStates)) {
                      return TokenItem{
                          .token = token.symbol,
-                         .address = it->second.walletContractAddress,
+                         .address = it->second.rootOwnerAddress,
                          .balance = it->second.balance,
                      };
                    } else {

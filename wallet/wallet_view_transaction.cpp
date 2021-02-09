@@ -34,6 +34,7 @@ struct TokenTransaction {
   bool incoming{};
   bool swapback{};
   bool mint{};
+  bool direct{};
 };
 
 std::optional<TokenTransaction> TryGetTokenTransaction(const Ton::Transaction &data, const Ton::Symbol &selectedToken) {
@@ -44,15 +45,16 @@ std::optional<TokenTransaction> TryGetTokenTransaction(const Ton::Transaction &d
 
   return v::match(
       *transaction,
-      [=](const Ton::TokenTransfer &transfer) {
+      [&](const Ton::TokenTransfer &transfer) {
         return TokenTransaction{
             .token = selectedToken,
             .recipient = Ton::Wallet::ConvertIntoRaw(transfer.address),
             .amount = transfer.value,
             .incoming = transfer.incoming,
+            .direct = transfer.direct,
         };
       },
-      [=](const Ton::TokenSwapBack &swapBack) {
+      [&](const Ton::TokenSwapBack &swapBack) {
         return TokenTransaction{
             .token = selectedToken,
             .recipient = swapBack.address,
@@ -61,7 +63,7 @@ std::optional<TokenTransaction> TryGetTokenTransaction(const Ton::Transaction &d
             .swapback = true,
         };
       },
-      [=](const Ton::TokenMint &tokenMint) {
+      [&](const Ton::TokenMint &tokenMint) {
         return TokenTransaction{
             .token = selectedToken,
             .amount = tokenMint.value,
@@ -184,14 +186,34 @@ void ViewTransactionBox(not_null<Ui::GenericBox *> box, Ton::Transaction &&data,
                         rpl::producer<not_null<std::vector<Ton::Transaction> *>> collectEncrypted,
                         rpl::producer<not_null<const std::vector<Ton::Transaction> *>> decrypted,
                         const Fn<void(QImage, QString)> &share, const Fn<void()> &decryptComment,
+                        const Fn<void(const QString &, const Fn<void(QString &&)> &)> &resolveAddress,
                         const Fn<void(QString)> &send, const Fn<void(QString)> &reveal) {
   struct DecryptedText {
     QString text;
     bool success = false;
   };
 
-  const auto tokenTransaction = selectedToken.isToken() ? TryGetTokenTransaction(data, selectedToken) : std::nullopt;
+  auto tokenTransaction = selectedToken.isToken() ? TryGetTokenTransaction(data, selectedToken) : std::nullopt;
   const auto isTokenTransaction = tokenTransaction.has_value();
+
+  auto resolvedAddress = std::make_shared<rpl::event_stream<QString>>();
+
+  auto shouldWaitRecipient = tokenTransaction.has_value() && tokenTransaction->direct;
+  auto emptyAddress = tokenTransaction.has_value() && tokenTransaction->recipient.isEmpty();
+  auto address = isTokenTransaction         //
+                     ? shouldWaitRecipient  //
+                           ? resolvedAddress->events() |
+                                 rpl::map([](QString &&address) { return Ton::Wallet::ConvertIntoRaw(address); })
+                           : !emptyAddress  //
+                                 ? rpl::single(Ton::Wallet::ConvertIntoRaw(tokenTransaction->recipient))
+                                 : rpl::single(QString{})
+                     : rpl::single(Ton::Wallet::ConvertIntoRaw(ExtractAddress(data)));
+
+  auto currentAddress = box->lifetime().make_state<rpl::variable<QString>>();
+  rpl::duplicate(address)  //
+      | rpl::start_with_next([=](QString &&address) { *currentAddress = std::forward<QString>(address); },
+                             box->lifetime());
+
   const auto isSwapBack = isTokenTransaction && tokenTransaction->swapback;
 
   const auto service = IsServiceTransaction(data);
@@ -203,8 +225,6 @@ void ViewTransactionBox(not_null<Ui::GenericBox *> box, Ton::Transaction &&data,
                           : ph::lng_wallet_view_title());
 
   const auto id = data.id;
-  const auto address =
-      isTokenTransaction ? tokenTransaction->recipient : Ton::Wallet::ConvertIntoRaw(ExtractAddress(data));
   const auto incoming = data.outgoing.empty() || isTokenTransaction && tokenTransaction->incoming;
   const auto encryptedComment = IsEncryptedMessage(data);
   const auto decryptedComment = encryptedComment ? QString() : ExtractMessage(data);
@@ -234,18 +254,17 @@ void ViewTransactionBox(not_null<Ui::GenericBox *> box, Ton::Transaction &&data,
                      ? (complexComment() | rpl::type_erased())
                      : rpl::single(Ui::Text::WithEntities(ExtractMessage(data)));
 
-
-  box->setStyle(service || address.isEmpty() ? st::walletNoButtonsBox : st::walletBox);
+  box->setStyle(service || emptyAddress ? st::walletNoButtonsBox : st::walletBox);
 
   box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
 
   box->addRow(CreateSummary(box, data, tokenTransaction));
 
-  if (!service && !address.isEmpty()) {
+  if (!service && !emptyAddress) {
     AddBoxSubtitle(box, incoming ? ph::lng_wallet_view_sender() : ph::lng_wallet_view_recipient());
     box->addRow(  //
-        object_ptr<Ui::RpWidget>::fromRaw(Ui::CreateAddressLabel(
-            box, rpl::single(address), st::walletTransactionAddress, [=] { share(QImage(), address); })),
+        object_ptr<Ui::RpWidget>::fromRaw(Ui::CreateAddressLabel(box, std::move(address), st::walletTransactionAddress,
+                                                                 [=] { share(QImage(), currentAddress->current()); })),
         {
             st::boxRowPadding.left(),
             st::boxRowPadding.top(),
@@ -264,7 +283,7 @@ void ViewTransactionBox(not_null<Ui::GenericBox *> box, Ton::Transaction &&data,
           st::boxRowPadding.right(),
           (hasComment  //
                ? st::walletTransactionCommentTop
-               : (!address.isEmpty() ? st::boxRowPadding.bottom() : 0)),
+               : (!emptyAddress ? st::boxRowPadding.bottom() : 0)),
       });
 
   if (hasComment) {
@@ -297,7 +316,7 @@ void ViewTransactionBox(not_null<Ui::GenericBox *> box, Ton::Transaction &&data,
     SetupScrollByDrag(box, comment);
   }
 
-  if (!service && !address.isEmpty()) {
+  if (!service && !emptyAddress) {
     box->addRow(object_ptr<Ui::FixedHeightWidget>(box, st::walletTransactionBottomSkip));
 
     auto text = isSwapBack  //
@@ -311,13 +330,19 @@ void ViewTransactionBox(not_null<Ui::GenericBox *> box, Ton::Transaction &&data,
                | rpl::map([selectedToken](QString &&text) { return text.replace("{ticker}", selectedToken.name()); }),
            [=] {
              if (isSwapBack) {
-               reveal(address);
+               reveal(currentAddress->current());
              } else {
-               send(address);
+               send(currentAddress->current());
              }
            },
            st::walletBottomButton)
         ->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+  }
+
+  if (shouldWaitRecipient) {
+    resolveAddress(tokenTransaction->recipient, crl::guard(resolvedAddress, [=](QString &&owner) {
+                     resolvedAddress->fire(std::forward<QString>(owner));
+                   }));
   }
 }
 
