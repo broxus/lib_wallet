@@ -1087,10 +1087,8 @@ void History::refreshShowDates() {
   auto filterTransaction = [&, targetAddress = targetAddress](decltype(rows.front()) &row) {
     const auto &transaction = row->transaction();
 
-    auto isUnprocessed = transaction.id.lt < transactions.leastScannedTransactionLt;
-    if (isUnprocessed) {
-      transactions.leastScannedTransactionLt = transaction.id.lt;
-    }
+    const auto isUnprocessed = transaction.id.lt < transactions.leastScannedTransactionLt ||
+                               transaction.id.lt > transactions.latestScannedTransactionLt;
 
     v::match(
         selectedAsset,
@@ -1169,6 +1167,12 @@ void History::refreshShowDates() {
       previous = current;
     }
   }
+
+  if (!rows.empty()) {
+    transactions.latestScannedTransactionLt = rows.front()->transaction().id.lt;
+    transactions.leastScannedTransactionLt = rows.back()->transaction().id.lt;
+  }
+
   resizeToWidth(_widget.width());
 
   if (!unknownOwners.empty()) {

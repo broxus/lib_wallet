@@ -82,6 +82,7 @@ class History final {
     std::vector<Ton::Transaction> list;
     Ton::TransactionId previousId;
     Ton::TransactionId initTransactionId;
+    int64 latestScannedTransactionLt = 0;
     int64 leastScannedTransactionLt = std::numeric_limits<int64>::max();
   };
 
