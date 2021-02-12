@@ -4,6 +4,7 @@
 #include "ui/inline_token_icon.h"
 #include "ui/click_handler.h"
 #include "ui/widgets/buttons.h"
+#include "wallet_common.h"
 
 class Painter;
 
@@ -22,7 +23,7 @@ struct CustomAsset;
 struct TokenItem {
   Ton::Symbol token = Ton::Symbol::ton();
   QString address = "";
-  int64_t balance = 0;
+  int128 balance = 0;
 };
 
 struct DePoolItem {

@@ -112,7 +112,7 @@ phrase lng_wallet_empty_history_title = "Wallet Created";
 phrase lng_wallet_empty_history_welcome = "Welcome";
 phrase lng_wallet_empty_history_address = "Your wallet address";
 phrase lng_wallet_empty_history_depool_address = "DePool address";
-phrase lng_wallet_empty_history_token_address = "TIP3 Token wallet address";
+phrase lng_wallet_empty_history_token_address = "TIP3 Token wallet";
 
 phrase lng_wallet_depool_info_title = "DePool Added";
 phrase lng_wallet_depool_info_stakes_title = "Stakes";

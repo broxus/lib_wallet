@@ -21,12 +21,12 @@ void InvoiceQrBox(not_null<Ui::GenericBox *> box, const QString &link, const Fn<
   const auto [amount, symbol, comment] = v::match(
       prepared,
       [](const TonTransferInvoice &tonTransferInvoice) {
-        return std::make_tuple(tonTransferInvoice.amount, Ton::Symbol::ton(), tonTransferInvoice.comment);
+        return std::make_tuple(int128{tonTransferInvoice.amount}, Ton::Symbol::ton(), tonTransferInvoice.comment);
       },
       [](const TokenTransferInvoice &tokenTransferInvoice) {
         return std::make_tuple(tokenTransferInvoice.amount, tokenTransferInvoice.token, QString{});
       },
-      [](auto &&) { return std::make_tuple(0ll, Ton::Symbol::ton(), QString{}); });
+      [](auto &&) { return std::make_tuple(int128{}, Ton::Symbol::ton(), QString{}); });
 
   box->setTitle(ph::lng_wallet_invoice_qr_title());
   box->setStyle(st::walletBox);

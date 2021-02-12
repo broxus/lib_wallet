@@ -79,7 +79,8 @@ void Cover::setupBalance() {
 
   auto amount =  //
       _state.value() | rpl::map([](const CoverState &state) {
-        return FormatAmount(std::max(state.unlockedBalance, 0LL), state.selectedToken(), FormatFlag::Rounded);
+        return FormatAmount(state.unlockedBalance > 0 ? state.unlockedBalance : 0, state.selectedToken(),
+                            FormatFlag::Rounded);
       });
 
   const auto balance =

@@ -25,22 +25,29 @@ constexpr auto ipow(int64_t base, size_t power, int64_t result = 1) -> int64_t {
   return power < 1 ? result : ipow(base * base, power >> 1u, (power & 0x1u) ? (result * base) : result);
 }
 
+constexpr auto ipow(const int128 &base, size_t power, const int128 &result = 1) -> int128 {
+  return power < 1 ? result : ipow(base * base, power >> 1u, (power & 0x1u) ? (result * base) : result);
+}
+
 struct FixedAmount {
   QString text;
   int position = 0;
 };
 
-std::optional<int64> ParseAmountInt(const QString &trimmed, size_t decimals) {
-  const auto one = ipow(10, decimals);
-  auto ok = false;
-  const auto amount = int64(trimmed.toLongLong(&ok));
-  return (ok && (amount <= std::numeric_limits<int64>::max() / one) &&
-          (amount >= std::numeric_limits<int64>::min() / one))
-             ? std::make_optional(amount * one)
-             : std::nullopt;
+std::optional<int128> ParseAmountInt(const QString &trimmed, size_t decimals) {
+  const auto one = ipow(int128{10}, decimals);
+  try {
+    const int128 amount{trimmed.toStdString()};
+    return ((amount <= std::numeric_limits<int128>::max() / one) &&
+            (amount >= std::numeric_limits<int128>::min() / one))
+               ? std::make_optional(amount * one)
+               : std::nullopt;
+  } catch (std::runtime_error &) {
+    return std::nullopt;
+  }
 }
 
-std::optional<int64> ParseAmountFraction(QString trimmed, size_t decimals) {
+std::optional<int128> ParseAmountFraction(QString trimmed, size_t decimals) {
   while (trimmed.size() < decimals) {
     trimmed.append('0');
   }
@@ -57,9 +64,12 @@ std::optional<int64> ParseAmountFraction(QString trimmed, size_t decimals) {
   } else if (trimmed.size() > decimals) {
     return std::nullopt;
   }
-  auto ok = false;
-  const auto value = trimmed.mid(zeros).toLongLong(&ok);
-  return (ok && value > 0 && value < ipow(10, decimals)) ? std::make_optional(value) : std::nullopt;
+  try {
+    const int128 value{trimmed.mid(zeros).toStdString()};
+    return (value > 0 && value < ipow(int128{10}, decimals)) ? std::make_optional(value) : std::nullopt;
+  } catch (std::runtime_error &) {
+    return std::nullopt;
+  }
 }
 
 [[nodiscard]] FixedAmount FixAmountInput(const QString &was, const QString &text, int position, size_t decimals) {
@@ -108,21 +118,57 @@ std::optional<int64> ParseAmountFraction(QString trimmed, size_t decimals) {
   return result;
 }
 
+QString SeparateDecimals(int128 num, const QLocale &locale) {
+  QString result = "";
+  int cnt = 0;
+
+  if (num == 0) {
+    return "0";
+  }
+
+  num = boost::multiprecision::abs(num);
+  while (num > 0) {
+    result.insert(0, QString::number(static_cast<int>(num % 10)));
+    num = num / 10;
+    if (num > 0 && ++cnt == 3) {
+      result.insert(0, locale.groupSeparator());
+      cnt = 0;
+    }
+  }
+
+  return result;
+};
+
+QString FillZeros(int128 num, int width, QChar sym) {
+  QString result = "";
+
+  while (num > 0) {
+    result.insert(0, QString::number(static_cast<int>(num % 10)));
+    num = num / 10;
+  }
+
+  while (result.size() < width) {
+    result.insert(0, sym);
+  }
+
+  return result;
+}
+
 }  // namespace
 
-FormattedAmount FormatAmount(int64 amount, const Ton::Symbol &symbol, FormatFlags flags) {
+FormattedAmount FormatAmount(const int128 &amount, const Ton::Symbol &symbol, FormatFlags flags) {
   const auto decimals = static_cast<uint32_t>(symbol.decimals());
-  const auto one = ipow(10, decimals);
+  const auto one = ipow(int128{10}, decimals);
 
   auto result = FormattedAmount();
   result.token = symbol;
   const auto amountInt = amount / one;
-  const auto amountFraction = std::abs(amount) % one;
+  const auto amountFraction = boost::multiprecision::abs(amount) % one;
   auto roundedFraction = amountFraction;
   if (flags & FormatFlag::Rounded) {
-    if (std::abs(amountInt) >= 1'000'000 && (roundedFraction % 1'000'000)) {
+    if (boost::multiprecision::abs(amountInt) >= 1'000'000 && (roundedFraction % 1'000'000)) {
       roundedFraction -= (roundedFraction % 1'000'000);
-    } else if (std::abs(amountInt) >= 1'000 && (roundedFraction % 1'000)) {
+    } else if (boost::multiprecision::abs(amountInt) >= 1'000 && (roundedFraction % 1'000)) {
       roundedFraction -= (roundedFraction % 1'000);
     }
   }
@@ -137,7 +183,7 @@ FormattedAmount FormatAmount(int64 amount, const Ton::Symbol &symbol, FormatFlag
   const auto locale = (flags & FormatFlag::Simple) ? QLocale::c() : system;
   const auto separator = system.decimalPoint();
 
-  result.gramsString = locale.toString(amountInt);
+  result.gramsString = SeparateDecimals(amountInt, locale);
   if ((flags & FormatFlag::Signed) && amount > 0) {
     result.gramsString = locale.positiveSign() + result.gramsString;
   } else if (amount < 0 && amountInt == 0) {
@@ -146,12 +192,12 @@ FormattedAmount FormatAmount(int64 amount, const Ton::Symbol &symbol, FormatFlag
   result.full = result.gramsString;
   if (zeros < decimals) {
     result.separator = separator;
-    result.nanoString = QString("%1").arg(fraction, decimals - zeros, 10, QChar('0'));
+    result.nanoString = FillZeros(fraction, decimals - zeros, QChar('0'));
     if (!precise) {
-      const auto fractionLength =             //
-          (std::abs(amountInt) >= 1'000'000)  //
+      const auto fractionLength =                               //
+          (boost::multiprecision::abs(amountInt) >= 1'000'000)  //
               ? 3
-              : (std::abs(amountInt) >= 1'000)  //
+              : (boost::multiprecision::abs(amountInt) >= 1'000)  //
                     ? 6
                     : decimals;
       result.nanoString = result.nanoString.mid(0, fractionLength);
@@ -166,7 +212,7 @@ FormattedAmount FormatAmount(int64 amount, const Ton::Symbol &symbol, FormatFlag
   return separator;
 }
 
-std::optional<int64> ParseAmountString(const QString &amount, size_t decimals) {
+std::optional<int128> ParseAmountString(const QString &amount, size_t decimals) {
   const auto trimmed = amount.trimmed();
   const auto separator = QString(QLocale::system().decimalPoint());
   const auto index1 = trimmed.indexOf('.');
@@ -178,8 +224,8 @@ std::optional<int64> ParseAmountString(const QString &amount, size_t decimals) {
   }
   const auto index = (index1 >= 0) ? index1 : (index2 >= 0) ? index2 : index3;
   const auto used = (index1 >= 0) ? "." : (index2 >= 0) ? "," : separator;
-  const auto amountInt = ParseAmountInt(trimmed.mid(0, index), decimals);
-  const auto amountFraction = ParseAmountFraction(trimmed.mid(index + used.size()), decimals);
+  auto amountInt = ParseAmountInt(trimmed.mid(0, index), decimals);
+  auto amountFraction = ParseAmountFraction(trimmed.mid(index + used.size()), decimals);
   if (index < 0 || index == trimmed.size() - used.size()) {
     return amountInt;
   } else if (index == 0) {
@@ -323,7 +369,7 @@ QString ExtractMessage(const Ton::Transaction &data) {
   return QString();
 }
 
-QString TransferLink(const QString &address, const Ton::Symbol &symbol, int64 amount, const QString &comment) {
+QString TransferLink(const QString &address, const Ton::Symbol &symbol, const int128 &amount, const QString &comment) {
   const auto base = QString{"https://freeton.broxus.com"};
 
   auto params = QStringList();
@@ -334,7 +380,7 @@ QString TransferLink(const QString &address, const Ton::Symbol &symbol, int64 am
   }
 
   if (amount > 0) {
-    params.push_back("amount=" + QString::number(amount));
+    params.push_back(QString::fromStdString("amount=" + amount.str()));
   }
   if (!comment.isEmpty()) {
     params.push_back("text=" + qthelp::url_encode(comment));
@@ -353,7 +399,7 @@ not_null<Ui::FlatLabel *> AddBoxSubtitle(not_null<Ui::GenericBox *> box, rpl::pr
 }
 
 not_null<Ui::InputField *> CreateAmountInput(not_null<QWidget *> parent, rpl::producer<QString> placeholder,
-                                             int64 amount, const Ton::Symbol &symbol) {
+                                             const int128 &amount, const Ton::Symbol &symbol) {
   const auto result =
       Ui::CreateChild<Ui::InputField>(parent.get(), st::walletInput, Ui::InputField::Mode::SingleLine, placeholder);
 

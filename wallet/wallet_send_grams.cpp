@@ -73,14 +73,16 @@ void SendGramsBox(not_null<Ui::GenericBox *> box, const T &invoice, rpl::produce
             if (it != state.tokenStates.end()) {
               return it->second.balance;
             } else {
-              return int64{};
+              return int128{};
             }
           } else {
             return int64{};
           }
         });
 
-  const auto funds = std::make_shared<int64>();
+  using BalanceType = decltype(invoice.amount);
+
+  const auto funds = std::make_shared<BalanceType>();
 
   const auto replaceTickerTag = [symbol = symbol] {
     return rpl::map([=](QString &&text) { return text.replace("{ticker}", symbol.name()); });
@@ -111,8 +113,8 @@ void SendGramsBox(not_null<Ui::GenericBox *> box, const T &invoice, rpl::produce
 
   auto balanceText =
       rpl::combine(ph::lng_wallet_send_balance(), rpl::duplicate(unlockedBalance)) |
-      rpl::map([=, symbol = symbol](QString &&phrase, int64 value) {
-        return phrase.replace("{amount}", FormatAmount(std::max(value, 0LL), symbol, FormatFlag::Rounded).full);
+      rpl::map([=, symbol = symbol](QString &&phrase, const BalanceType &value) {
+        return phrase.replace("{amount}", FormatAmount(value > 0 ? value : 0, symbol, FormatFlag::Rounded).full);
       });
 
   const auto diamondLabel =
@@ -260,11 +262,12 @@ void SendGramsBox(not_null<Ui::GenericBox *> box, const T &invoice, rpl::produce
       amount->showError();
       return;
     }
-    collected.amount = *parsed;
     collected.address = address->getLastText();
     if constexpr (isTonTransfer) {
+      collected.amount = static_cast<int64>(*parsed);
       collected.comment = comment->getLastText();
     } else if constexpr (isTokenTransfer) {
+      collected.amount = *parsed;
       collected.token = symbol;
       collected.callbackAddress = callbackAddress->getLastText();
       collected.transferType = transferType->current();
@@ -277,14 +280,14 @@ void SendGramsBox(not_null<Ui::GenericBox *> box, const T &invoice, rpl::produce
 
   const auto checkFunds = [=, symbol = symbol](const QString &amount) {
     if (const auto value = ParseAmountString(amount, symbol.decimals())) {
-      const auto insufficient = (*value > std::max(*funds, 0LL));
+      const auto insufficient = (*value > 0 && *value > *funds);
       balanceLabel->setTextColorOverride(insufficient ? std::make_optional(st::boxTextFgError->c) : std::nullopt);
     }
   };
 
   std::move(unlockedBalance)  //
       | rpl::start_with_next(
-            [=](int64 value) {
+            [=](const BalanceType &value) {
               *funds = value;
               checkFunds(amount->getLastText());
             },

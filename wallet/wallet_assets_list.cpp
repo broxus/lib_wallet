@@ -41,13 +41,16 @@ auto addressPartWidth(const QString &address, int from, int length = -1) {
   const auto [title, token, address, balance] = v::match(
       data,
       [](const TokenItem &item) {
-        return std::make_tuple(item.token.name(), item.token, Ton::Wallet::ConvertIntoRaw(item.address), item.balance);
+        return std::make_tuple(
+            item.token.name(), item.token,
+            Ton::Wallet::ConvertIntoRaw(item.token.isTon() ? item.address : item.token.rootContractAddress()),
+            item.balance);
       },
       [](const DePoolItem &item) {
-        return std::make_tuple(QString{"DePool"}, Ton::Symbol::ton(), item.address, item.total);
+        return std::make_tuple(QString{"DePool"}, Ton::Symbol::ton(), item.address, int128{item.total});
       });
 
-  const auto formattedBalance = FormatAmount(std::max(balance, int64_t{}), token);
+  const auto formattedBalance = FormatAmount(balance > 0 ? balance : 0, token);
 
   auto result = AssetItemLayout();
   result.image = Ui::InlineTokenIcon(token, st::walletTokensListRowIconSize);
@@ -455,7 +458,7 @@ rpl::producer<AssetsListState> MakeTokensListState(rpl::producer<Ton::WalletView
                    if (it != end(data.wallet.tokenStates)) {
                      return TokenItem{
                          .token = token.symbol,
-                         .address = it->second.rootOwnerAddress,
+                         .address = it->second.walletContractAddress,
                          .balance = it->second.balance,
                      };
                    } else {

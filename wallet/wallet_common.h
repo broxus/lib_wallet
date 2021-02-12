@@ -13,7 +13,6 @@
 namespace Ton {
 struct Error;
 class Symbol;
-Symbol tokenFromString(const QString &token);
 }  // namespace Ton
 
 namespace Ui {
@@ -31,6 +30,8 @@ inline constexpr auto kMaxCommentLength = 500;
 inline constexpr auto kEncodedAddressLength = 48;
 inline constexpr auto kRawAddressLength = 64;
 inline constexpr auto kEtheriumAddressLength = 40;
+
+using int128 = Ton::int128;
 
 struct SelectedToken {
   Ton::Symbol symbol;
@@ -77,7 +78,7 @@ struct TonTransferInvoice {
 
 struct TokenTransferInvoice {
   Ton::Symbol token;
-  int64 amount{};
+  int128 amount{};
   int64 realAmount{};
   QString rootContractAddress;
   QString walletContractAddress;
@@ -160,9 +161,10 @@ struct ParsedAddressEth {
 };
 using ParsedAddress = std::variant<ParsedAddressTon, ParsedAddressEth>;
 
-[[nodiscard]] FormattedAmount FormatAmount(int64 amount, const Ton::Symbol &symbol, FormatFlags flags = FormatFlags());
+[[nodiscard]] FormattedAmount FormatAmount(const int128 &amount, const Ton::Symbol &symbol,
+                                           FormatFlags flags = FormatFlags());
 [[nodiscard]] QString AmountSeparator();
-[[nodiscard]] std::optional<int64> ParseAmountString(const QString &amount, size_t decimals);
+[[nodiscard]] std::optional<int128> ParseAmountString(const QString &amount, size_t decimals);
 [[nodiscard]] ParsedAddress ParseAddress(const QString &address);
 [[nodiscard]] PreparedInvoice ParseInvoice(QString invoice);
 [[nodiscard]] int64 CalculateValue(const Ton::Transaction &data);
@@ -171,14 +173,14 @@ using ParsedAddress = std::variant<ParsedAddressTon, ParsedAddressEth>;
 [[nodiscard]] bool IsServiceTransaction(const Ton::Transaction &data);
 [[nodiscard]] QString ExtractMessage(const Ton::Transaction &data);
 
-[[nodiscard]] QString TransferLink(const QString &address, const Ton::Symbol &symbol, int64 amount = 0,
+[[nodiscard]] QString TransferLink(const QString &address, const Ton::Symbol &symbol, const int128 &amount = 0,
                                    const QString &comment = QString());
 
 not_null<Ui::FlatLabel *> AddBoxSubtitle(not_null<Ui::VerticalLayout *> box, rpl::producer<QString> text);
 not_null<Ui::FlatLabel *> AddBoxSubtitle(not_null<Ui::GenericBox *> box, rpl::producer<QString> text);
 
 [[nodiscard]] not_null<Ui::InputField *> CreateAmountInput(not_null<QWidget *> parent,
-                                                           rpl::producer<QString> placeholder, int64 amount,
+                                                           rpl::producer<QString> placeholder, const int128 &amount,
                                                            const Ton::Symbol &symbol);
 [[nodiscard]] not_null<Ui::InputField *> CreateCommentInput(not_null<QWidget *> parent,
                                                             rpl::producer<QString> placeholder,

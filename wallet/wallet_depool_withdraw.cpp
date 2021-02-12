@@ -117,7 +117,7 @@ void DePoolWithdrawBox(not_null<Ui::GenericBox *> box, const WithdrawalInvoice &
         amount->showError();
         return;
       }
-      collected.amount = *parsed;
+      collected.amount = static_cast<int64>(*parsed);
     }
     collected.dePool = prepared->dePool;
 

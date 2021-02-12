@@ -79,7 +79,7 @@ void SendStakeBox(not_null<Ui::GenericBox *> box, const StakeInvoice &invoice, r
       amount->showError();
       return;
     }
-    collected.stake = *parsed;
+    collected.stake = static_cast<int64>(*parsed);
     collected.dePool = prepared->dePool;
     done(collected, showError);
   };

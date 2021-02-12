@@ -30,7 +30,7 @@ namespace {
 struct TokenTransaction {
   Ton::Symbol token;
   QString recipient;
-  int64 amount;
+  int128 amount;
   bool incoming{};
   bool swapback{};
   bool mint{};

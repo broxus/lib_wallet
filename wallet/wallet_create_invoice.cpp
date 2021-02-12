@@ -101,7 +101,7 @@ void CreateInvoiceBox(not_null<Ui::GenericBox *> box, const QString &address, bo
   url->setMinimumHeight(st::walletInvoiceLinkLabel.maxHeight);
 
   rpl::combine(std::move(amountValue), std::move(commentValue))  //
-      | rpl::map([=, symbol = symbol](int64 amount, const QString &comment) {
+      | rpl::map([=, symbol = symbol](const int128 &amount, const QString &comment) {
           const auto link = TransferLink(address, symbol, amount, comment);
           return (amount > 0) ? Ui::Text::Link(link) : TextWithEntities{link};
         })  //

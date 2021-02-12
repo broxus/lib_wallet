@@ -12,6 +12,7 @@
 #include "ui/address_label.h"
 #include "ui/lottie_widget.h"
 #include "styles/style_wallet.h"
+#include "ton/ton_wallet.h"
 
 namespace Wallet {
 
@@ -83,9 +84,11 @@ void EmptyHistory::setupControls(rpl::producer<EmptyHistoryState> &&state) {
           label->lifetime());
 
   const auto currentAddress = _widget.lifetime().make_state<rpl::variable<QString>>();
-  std::move(state) |
-      rpl::start_with_next([currentAddress](const EmptyHistoryState &state) { *currentAddress = state.address; },
-                           _widget.lifetime());
+  std::move(state) | rpl::start_with_next(
+                         [currentAddress](const EmptyHistoryState &state) {
+                           *currentAddress = Ton::Wallet::ConvertIntoRaw(state.address);
+                         },
+                         _widget.lifetime());
 
   const auto address = Ui::CreateAddressLabel(&_widget, currentAddress->value(), st::walletEmptyHistoryAddress,
                                               [this, currentAddress] { _share(QImage(), currentAddress->current()); });
@@ -108,26 +111,18 @@ rpl::producer<EmptyHistoryState> MakeEmptyHistoryState(rpl::producer<Ton::Wallet
                [justCreated](const Ton::WalletViewerState &state, const std::optional<SelectedAsset> &selectedAsset) {
                  const auto asset = selectedAsset.value_or(SelectedToken{.symbol = Ton::Symbol::ton()});
 
-                 const auto [address, isToken] = v::match(
+                 const auto [address, labelType] = v::match(
                      asset,
                      [&](const SelectedToken &selectedToken) {
-                       if (selectedToken.symbol.isTon()) {
-                         return std::make_pair(state.wallet.address, AddressLabelType::YourAddress);
-                       }
-
-                       const auto it = state.wallet.tokenStates.find(selectedToken.symbol);
-                       if (it != state.wallet.tokenStates.end()) {
-                         return std::make_pair(it->second.walletContractAddress, AddressLabelType::TokenAddress);
-                       } else {
-                         // Unreachable in theory
-                         return std::make_pair(state.wallet.address, AddressLabelType::TokenAddress);
-                       }
+                       return std::make_pair(state.wallet.address, selectedToken.symbol.isTon()
+                                                                       ? AddressLabelType::YourAddress
+                                                                       : AddressLabelType::TokenAddress);
                      },
                      [&](const SelectedDePool &selectedDePool) {
                        return std::make_pair(selectedDePool.address, AddressLabelType::DePoolAddress);
                      });
 
-                 return EmptyHistoryState{address, isToken, justCreated};
+                 return EmptyHistoryState{address, labelType, justCreated};
                });
 }
 }  // namespace Wallet

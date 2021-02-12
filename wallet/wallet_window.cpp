@@ -774,7 +774,7 @@ void Window::sendMoney(const PreparedInvoiceOrLink &invoice) {
 
   const auto defaultToken = Ton::Symbol::ton();
 
-  auto available = [=](const Ton::Symbol &symbol) -> int64_t {
+  auto available = [=](const Ton::Symbol &symbol) -> int128 {
     const auto currentState = _state.current();
     const auto account = currentState.account;
 
@@ -785,7 +785,7 @@ void Window::sendMoney(const PreparedInvoiceOrLink &invoice) {
       if (it != currentState.tokenStates.end()) {
         return it->second.balance;
       } else {
-        return uint64{};
+        return int128{};
       }
     }
   };

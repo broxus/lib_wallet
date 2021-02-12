@@ -19,7 +19,7 @@ namespace Wallet {
 
 struct CoverState {
   SelectedAsset asset;
-  int64 unlockedBalance = 0;
+  int128 unlockedBalance = 0;
   int64 lockedBalance = 0;
   int64 reward = 0;
   bool justCreated = false;
