@@ -1149,6 +1149,10 @@ void History::refreshShowDates() {
               return;
             }
           } else if (!incoming) {
+            if (transaction.aborted || !transaction.incoming.bounce) {
+              return row->setVisible(false);
+            }
+
             for (const auto &out : transaction.outgoing) {
               if (Ton::Wallet::ConvertIntoRaw(out.destination) != targetAddress) {
                 continue;
