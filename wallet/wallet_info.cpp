@@ -89,6 +89,10 @@ rpl::producer<std::pair<const Ton::Symbol *, const QSet<QString> *>> Info::owner
   return _ownerResolutionRequests.events();
 }
 
+rpl::producer<const QString *> Info::newTokenWalletRequests() const {
+  return _newTokenWalletRequests.events();
+}
+
 void Info::setupControls(Data &&data) {
   const auto &state = data.state;
   const auto topBar = _widget->lifetime().make_state<TopBar>(
@@ -253,9 +257,11 @@ void Info::setupControls(Data &&data) {
 
   history->ownerResolutionRequests() | rpl::start_to_stream(_ownerResolutionRequests, history->lifetime());
 
+  history->newTokenWalletRequests() | rpl::start_to_stream(_newTokenWalletRequests, history->lifetime());
+
   // initialize default layouts
   _selectedAsset.value() | rpl::start_with_next(
-                               [=](const std::optional<SelectedAsset>& token) {
+                               [=](const std::optional<SelectedAsset> &token) {
                                  assetsListWrapper->setVisible(!token.has_value());
                                  tonHistoryWrapper->setVisible(token.has_value());
                                },

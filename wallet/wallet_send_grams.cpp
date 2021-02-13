@@ -18,6 +18,7 @@
 #include "styles/style_wallet.h"
 #include "styles/style_layers.h"
 #include "styles/palette.h"
+#include "ton/ton_wallet.h"
 
 #include <iostream>
 
@@ -145,7 +146,10 @@ void SendGramsBox(not_null<Ui::GenericBox *> box, const T &invoice, rpl::produce
     AddBoxSubtitle(callbackAddressWrapper, ph::lng_wallet_send_token_proxy_address());
     callbackAddress = callbackAddressWrapper->add(
         object_ptr<Ui::InputField>(box, st::walletSendInput, Ui::InputField::Mode::NoNewlines,
-                                   ph::lng_wallet_send_token_proxy_address_placeholder(), prepared->callbackAddress),
+                                   ph::lng_wallet_send_token_proxy_address_placeholder(),
+                                   prepared->callbackAddress.isEmpty()
+                                       ? prepared->callbackAddress
+                                       : Ton::Wallet::ConvertIntoRaw(prepared->callbackAddress)),
         st::boxRowPadding);
     callbackAddress->setSizePolicy(QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Expanding);
   }

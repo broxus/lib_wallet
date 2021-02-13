@@ -531,6 +531,29 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
                 }),
             _info->lifetime());
 
+  const auto onNewToken = [this](const Ton::Result<> &result) {
+    if (result.has_value()) {
+      refreshNow();
+      showToast(ph::lng_wallet_add_token_succeeded(ph::now));
+    } else {
+      showSimpleError(ph::lng_wallet_add_token_failed_title(), ph::lng_wallet_add_token_failed_text(),
+                      ph::lng_wallet_continue());
+    }
+  };
+
+  _info->newTokenWalletRequests()  //
+      | rpl::start_with_next(
+            [=](const QString *rootTokenAddress) {
+              const auto state = _state.current();
+              for (const auto &item : state.tokenStates) {
+                if (item.first.rootContractAddress() == *rootTokenAddress) {
+                  return;
+                }
+              }
+              _wallet->addToken(_wallet->publicKeys().front(), *rootTokenAddress, crl::guard(this, onNewToken));
+            },
+            _info->lifetime());
+
   _info->viewRequests() |
       rpl::start_with_next(
           [=](Ton::Transaction &&data) {
@@ -1345,14 +1368,13 @@ void Window::addAsset() {
     if (!Ton::Wallet::CheckAddress(newAsset.address)) {
       return showError(AddAssetField::Address);
     }
-    const auto address = Ton::Wallet::ConvertIntoRaw(newAsset.address);
     switch (newAsset.type) {
       case CustomAssetType::DePool: {
-        _wallet->addDePool(_wallet->publicKeys().front(), address, crl::guard(this, onNewDepool));
+        _wallet->addDePool(_wallet->publicKeys().front(), newAsset.address, crl::guard(this, onNewDepool));
         break;
       }
       case CustomAssetType::Token: {
-        _wallet->addToken(_wallet->publicKeys().front(), address, crl::guard(this, onNewToken));
+        _wallet->addToken(_wallet->publicKeys().front(), newAsset.address, crl::guard(this, onNewToken));
         break;
       }
       default:

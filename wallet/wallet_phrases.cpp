@@ -254,7 +254,7 @@ phrase lng_wallet_send_failed_text =
 phrase lng_wallet_add_depool_succeeded = "DePool added successfully!";
 phrase lng_wallet_add_depool_failed_title = "Failed to add DePool";
 phrase lng_wallet_add_depool_failed_text =
-    "The specified account was not found, or it is neither DePoolV1 nor DePoolV2";
+    "The specified account was not found, or it is neither DePoolV2 nor DePoolV3";
 
 phrase lng_wallet_add_token_succeeded = "TIP3 Token added successfully!";
 phrase lng_wallet_add_token_failed_title = "Failed to add TIP3 Token";

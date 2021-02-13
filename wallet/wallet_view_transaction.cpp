@@ -48,7 +48,7 @@ std::optional<TokenTransaction> TryGetTokenTransaction(const Ton::Transaction &d
       [&](const Ton::TokenTransfer &transfer) {
         return TokenTransaction{
             .token = selectedToken,
-            .recipient = Ton::Wallet::ConvertIntoRaw(transfer.address),
+            .recipient = transfer.address,
             .amount = transfer.value,
             .incoming = transfer.incoming,
             .direct = transfer.direct,
@@ -205,7 +205,9 @@ void ViewTransactionBox(not_null<Ui::GenericBox *> box, Ton::Transaction &&data,
                            ? resolvedAddress->events() |
                                  rpl::map([](QString &&address) { return Ton::Wallet::ConvertIntoRaw(address); })
                            : !emptyAddress  //
-                                 ? rpl::single(Ton::Wallet::ConvertIntoRaw(tokenTransaction->recipient))
+                                 ? rpl::single(tokenTransaction->swapback
+                                                   ? tokenTransaction->recipient
+                                                   : Ton::Wallet::ConvertIntoRaw(tokenTransaction->recipient))
                                  : rpl::single(QString{})
                      : rpl::single(Ton::Wallet::ConvertIntoRaw(ExtractAddress(data)));
 

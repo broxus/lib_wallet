@@ -721,6 +721,10 @@ rpl::producer<std::pair<const Ton::Symbol *, const QSet<QString> *>> History::ow
   return _ownerResolutionRequests.events();
 }
 
+rpl::producer<const QString *> History::newTokenWalletRequests() const {
+  return _newTokenWalletRequests.events();
+}
+
 rpl::lifetime &History::lifetime() {
   return _widget.lifetime();
 }
@@ -1095,8 +1099,16 @@ void History::refreshShowDates() {
         [&](const SelectedToken &selectedToken) {
           row->setVisible(true);
           if (selectedToken.symbol.isTon()) {
-            row->clearAdditionalInfo();
-            return;
+            if (auto notification = Ton::Wallet::ParseNotification(transaction.incoming.message);
+                notification.has_value()) {
+              v::match(
+                  *notification,
+                  [&](const Ton::TokenWalletDeployed &deployed) {
+                    _newTokenWalletRequests.fire(&deployed.rootTokenContract);
+                  },
+                  [](auto &&) {});
+            }
+            return row->clearAdditionalInfo();
           }
 
           if (transaction.aborted || !transaction.incoming.bounce) {
