@@ -20,6 +20,7 @@
 #include "wallet/wallet_depool_withdraw.h"
 #include "wallet/wallet_depool_cancel_withdrawal.h"
 #include "wallet/wallet_deploy_token_wallet.h"
+#include "wallet/wallet_collect_tokens.h"
 #include "wallet/wallet_enter_passcode.h"
 #include "wallet/wallet_change_passcode.h"
 #include "wallet/wallet_confirm_transaction.h"
@@ -554,6 +555,10 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
             },
             _info->lifetime());
 
+  _info->collectTokenRequests()  //
+      | rpl::start_with_next([=](const QString *eventContractAddress) { collectTokens(*eventContractAddress); },
+                             _info->lifetime());
+
   _info->viewRequests() |
       rpl::start_with_next(
           [=](Ton::Transaction &&data) {
@@ -963,6 +968,22 @@ void Window::deployTokenWallet(const DeployTokenWalletInvoice &invoice) {
   _layers->showBox(std::move(box));
 }
 
+void Window::collectTokens(const QString &eventContractAddress) {
+  if (_sendBox) {
+    _sendBox->closeBox();
+  }
+
+  const auto checking = std::make_shared<bool>();
+  const auto send = [this, checking](const CollectTokensInvoice &invoice) {
+    confirmTransaction(
+        invoice, [=](InvoiceField) {}, checking);
+  };
+
+  auto box = Box(CollectTokensBox, CollectTokensInvoice{.eventContractAddress = eventContractAddress}, send);
+  _sendBox = box.data();
+  _layers->showBox(std::move(box));
+}
+
 void Window::confirmTransaction(PreparedInvoice invoice, const Fn<void(InvoiceField)> &showInvoiceError,
                                 const std::shared_ptr<bool> &guard) {
   if (*guard || !_sendBox) {
@@ -995,6 +1016,9 @@ void Window::confirmTransaction(PreparedInvoice invoice, const Fn<void(InvoiceFi
       },
       [&](DeployTokenWalletInvoice &deployTokenWalletInvoice) {
         deployTokenWalletInvoice.realAmount = Ton::DeployTokenWalletTransactionToSend::realAmount;
+      },
+      [&](CollectTokensInvoice &collectTokensInvoice) {
+        collectTokensInvoice.realAmount = Ton::CollectTokensTransactionToSend::realAmount;
       });
 
   auto done = [=](Ton::Result<Ton::TransactionCheckResult> result, PreparedInvoice &&invoice) mutable {
@@ -1081,6 +1105,10 @@ void Window::confirmTransaction(PreparedInvoice invoice, const Fn<void(InvoiceFi
       [&](const DeployTokenWalletInvoice &deployTokenWalletInvoice) {
         _wallet->checkDeployTokenWallet(_wallet->publicKeys().front(), deployTokenWalletInvoice.asTransaction(),
                                         crl::guard(_sendBox.data(), doneUnchanged));
+      },
+      [&](const CollectTokensInvoice &collectTokensInvoice) {
+        _wallet->checkCollectTokens(_wallet->publicKeys().front(), collectTokensInvoice.asTransaction(),
+                                    crl::guard(_sendBox.data(), doneUnchanged));
       });
 }
 
@@ -1147,6 +1175,10 @@ void Window::askSendPassword(const PreparedInvoice &invoice, const Fn<void(Invoi
         [&](const DeployTokenWalletInvoice &deployTokenWalletInvoice) {
           _wallet->deployTokenWallet(publicKey, passcode, deployTokenWalletInvoice.asTransaction(),
                                      crl::guard(this, ready), crl::guard(this, sent));
+        },
+        [&](const CollectTokensInvoice &collectTokensInvoice) {
+          _wallet->collectTokens(publicKey, passcode, collectTokensInvoice.asTransaction(), crl::guard(this, ready),
+                                 crl::guard(this, sent));
         });
   };
   if (_sendConfirmBox) {
@@ -1255,6 +1287,16 @@ void Window::showSendConfirmation(const PreparedInvoice &invoice, const Ton::Tra
         return Box(ConfirmTransactionBox<DeployTokenWalletInvoice>, deployTokenWalletInvoice,
                    deployTokenWalletInvoice.realAmount + sourceFees,
                    [=] { askSendPassword(deployTokenWalletInvoice, showInvoiceError); });
+      },
+      [&](const CollectTokensInvoice &collectTokensInvoice) -> object_ptr<Ui::GenericBox> {
+        if (!checkAmount(collectTokensInvoice.realAmount)) {
+          showInvoiceError(InvoiceField::Address);
+          return nullptr;
+        }
+
+        return Box(ConfirmTransactionBox<CollectTokensInvoice>, collectTokensInvoice,
+                   collectTokensInvoice.realAmount + sourceFees,
+                   [=] { askSendPassword(collectTokensInvoice, showInvoiceError); });
       });
 
   if (box != nullptr) {
@@ -1322,6 +1364,9 @@ void Window::showSendingDone(std::optional<Ton::Transaction> result, const Prepa
         [&](const DeployTokenWalletInvoice &deployTokenWalletInvoice) {
           return Box(SendingDoneBox<DeployTokenWalletInvoice>, *result, deployTokenWalletInvoice,
                      [this] { refreshNow(); });
+        },
+        [&](const CollectTokensInvoice &collectTokensInvoice) {
+          return Box(SendingDoneBox<CollectTokensInvoice>, *result, collectTokensInvoice, [this] { refreshNow(); });
         });
 
     _layers->showBox(std::move(box));

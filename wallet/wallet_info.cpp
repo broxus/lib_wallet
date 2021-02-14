@@ -93,11 +93,11 @@ rpl::producer<const QString *> Info::newTokenWalletRequests() const {
   return _newTokenWalletRequests.events();
 }
 
-rpl::producer<const QString *> collectTokenRequests() const {
+rpl::producer<const QString *> Info::collectTokenRequests() const {
   return _collectTokenRequests.events();
 }
 
-rpl::producer<const QString *> executeSwapBackRequests() const {
+rpl::producer<const QString *> Info::executeSwapBackRequests() const {
   return _executeSwapBackRequests.events();
 }
 

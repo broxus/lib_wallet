@@ -16,6 +16,7 @@
 #include "styles/style_layers.h"
 #include "styles/style_wallet.h"
 #include "styles/palette.h"
+#include "ton/ton_wallet.h"
 
 #include <QtGui/QtEvents>
 
@@ -79,8 +80,9 @@ void ConfirmTransactionBox(not_null<Ui::GenericBox *> box, const T &invoice, int
   constexpr auto isWithdrawal = std::is_same_v<T, WithdrawalInvoice>;
   constexpr auto isCancelWithdrawal = std::is_same_v<T, CancelWithdrawalInvoice>;
   constexpr auto isDeployTokenWallet = std::is_same_v<T, DeployTokenWalletInvoice>;
+  constexpr auto isCollectTokens = std::is_same_v<T, CollectTokensInvoice>;
   static_assert(isTonTransfer || isTokenTransfer || isStakeTransfer || isWithdrawal || isCancelWithdrawal ||
-                isDeployTokenWallet);
+                isDeployTokenWallet || isCollectTokens);
 
   auto token = Ton::Symbol::ton();
   if constexpr (isTokenTransfer) {
@@ -94,6 +96,16 @@ void ConfirmTransactionBox(not_null<Ui::GenericBox *> box, const T &invoice, int
     address = invoice.dePool;
   } else if constexpr (isDeployTokenWallet) {
     address = invoice.rootContractAddress;
+  } else if constexpr (isCollectTokens) {
+    address = invoice.eventContractAddress;
+  }
+
+  bool showAsRaw = true;
+  if constexpr (isTokenTransfer) {
+    showAsRaw = Ton::Wallet::CheckAddress(address);
+  }
+  if (showAsRaw) {
+    address = Ton::Wallet::ConvertIntoRaw(address);
   }
 
   box->setTitle(ph::lng_wallet_confirm_title());
@@ -108,7 +120,7 @@ void ConfirmTransactionBox(not_null<Ui::GenericBox *> box, const T &invoice, int
       return FormatAmount(invoice.stake, token).full;
     } else if constexpr (isWithdrawal) {
       return FormatAmount(invoice.amount, token).full;
-    } else if constexpr (isCancelWithdrawal || isDeployTokenWallet) {
+    } else if constexpr (isCancelWithdrawal || isDeployTokenWallet || isCollectTokens) {
       return FormatAmount(0, token).full;
     }
   }
@@ -121,6 +133,8 @@ void ConfirmTransactionBox(not_null<Ui::GenericBox *> box, const T &invoice, int
       return ph::lng_wallet_confirm_cancel_withdrawal_text();
     } else if constexpr (isDeployTokenWallet) {
       return ph::lng_wallet_confirm_deploy_token_wallet_text();
+    } else if constexpr (isCollectTokens) {
+      return ph::lng_wallet_confirm_collect_tokens_text();
     } else {
       return ph::lng_wallet_confirm_text();
     }
@@ -179,6 +193,8 @@ void ConfirmTransactionBox(not_null<Ui::GenericBox *> box, const T &invoice, int
       return ph::lng_wallet_confirm_cancel_withdrawal();
     } else if constexpr (isDeployTokenWallet) {
       return ph::lng_wallet_confirm_deploy_token_wallet();
+    } else if constexpr (isCollectTokens) {
+      return ph::lng_wallet_confirm_execute();
     } else {
       return ph::lng_wallet_confirm_send();
     }
@@ -205,6 +221,9 @@ template void ConfirmTransactionBox(not_null<Ui::GenericBox *> box, const Cancel
                                     const Fn<void()> &confirmed);
 
 template void ConfirmTransactionBox(not_null<Ui::GenericBox *> box, const DeployTokenWalletInvoice &invoice, int64 fee,
+                                    const Fn<void()> &confirmed);
+
+template void ConfirmTransactionBox(not_null<Ui::GenericBox *> box, const CollectTokensInvoice &invoice, int64 fee,
                                     const Fn<void()> &confirmed);
 
 }  // namespace Wallet

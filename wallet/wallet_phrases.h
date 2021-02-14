@@ -229,6 +229,10 @@ extern phrase lng_wallet_deploy_token_wallet_owned_description;
 extern phrase lng_wallet_deploy_token_wallet_target_description;
 extern phrase lng_wallet_deploy_token_wallet_button;
 
+extern phrase lng_wallet_collect_tokens_title;
+extern phrase lng_wallet_collect_tokens_description;
+extern phrase lng_wallet_collect_tokens_button;
+
 extern phrase lng_wallet_send_failed_title;
 extern phrase lng_wallet_send_failed_text;
 
@@ -248,11 +252,13 @@ extern phrase lng_wallet_confirm_text;
 extern phrase lng_wallet_confirm_withdrawal_text;
 extern phrase lng_wallet_confirm_cancel_withdrawal_text;
 extern phrase lng_wallet_confirm_deploy_token_wallet_text;
+extern phrase lng_wallet_confirm_collect_tokens_text;
 extern phrase lng_wallet_confirm_fee;
 extern phrase lng_wallet_confirm_send;
 extern phrase lng_wallet_confirm_withdrawal;
 extern phrase lng_wallet_confirm_cancel_withdrawal;
 extern phrase lng_wallet_confirm_deploy_token_wallet;
+extern phrase lng_wallet_confirm_execute;
 extern phrase lng_wallet_confirm_warning;
 
 extern phrase lng_wallet_same_address_title;
@@ -271,6 +277,7 @@ extern phrase lng_wallet_sending_all_stake;
 extern phrase lng_wallet_sent_title;
 extern phrase lng_wallet_sent_cancel_withdrawal;
 extern phrase lng_wallet_sent_deploy_token_wallet;
+extern phrase lng_wallet_sent_collect_tokens;
 extern phrase lng_wallet_sent_close;
 extern phrase lng_wallet_sent_close_view;
 

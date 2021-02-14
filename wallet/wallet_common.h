@@ -122,8 +122,15 @@ struct DeployTokenWalletInvoice {
   auto asTransaction() const -> Ton::DeployTokenWalletTransactionToSend;
 };
 
+struct CollectTokensInvoice {
+  QString eventContractAddress;
+  int64 realAmount{};
+
+  auto asTransaction() const -> Ton::CollectTokensTransactionToSend;
+};
+
 using PreparedInvoice = std::variant<TonTransferInvoice, TokenTransferInvoice, StakeInvoice, WithdrawalInvoice,
-                                     CancelWithdrawalInvoice, DeployTokenWalletInvoice>;
+                                     CancelWithdrawalInvoice, DeployTokenWalletInvoice, CollectTokensInvoice>;
 
 enum class Action {
   Refresh,

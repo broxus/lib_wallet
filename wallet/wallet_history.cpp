@@ -269,10 +269,6 @@ class HistoryRow final {
   }
   void setTop(int top) {
     _top = top;
-    if (_button.has_value() && (*_button)->geometry().y() == 0) {
-      auto &button = *_button;
-      button->setGeometry(0, top, button->width(), button->height());
-    }
   }
 
   void resizeToWidth(int width) {
@@ -354,7 +350,7 @@ class HistoryRow final {
             : ph::lng_wallet_history_execute_callback(),
         st::walletRowButton);
     button->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
-    button->setVisible(isVisible());
+    button->setVisible(false);
     button->setClickedCallback(openRequest);
     if (_button.has_value()) {
       (*_button)->setParent(nullptr);
@@ -438,6 +434,7 @@ class HistoryRow final {
       auto &button = *_button;
       const auto buttonWidth = button->width();
       button->setGeometry(x + avail - buttonWidth, y + st::walletRowAddressTop, buttonWidth, _layout.addressHeight);
+      button->setVisible(true);
     }
 
     if (!_layout.address.isEmpty()) {

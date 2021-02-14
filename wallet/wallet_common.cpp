@@ -544,4 +544,10 @@ auto DeployTokenWalletInvoice::asTransaction() const -> Ton::DeployTokenWalletTr
   };
 }
 
+auto CollectTokensInvoice::asTransaction() const -> Ton::CollectTokensTransactionToSend {
+  return Ton::CollectTokensTransactionToSend{
+      .eventContractAddress = eventContractAddress,
+  };
+}
+
 }  // namespace Wallet

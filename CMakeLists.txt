@@ -66,6 +66,8 @@ PRIVATE
     wallet/wallet_add_asset.h
     wallet/wallet_change_passcode.cpp
     wallet/wallet_change_passcode.h
+    wallet/wallet_collect_tokens.cpp
+    wallet/wallet_collect_tokens.h
     wallet/wallet_common.cpp
     wallet/wallet_common.h
     wallet/wallet_confirm_transaction.cpp

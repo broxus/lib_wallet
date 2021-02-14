@@ -250,6 +250,10 @@ phrase lng_wallet_deploy_token_wallet_target_description =
     "The recipient does not have a token wallet. In order for it to receive tokens, it must be created.";
 phrase lng_wallet_deploy_token_wallet_button = "Confirm";
 
+phrase lng_wallet_collect_tokens_title = "Collect tokens";
+phrase lng_wallet_collect_tokens_description = "Event proxy callback must be executed to receive tokens from ETH";
+phrase lng_wallet_collect_tokens_button = "Confirm";
+
 phrase lng_wallet_send_failed_title = "Sending failed";
 phrase lng_wallet_send_failed_text =
     "Could not perform the transaction. Please check your wallet's balance and try again.";
@@ -271,11 +275,13 @@ phrase lng_wallet_confirm_text = "Do you want to send **{grams}** to:";
 phrase lng_wallet_confirm_withdrawal_text = "Do you want to withdraw **{grams}** from:";
 phrase lng_wallet_confirm_cancel_withdrawal_text = "Do you want to cancel withdrawal from:";
 phrase lng_wallet_confirm_deploy_token_wallet_text = "Do you want to deploy a token wallet for:";
+phrase lng_wallet_confirm_collect_tokens_text = "Do you want to execute proxy callback for:";
 phrase lng_wallet_confirm_fee = "Fee: ~{grams}";
 phrase lng_wallet_confirm_send = "Send {ticker}";
 phrase lng_wallet_confirm_withdrawal = "Withdraw";
 phrase lng_wallet_confirm_cancel_withdrawal = "Confirm";
 phrase lng_wallet_confirm_deploy_token_wallet = "Deploy";
+phrase lng_wallet_confirm_execute = "Execute";
 phrase lng_wallet_confirm_warning = "**Note:** your comment \xC2\xAB{comment}\xC2\xBB **will not be encrypted**.";
 
 phrase lng_wallet_same_address_title = "Warning";
@@ -296,6 +302,7 @@ phrase lng_wallet_sending_all_stake = "All stake was requested for withdrawal.";
 phrase lng_wallet_sent_title = "Done!";
 phrase lng_wallet_sent_cancel_withdrawal = "Withdrawal cancelled";
 phrase lng_wallet_sent_deploy_token_wallet = "Deployed";
+phrase lng_wallet_sent_collect_tokens = "Tokens collected";
 phrase lng_wallet_sent_close = "Close";
 phrase lng_wallet_sent_close_view = "View";
 
