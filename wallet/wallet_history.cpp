@@ -10,11 +10,14 @@
 #include "wallet/wallet_phrases.h"
 #include "base/unixtime.h"
 #include "base/flags.h"
+#include "base/object_ptr.h"
 #include "ui/address_label.h"
 #include "ui/inline_token_icon.h"
 #include "ui/painter.h"
 #include "ui/text/text.h"
+#include "ui/rp_widget.h"
 #include "ui/text/text_utilities.h"
+#include "ui/widgets/buttons.h"
 #include "ui/effects/animations.h"
 #include "styles/style_wallet.h"
 #include "styles/palette.h"
@@ -60,6 +63,11 @@ struct TransactionLayout {
   Flags flags = Flags();
 };
 
+enum class EventType {
+  EthEvent,
+  TonEvent,
+};
+
 [[nodiscard]] const style::TextStyle &addressStyle() {
   const static auto result = Ui::ComputeAddressStyle(st::defaultTextStyle);
   return result;
@@ -102,10 +110,9 @@ void refreshTimeTexts(TransactionLayout &layout, bool forceDateText = false) {
   result.addressHeight = addressStyle().font->height * 2;
   result.comment = Ui::Text::String(st::walletAddressWidthMin);
   result.comment.setText(st::defaultTextStyle, (encrypted ? QString() : ExtractMessage(data)), _textPlainOptions);
-  if (data.fee) {
-    const auto fee = FormatAmount(data.fee, Ton::Symbol::ton()).full;
-    result.fees.setText(st::defaultTextStyle, ph::lng_wallet_row_fees(ph::now).replace("{amount}", fee));
-  }
+  const auto fee = FormatAmount(data.fee, Ton::Symbol::ton()).full;
+  result.fees.setText(st::defaultTextStyle, ph::lng_wallet_row_fees(ph::now).replace("{amount}", fee));
+
   result.flags = Flag(0)                                                 //
                  | (service ? Flag::Service : Flag(0))                   //
                  | (isInitTransaction ? Flag::Initialization : Flag(0))  //
@@ -173,7 +180,7 @@ void refreshTimeTexts(TransactionLayout &layout, bool forceDateText = false) {
                                transfer.value, transfer.incoming, Flag(0));
       },
       [](const Ton::TokenMint &tokenMint) {
-        return std::make_tuple(QString{}, tokenMint.value, /*incoming*/ true, Flag::Initialization);
+        return std::make_tuple(QString{}, tokenMint.value, /*incoming*/ true, Flag(0));
       },
       [](const Ton::TokenSwapBack &tokenSwapBack) {
         return std::make_tuple(tokenSwapBack.address, tokenSwapBack.value, /*incoming*/ false, Flag::SwapBack);
@@ -210,45 +217,311 @@ using AdditionalTransactionInfo = std::variant<Ton::TokenTransaction, Ton::DePoo
 
 class HistoryRow final {
  public:
-  HistoryRow(Ton::Transaction transaction, const Fn<void()> &decrypt = nullptr, bool isInitTransaction = false);
-  HistoryRow(Ton::Transaction transaction, Ton::DePoolTransaction dePoolTransaction);
-  HistoryRow(Ton::Symbol symbol, Ton::Transaction transaction, Ton::TokenTransaction tokenTransaction);
+  explicit HistoryRow(Ton::Transaction transaction, const Fn<void()> &decrypt = nullptr, bool isInitTransaction = false)
+      : _symbol(Ton::Symbol::ton())
+      , _layout(prepareLayout(transaction, _decrypt, isInitTransaction))
+      , _transaction(std::move(transaction))
+      , _decrypt(decrypt)
+      , _isInitTransaction(isInitTransaction) {
+  }
 
   HistoryRow(const HistoryRow &) = delete;
   HistoryRow &operator=(const HistoryRow &) = delete;
 
-  [[nodiscard]] Ton::TransactionId id() const;
-  [[nodiscard]] const Ton::Transaction &transaction() const;
+  [[nodiscard]] const Ton::TransactionId &id() const {
+    return _transaction.id;
+  }
 
-  void refreshDate();
-  [[nodiscard]] QDateTime date() const;
-  void setShowDate(bool show, const Fn<void()> &repaintDate);
-  void setDecryptionFailed();
-  bool showDate() const;
+  [[nodiscard]] const QDateTime &date() const {
+    return _layout.dateTime;
+  }
 
-  [[nodiscard]] int top() const;
-  void setTop(int top);
+  [[nodiscard]] const Ton::Transaction &transaction() const {
+    return _transaction;
+  }
 
-  void resizeToWidth(int width);
-  [[nodiscard]] int height() const;
-  [[nodiscard]] int bottom() const;
+  void refreshDate() {
+    refreshTimeTexts(_layout);
+  }
 
-  void setVisible(bool visible);
-  [[nodiscard]] bool isVisible() const;
+  void setShowDate(bool show, const Fn<void()> &repaintDate) {
+    _width = 0;
+    if (!show) {
+      _layout.date.clear();
+    } else {
+      _repaintDate = std::move(repaintDate);
+      refreshTimeTexts(_layout, true);
+    }
+  }
 
-  void clearAdditionalInfo();
-  void setAdditionalInfo(const Ton::Symbol &symbol, Ton::TokenTransaction &&tokenTransaction);
-  void setAdditionalInfo(Ton::DePoolTransaction &&dePoolTransaction);
+  void setDecryptionFailed() {
+    _width = 0;
+    _decryptionFailed = true;
+    _layout.comment.setText(st::defaultTextStyle, ph::lng_wallet_decrypt_failed(ph::now), _textPlainOptions);
+  }
 
-  bool trySetOwnerAddress(const std::map<QString, QString> &owners);
+  bool showDate() const {
+    return !_layout.date.isEmpty();
+  }
 
-  void paint(Painter &p, int x, int y);
-  void paintDate(Painter &p, int x, int y);
-  [[nodiscard]] bool isUnderCursor(QPoint point) const;
-  [[nodiscard]] ClickHandlerPtr handlerUnderCursor(QPoint point) const;
+  [[nodiscard]] int top() const {
+    return _top;
+  }
+  void setTop(int top) {
+    _top = top;
+    if (_button.has_value() && (*_button)->geometry().y() == 0) {
+      auto &button = *_button;
+      button->setGeometry(0, top, button->width(), button->height());
+    }
+  }
+
+  void resizeToWidth(int width) {
+    if (_width == width) {
+      return;
+    }
+    _width = width;
+    if (!isVisible()) {
+      return;
+    }
+
+    const auto padding = st::walletRowPadding;
+    const auto use = std::min(_width, st::walletRowWidthMax);
+    const auto avail = use - padding.left() - padding.right();
+
+    _height = 0;
+    if (!_layout.date.isEmpty()) {
+      _height += st::walletRowDateSkip;
+    }
+    _height += padding.top() + _layout.amountGrams.minHeight();
+    if (!_layout.address.isEmpty()) {
+      _height += st::walletRowAddressTop + _layout.addressHeight;
+    }
+    if (!_layout.comment.isEmpty()) {
+      _commentHeight =
+          std::min(_layout.comment.countHeight(avail), st::defaultTextStyle.font->height * kCommentLinesMax);
+      _height += st::walletRowCommentTop + _commentHeight;
+    }
+    if (!_layout.fees.isEmpty()) {
+      _height += st::walletRowFeesTop + _layout.fees.minHeight();
+    }
+    _height += padding.bottom();
+  }
+  [[nodiscard]] int height() const {
+    return _height;
+  }
+  [[nodiscard]] int bottom() const {
+    return _top + _height;
+  }
+
+  void setVisible(bool visible) {
+    if (visible) {
+      _height = 1;
+      resizeToWidth(_width);
+    } else {
+      _height = 0;
+    }
+    if (_button.has_value()) {
+      (*_button)->setVisible(visible);
+    }
+  }
+  [[nodiscard]] bool isVisible() const {
+    return _height > 0;
+  }
+
+  void clearAdditionalInfo() {
+    resetButton();
+    _additionalInfo.reset();
+    _symbol = Ton::Symbol::ton();
+    _layout = prepareLayout(_transaction, _decrypt, _isInitTransaction);
+  }
+  void setAdditionalInfo(const Ton::Symbol &symbol, Ton::TokenTransaction &&tokenTransaction) {
+    resetButton();
+    _layout = prepareLayout(symbol, _transaction, tokenTransaction);
+    _additionalInfo = std::forward<Ton::TokenTransaction>(tokenTransaction);
+    _symbol = symbol;
+  }
+  void setAdditionalInfo(Ton::DePoolTransaction &&dePoolTransaction) {
+    resetButton();
+    _layout = prepareLayout(_transaction, dePoolTransaction);
+    _additionalInfo = std::forward<Ton::DePoolTransaction>(dePoolTransaction);
+    _symbol = Ton::Symbol::ton();
+  }
+  void setAdditionalInfo(not_null<Ui::RpWidget *> parent, EventType eventType, const Fn<void()> &openRequest) {
+    auto button = object_ptr<Ui::RoundButton>(  //
+        parent,
+        eventType == EventType::EthEvent  //
+            ? ph::lng_wallet_history_receive_tokens()
+            : ph::lng_wallet_history_execute_callback(),
+        st::walletRowButton);
+    button->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+    button->setVisible(isVisible());
+    button->setClickedCallback(openRequest);
+    if (_button.has_value()) {
+      (*_button)->setParent(nullptr);
+    }
+    _button = std::move(button);
+  }
+
+  void paint(Painter &p, int x, int y) {
+    if (!isVisible()) {
+      return;
+    }
+
+    const auto padding = st::walletRowPadding;
+    const auto use = std::min(_width, st::walletRowWidthMax);
+    const auto avail = use - padding.left() - padding.right();
+    x += (_width - use) / 2 + padding.left();
+
+    if (!_layout.date.isEmpty()) {
+      y += st::walletRowDateSkip;
+    } else {
+      const auto shadowLeft = (use < _width) ? (x - st::walletRowShadowAdd) : x;
+      const auto shadowWidth =
+          (use < _width) ? (avail + 2 * st::walletRowShadowAdd) : _width - padding.left() - padding.right();
+      p.fillRect(shadowLeft, y, shadowWidth, st::lineWidth, st::shadowFg);
+    }
+    y += padding.top();
+
+    if (_layout.flags & Flag::Service) {
+      const auto labelLeft = x;
+      const auto labelTop = y + st::walletRowGramsStyle.font->ascent - st::normalFont->ascent;
+      p.setPen(st::windowFg);
+      p.setFont(st::normalFont);
+      p.drawText(labelLeft, labelTop + st::normalFont->ascent,
+                 ((_layout.flags & Flag::Initialization) ? ph::lng_wallet_row_init(ph::now)
+                                                         : ph::lng_wallet_row_service(ph::now)));
+    } else {
+      const auto incoming = (_layout.flags & Flag::Incoming);
+      const auto swapBack = (_layout.flags & Flag::SwapBack);
+
+      const auto reward = (_layout.flags & Flag::DePoolReward);
+      const auto stake = (_layout.flags & Flag::DePoolStake);
+
+      p.setPen(incoming ? st::boxTextFgGood : st::boxTextFgError);
+      _layout.amountGrams.draw(p, x, y, avail);
+
+      const auto nanoTop = y + st::walletRowGramsStyle.font->ascent - st::walletRowNanoStyle.font->ascent;
+      const auto nanoLeft = x + _layout.amountGrams.maxWidth();
+      _layout.amountNano.draw(p, nanoLeft, nanoTop, avail);
+
+      const auto diamondTop = y + st::walletRowGramsStyle.font->ascent - st::normalFont->ascent;
+      const auto diamondLeft = nanoLeft + _layout.amountNano.maxWidth() + st::normalFont->spacew;
+      Ui::PaintInlineTokenIcon(_symbol, p, diamondLeft, diamondTop, st::normalFont);
+
+      const auto labelTop = diamondTop;
+      const auto labelLeft = diamondLeft + st::walletDiamondSize + st::normalFont->spacew;
+      p.setPen(st::windowFg);
+      p.setFont(st::normalFont);
+      p.drawText(labelLeft, labelTop + st::normalFont->ascent,
+                 (incoming   ? reward ? ph::lng_wallet_row_reward_from(ph::now) : ph::lng_wallet_row_from(ph::now)
+                    : swapBack ? ph::lng_wallet_row_swap_back_to(ph::now)
+                  : stake    ? ph::lng_wallet_row_ordinary_stake_to(ph::now)
+                             : ph::lng_wallet_row_to(ph::now)));
+
+      const auto timeTop = labelTop;
+      const auto timeLeft = x + avail - _layout.time.maxWidth();
+      p.setPen(st::windowSubTextFg);
+      _layout.time.draw(p, timeLeft, timeTop, avail);
+      if (_layout.flags & Flag::Encrypted) {
+        const auto iconLeft = x + avail - st::walletCommentIconLeft - st::walletCommentIcon.width();
+        const auto iconTop = labelTop + st::walletCommentIconTop;
+        st::walletCommentIcon.paint(p, iconLeft, iconTop, avail);
+      }
+      if (_layout.flags & Flag::Pending) {
+        st::walletRowPending.paint(p, (timeLeft - st::walletRowPendingPosition.x() - st::walletRowPending.width()),
+                                   timeTop + st::walletRowPendingPosition.y(), avail);
+      }
+    }
+    y += _layout.amountGrams.minHeight();
+
+    if (_button.has_value()) {
+      auto &button = *_button;
+      const auto buttonWidth = button->width();
+      button->setGeometry(x + avail - buttonWidth, y + st::walletRowAddressTop, buttonWidth, _layout.addressHeight);
+    }
+
+    if (!_layout.address.isEmpty()) {
+      p.setPen(st::windowFg);
+      y += st::walletRowAddressTop;
+      _layout.address.drawElided(p, x, y, _layout.addressWidth, 2, style::al_topleft, 0, -1, 0, true);
+      y += _layout.addressHeight;
+    }
+    if (!_layout.comment.isEmpty()) {
+      y += st::walletRowCommentTop;
+      if (_decryptionFailed) {
+        p.setPen(st::boxTextFgError);
+      }
+      _layout.comment.drawElided(p, x, y, avail, kCommentLinesMax);
+      y += _commentHeight;
+    }
+    if (!_layout.fees.isEmpty()) {
+      p.setPen(st::windowSubTextFg);
+      y += st::walletRowFeesTop;
+      _layout.fees.draw(p, x, y, avail);
+    }
+  }
+  void paintDate(Painter &p, int x, int y) {
+    if (!isVisible()) {
+      return;
+    }
+
+    Expects(!_layout.date.isEmpty());
+    Expects(_repaintDate != nullptr);
+
+    const auto hasShadow = (y != top());
+    if (_dateHasShadow != hasShadow) {
+      _dateHasShadow = hasShadow;
+      _dateShadowShown.start(_repaintDate, hasShadow ? 0. : 1., hasShadow ? 1. : 0., st::widgetFadeDuration);
+    }
+    const auto line = st::lineWidth;
+    const auto noShadowHeight = st::walletRowDateHeight - line;
+
+    if (_dateHasShadow || _dateShadowShown.animating()) {
+      p.setOpacity(_dateShadowShown.value(_dateHasShadow ? 1. : 0.));
+      p.fillRect(x, y + noShadowHeight, _width, line, st::shadowFg);
+    }
+
+    const auto padding = st::walletRowPadding;
+    const auto use = std::min(_width, st::walletRowWidthMax);
+    x += (_width - use) / 2;
+
+    p.setOpacity(0.9);
+    p.fillRect(x, y, use, noShadowHeight, st::windowBg);
+
+    const auto avail = use - padding.left() - padding.right();
+    x += padding.left();
+    p.setOpacity(1.);
+    p.setPen(st::windowFg);
+    _layout.date.draw(p, x, y + st::walletRowDateTop, avail);
+  }
+
+  [[nodiscard]] bool isUnderCursor(QPoint point) const {
+    return isVisible() && computeInnerRect().contains(point);
+  }
+  [[nodiscard]] ClickHandlerPtr handlerUnderCursor(QPoint point) const {
+    return nullptr;
+  }
 
  private:
-  [[nodiscard]] QRect computeInnerRect() const;
+  [[nodiscard]] QRect computeInnerRect() const {
+    const auto padding = st::walletRowPadding;
+    const auto use = std::min(_width, st::walletRowWidthMax);
+    const auto avail = use - padding.left() - padding.right();
+    const auto left = (use < _width) ? ((_width - use) / 2 + padding.left() - st::walletRowShadowAdd) : 0;
+    const auto width = (use < _width) ? (avail + 2 * st::walletRowShadowAdd) : _width;
+    auto y = top();
+    if (!_layout.date.isEmpty()) {
+      y += st::walletRowDateSkip;
+    }
+    return QRect(left, y, width, bottom() - y);
+  }
+
+  void resetButton() {
+    if (_button.has_value()) {
+      (*_button)->setParent(nullptr);
+      _button.reset();
+    }
+  }
 
   Ton::Symbol _symbol;
   TransactionLayout _layout;
@@ -268,291 +541,8 @@ class HistoryRow final {
   Fn<void()> _repaintDate;
   bool _dateHasShadow = false;
   bool _decryptionFailed = false;
+  std::optional<object_ptr<Ui::RoundButton>> _button = std::nullopt;
 };
-
-HistoryRow::HistoryRow(Ton::Transaction transaction, const Fn<void()> &decrypt, bool isInitTransaction)
-    : _symbol(Ton::Symbol::ton())
-    , _layout(prepareLayout(transaction, _decrypt, isInitTransaction))
-    , _transaction(std::move(transaction))
-    , _decrypt(decrypt)
-    , _isInitTransaction(isInitTransaction) {
-}
-
-HistoryRow::HistoryRow(Ton::Transaction transaction, Ton::DePoolTransaction dePoolTransaction)
-    : _symbol(Ton::Symbol::ton())
-    , _layout(prepareLayout(transaction, dePoolTransaction))
-    , _transaction(std::move(transaction))
-    , _additionalInfo(std::move(dePoolTransaction)) {
-}
-
-HistoryRow::HistoryRow(Ton::Symbol symbol, Ton::Transaction transaction, Ton::TokenTransaction tokenTransaction)
-    : _symbol(std::move(symbol))
-    , _layout(prepareLayout(symbol, transaction, tokenTransaction))
-    , _transaction(std::move(transaction))
-    , _additionalInfo(std::move(tokenTransaction)) {
-}
-
-Ton::TransactionId HistoryRow::id() const {
-  return _transaction.id;
-}
-
-const Ton::Transaction &HistoryRow::transaction() const {
-  return _transaction;
-}
-
-void HistoryRow::refreshDate() {
-  refreshTimeTexts(_layout);
-}
-
-QDateTime HistoryRow::date() const {
-  return _layout.dateTime;
-}
-
-void HistoryRow::setShowDate(bool show, const Fn<void()> &repaintDate) {
-  _width = 0;
-  if (!show) {
-    _layout.date.clear();
-  } else {
-    _repaintDate = std::move(repaintDate);
-    refreshTimeTexts(_layout, true);
-  }
-}
-
-void HistoryRow::setDecryptionFailed() {
-  _width = 0;
-  _decryptionFailed = true;
-  _layout.comment.setText(st::defaultTextStyle, ph::lng_wallet_decrypt_failed(ph::now), _textPlainOptions);
-}
-
-bool HistoryRow::showDate() const {
-  return !_layout.date.isEmpty();
-}
-
-int HistoryRow::top() const {
-  return _top;
-}
-
-void HistoryRow::setTop(int top) {
-  _top = top;
-}
-
-void HistoryRow::resizeToWidth(int width) {
-  if (_width == width) {
-    return;
-  }
-  _width = width;
-  if (!isVisible()) {
-    return;
-  }
-
-  const auto padding = st::walletRowPadding;
-  const auto use = std::min(_width, st::walletRowWidthMax);
-  const auto avail = use - padding.left() - padding.right();
-  _height = 0;
-  if (!_layout.date.isEmpty()) {
-    _height += st::walletRowDateSkip;
-  }
-  _height += padding.top() + _layout.amountGrams.minHeight();
-  if (!_layout.address.isEmpty()) {
-    _height += st::walletRowAddressTop + _layout.addressHeight;
-  }
-  if (!_layout.comment.isEmpty()) {
-    _commentHeight = std::min(_layout.comment.countHeight(avail), st::defaultTextStyle.font->height * kCommentLinesMax);
-    _height += st::walletRowCommentTop + _commentHeight;
-  }
-  if (!_layout.fees.isEmpty()) {
-    _height += st::walletRowFeesTop + _layout.fees.minHeight();
-  }
-  _height += padding.bottom();
-}
-
-int HistoryRow::height() const {
-  return _height;
-}
-
-int HistoryRow::bottom() const {
-  return _top + _height;
-}
-
-void HistoryRow::setVisible(bool visible) {
-  if (visible) {
-    _height = 1;
-    resizeToWidth(_width);
-  } else {
-    _height = 0;
-  }
-}
-
-bool HistoryRow::isVisible() const {
-  return _height > 0;
-}
-
-void HistoryRow::clearAdditionalInfo() {
-  _additionalInfo.reset();
-  _symbol = Ton::Symbol::ton();
-  _layout = prepareLayout(_transaction, _decrypt, _isInitTransaction);
-}
-
-void HistoryRow::setAdditionalInfo(const Ton::Symbol &symbol, Ton::TokenTransaction &&tokenTransaction) {
-  _layout = prepareLayout(symbol, _transaction, tokenTransaction);
-  _additionalInfo = std::forward<Ton::TokenTransaction>(tokenTransaction);
-  _symbol = symbol;
-}
-
-void HistoryRow::setAdditionalInfo(Ton::DePoolTransaction &&dePoolTransaction) {
-  _layout = prepareLayout(_transaction, dePoolTransaction);
-  _additionalInfo = std::forward<Ton::DePoolTransaction>(dePoolTransaction);
-  _symbol = Ton::Symbol::ton();
-}
-
-void HistoryRow::paint(Painter &p, int x, int y) {
-  if (!isVisible()) {
-    return;
-  }
-
-  const auto padding = st::walletRowPadding;
-  const auto use = std::min(_width, st::walletRowWidthMax);
-  const auto avail = use - padding.left() - padding.right();
-  x += (_width - use) / 2 + padding.left();
-
-  if (!_layout.date.isEmpty()) {
-    y += st::walletRowDateSkip;
-  } else {
-    const auto shadowLeft = (use < _width) ? (x - st::walletRowShadowAdd) : x;
-    const auto shadowWidth =
-        (use < _width) ? (avail + 2 * st::walletRowShadowAdd) : _width - padding.left() - padding.right();
-    p.fillRect(shadowLeft, y, shadowWidth, st::lineWidth, st::shadowFg);
-  }
-  y += padding.top();
-
-  if (_layout.flags & Flag::Service) {
-    const auto labelLeft = x;
-    const auto labelTop = y + st::walletRowGramsStyle.font->ascent - st::normalFont->ascent;
-    p.setPen(st::windowFg);
-    p.setFont(st::normalFont);
-    p.drawText(labelLeft, labelTop + st::normalFont->ascent,
-               ((_layout.flags & Flag::Initialization) ? ph::lng_wallet_row_init(ph::now)
-                                                       : ph::lng_wallet_row_service(ph::now)));
-  } else {
-    const auto incoming = (_layout.flags & Flag::Incoming);
-    const auto swapBack = (_layout.flags & Flag::SwapBack);
-
-    const auto reward = (_layout.flags & Flag::DePoolReward);
-    const auto stake = (_layout.flags & Flag::DePoolStake);
-
-    p.setPen(incoming ? st::boxTextFgGood : st::boxTextFgError);
-    _layout.amountGrams.draw(p, x, y, avail);
-
-    const auto nanoTop = y + st::walletRowGramsStyle.font->ascent - st::walletRowNanoStyle.font->ascent;
-    const auto nanoLeft = x + _layout.amountGrams.maxWidth();
-    _layout.amountNano.draw(p, nanoLeft, nanoTop, avail);
-
-    const auto diamondTop = y + st::walletRowGramsStyle.font->ascent - st::normalFont->ascent;
-    const auto diamondLeft = nanoLeft + _layout.amountNano.maxWidth() + st::normalFont->spacew;
-    Ui::PaintInlineTokenIcon(_symbol, p, diamondLeft, diamondTop, st::normalFont);
-
-    const auto labelTop = diamondTop;
-    const auto labelLeft = diamondLeft + st::walletDiamondSize + st::normalFont->spacew;
-    p.setPen(st::windowFg);
-    p.setFont(st::normalFont);
-    p.drawText(labelLeft, labelTop + st::normalFont->ascent,
-               (incoming   ? reward ? ph::lng_wallet_row_reward_from(ph::now) : ph::lng_wallet_row_from(ph::now)
-                  : swapBack ? ph::lng_wallet_row_swap_back_to(ph::now)
-                : stake    ? ph::lng_wallet_row_ordinary_stake_to(ph::now)
-                           : ph::lng_wallet_row_to(ph::now)));
-
-    const auto timeTop = labelTop;
-    const auto timeLeft = x + avail - _layout.time.maxWidth();
-    p.setPen(st::windowSubTextFg);
-    _layout.time.draw(p, timeLeft, timeTop, avail);
-    if (_layout.flags & Flag::Encrypted) {
-      const auto iconLeft = x + avail - st::walletCommentIconLeft - st::walletCommentIcon.width();
-      const auto iconTop = labelTop + st::walletCommentIconTop;
-      st::walletCommentIcon.paint(p, iconLeft, iconTop, avail);
-    }
-    if (_layout.flags & Flag::Pending) {
-      st::walletRowPending.paint(p, (timeLeft - st::walletRowPendingPosition.x() - st::walletRowPending.width()),
-                                 timeTop + st::walletRowPendingPosition.y(), avail);
-    }
-  }
-  y += _layout.amountGrams.minHeight();
-
-  if (!_layout.address.isEmpty()) {
-    p.setPen(st::windowFg);
-    y += st::walletRowAddressTop;
-    _layout.address.drawElided(p, x, y, _layout.addressWidth, 2, style::al_topleft, 0, -1, 0, true);
-    y += _layout.addressHeight;
-  }
-  if (!_layout.comment.isEmpty()) {
-    y += st::walletRowCommentTop;
-    if (_decryptionFailed) {
-      p.setPen(st::boxTextFgError);
-    }
-    _layout.comment.drawElided(p, x, y, avail, kCommentLinesMax);
-    y += _commentHeight;
-  }
-  if (!_layout.fees.isEmpty()) {
-    p.setPen(st::windowSubTextFg);
-    y += st::walletRowFeesTop;
-    _layout.fees.draw(p, x, y, avail);
-  }
-}
-
-void HistoryRow::paintDate(Painter &p, int x, int y) {
-  if (!isVisible()) {
-    return;
-  }
-
-  Expects(!_layout.date.isEmpty());
-  Expects(_repaintDate != nullptr);
-
-  const auto hasShadow = (y != top());
-  if (_dateHasShadow != hasShadow) {
-    _dateHasShadow = hasShadow;
-    _dateShadowShown.start(_repaintDate, hasShadow ? 0. : 1., hasShadow ? 1. : 0., st::widgetFadeDuration);
-  }
-  const auto line = st::lineWidth;
-  const auto noShadowHeight = st::walletRowDateHeight - line;
-
-  if (_dateHasShadow || _dateShadowShown.animating()) {
-    p.setOpacity(_dateShadowShown.value(_dateHasShadow ? 1. : 0.));
-    p.fillRect(x, y + noShadowHeight, _width, line, st::shadowFg);
-  }
-
-  const auto padding = st::walletRowPadding;
-  const auto use = std::min(_width, st::walletRowWidthMax);
-  x += (_width - use) / 2;
-
-  p.setOpacity(0.9);
-  p.fillRect(x, y, use, noShadowHeight, st::windowBg);
-
-  const auto avail = use - padding.left() - padding.right();
-  x += padding.left();
-  p.setOpacity(1.);
-  p.setPen(st::windowFg);
-  _layout.date.draw(p, x, y + st::walletRowDateTop, avail);
-}
-
-QRect HistoryRow::computeInnerRect() const {
-  const auto padding = st::walletRowPadding;
-  const auto use = std::min(_width, st::walletRowWidthMax);
-  const auto avail = use - padding.left() - padding.right();
-  const auto left = (use < _width) ? ((_width - use) / 2 + padding.left() - st::walletRowShadowAdd) : 0;
-  const auto width = (use < _width) ? (avail + 2 * st::walletRowShadowAdd) : _width;
-  auto y = top();
-  if (!_layout.date.isEmpty()) {
-    y += st::walletRowDateSkip;
-  }
-  return QRect(left, y, width, bottom() - y);
-}
-
-bool HistoryRow::isUnderCursor(QPoint point) const {
-  return isVisible() && computeInnerRect().contains(point);
-}
-
-ClickHandlerPtr HistoryRow::handlerUnderCursor(QPoint point) const {
-  return nullptr;
-}
 
 History::History(not_null<Ui::RpWidget *> parent, rpl::producer<HistoryState> state,
                  rpl::producer<std::pair<Ton::Symbol, Ton::LoadedSlice>> loaded,
@@ -575,7 +565,6 @@ History::History(not_null<Ui::RpWidget *> parent, rpl::producer<HistoryState> st
                 }
               }
               refreshShowDates();
-              _widget.update();
             },
             _widget.lifetime());
 
@@ -609,7 +598,6 @@ History::History(not_null<Ui::RpWidget *> parent, rpl::producer<HistoryState> st
               }
               if (changed) {
                 refreshShowDates();
-                _widget.update();
               }
             },
             _widget.lifetime());
@@ -633,7 +621,6 @@ History::History(not_null<Ui::RpWidget *> parent, rpl::producer<HistoryState> st
               const auto selectedToken = std::get_if<SelectedToken>(&selectedAsset);
               if (selectedToken != nullptr && selectedToken->symbol.isToken() && shouldUpdate) {
                 refreshShowDates();
-                _widget.update();
               }
             },
             _widget.lifetime());
@@ -723,6 +710,14 @@ rpl::producer<std::pair<const Ton::Symbol *, const QSet<QString> *>> History::ow
 
 rpl::producer<const QString *> History::newTokenWalletRequests() const {
   return _newTokenWalletRequests.events();
+}
+
+rpl::producer<const QString *> History::collectTokenRequests() const {
+  return _collectTokenRequests.events();
+}
+
+rpl::producer<const QString *> History::executeSwapBackRequests() const {
+  return _executeSwapBackRequests.events();
 }
 
 rpl::lifetime &History::lifetime() {
@@ -1098,6 +1093,8 @@ void History::refreshShowDates() {
         selectedAsset,
         [&](const SelectedToken &selectedToken) {
           row->setVisible(true);
+          row->clearAdditionalInfo();
+
           if (selectedToken.symbol.isTon()) {
             if (auto notification = Ton::Wallet::ParseNotification(transaction.incoming.message);
                 notification.has_value()) {
@@ -1106,9 +1103,22 @@ void History::refreshShowDates() {
                   [&](const Ton::TokenWalletDeployed &deployed) {
                     _newTokenWalletRequests.fire(&deployed.rootTokenContract);
                   },
-                  [](auto &&) {});
+                  [&](const Ton::EthEventStatusChanged &event) {
+                    if (event.status == Ton::EthEventStatus::Confirmed) {
+                      row->setAdditionalInfo(&_widget, EventType::EthEvent, [=, address = transaction.incoming.source] {
+                        _collectTokenRequests.fire(&address);
+                      });
+                    }
+                  },
+                  [&](const Ton::TonEventStatusChanged &event) {
+                    if (event.status == Ton::TonEventStatus::Confirmed) {
+                      row->setAdditionalInfo(&_widget, EventType::TonEvent, [=, address = transaction.incoming.source] {
+                        _executeSwapBackRequests.fire(&address);
+                      });
+                    }
+                  });
             }
-            return row->clearAdditionalInfo();
+            return;
           }
 
           if (transaction.aborted || !transaction.incoming.bounce) {
@@ -1149,7 +1159,7 @@ void History::refreshShowDates() {
               return;
             }
           } else if (!incoming) {
-            if (transaction.aborted || !transaction.incoming.bounce) {
+            if (transaction.aborted) {
               return row->setVisible(false);
             }
 
@@ -1194,6 +1204,8 @@ void History::refreshShowDates() {
   if (!unknownOwners.empty()) {
     _ownerResolutionRequests.fire(std::make_pair(&symbol, &unknownOwners));
   }
+
+  _widget.update(0, _visibleTop, _widget.width(), _visibleBottom - _visibleTop);
 }
 
 void History::refreshPending() {

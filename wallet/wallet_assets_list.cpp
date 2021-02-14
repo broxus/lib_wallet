@@ -47,7 +47,8 @@ auto addressPartWidth(const QString &address, int from, int length = -1) {
             item.balance);
       },
       [](const DePoolItem &item) {
-        return std::make_tuple(QString{"DePool"}, Ton::Symbol::ton(), item.address, int128{item.total});
+        return std::make_tuple(QString{"DePool"}, Ton::Symbol::ton(), Ton::Wallet::ConvertIntoRaw(item.address),
+                               int128{item.total});
       });
 
   const auto formattedBalance = FormatAmount(balance > 0 ? balance : 0, token);

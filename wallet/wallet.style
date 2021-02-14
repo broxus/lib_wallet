@@ -367,6 +367,10 @@ walletRowCommentTop: 4px;
 walletRowFeesTop: 4px;
 walletRowPending: icon {{ "wallet_pending", windowSubTextFg }};
 walletRowPendingPosition: point(5px, 0px);
+walletRowButton: RoundButton(defaultActiveButton) {
+	height: 30px;
+	textTop: 6px;
+}
 
 walletSubsectionTitle: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(semiboldTextStyle) {

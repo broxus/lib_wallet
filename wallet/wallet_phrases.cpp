@@ -114,6 +114,9 @@ phrase lng_wallet_empty_history_address = "Your wallet address";
 phrase lng_wallet_empty_history_depool_address = "DePool address";
 phrase lng_wallet_empty_history_token_address = "TIP3 Token wallet";
 
+phrase lng_wallet_history_receive_tokens = "Collect";
+phrase lng_wallet_history_execute_callback = "Execute";
+
 phrase lng_wallet_depool_info_title = "DePool Added";
 phrase lng_wallet_depool_info_stakes_title = "Stakes";
 phrase lng_wallet_depool_info_vestings_title = "Vestings";

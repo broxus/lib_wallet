@@ -105,6 +105,9 @@ extern phrase lng_wallet_empty_history_address;
 extern phrase lng_wallet_empty_history_depool_address;
 extern phrase lng_wallet_empty_history_token_address;
 
+extern phrase lng_wallet_history_receive_tokens;
+extern phrase lng_wallet_history_execute_callback;
+
 extern phrase lng_wallet_depool_info_title;
 extern phrase lng_wallet_depool_info_stakes_title;
 extern phrase lng_wallet_depool_info_vestings_title;

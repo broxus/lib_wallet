@@ -93,6 +93,14 @@ rpl::producer<const QString *> Info::newTokenWalletRequests() const {
   return _newTokenWalletRequests.events();
 }
 
+rpl::producer<const QString *> collectTokenRequests() const {
+  return _collectTokenRequests.events();
+}
+
+rpl::producer<const QString *> executeSwapBackRequests() const {
+  return _executeSwapBackRequests.events();
+}
+
 void Info::setupControls(Data &&data) {
   const auto &state = data.state;
   const auto topBar = _widget->lifetime().make_state<TopBar>(
@@ -250,14 +258,12 @@ void Info::setupControls(Data &&data) {
           history->lifetime());
 
   history->preloadRequests() | rpl::start_to_stream(_preloadRequests, history->lifetime());
-
   history->viewRequests() | rpl::start_to_stream(_viewRequests, history->lifetime());
-
   history->decryptRequests() | rpl::start_to_stream(_decryptRequests, history->lifetime());
-
   history->ownerResolutionRequests() | rpl::start_to_stream(_ownerResolutionRequests, history->lifetime());
-
   history->newTokenWalletRequests() | rpl::start_to_stream(_newTokenWalletRequests, history->lifetime());
+  history->collectTokenRequests() | rpl::start_to_stream(_collectTokenRequests, history->lifetime());
+  history->executeSwapBackRequests() | rpl::start_to_stream(_executeSwapBackRequests, history->lifetime());
 
   // initialize default layouts
   _selectedAsset.value() | rpl::start_with_next(
