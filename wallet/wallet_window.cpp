@@ -1004,8 +1004,7 @@ void Window::collectTokens(const QString &eventContractAddress) {
             _wallet->getRootTokenContractDetails(
                 rootTokenContract, crl::guard(this, [=](Ton::Result<Ton::RootTokenContractDetails> details) {
                   if (details.has_value()) {
-                    symbolEvents->fire(
-                        std::move(Ton::Symbol::tip3(details->name, details->decimals, rootTokenContract)));
+                    symbolEvents->fire(Ton::Symbol::tip3(details->name, details->decimals, rootTokenContract));
                   }
                 }));
           }

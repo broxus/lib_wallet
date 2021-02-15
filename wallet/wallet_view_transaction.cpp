@@ -238,16 +238,22 @@ void ViewTransactionBox(not_null<Ui::GenericBox *> box, Ton::Transaction &&data,
 
   auto shouldWaitRecipient = tokenTransaction.has_value() && tokenTransaction->direct;
   auto emptyAddress = tokenTransaction.has_value() && tokenTransaction->recipient.isEmpty();
-  auto address = isTokenTransaction         //
-                     ? shouldWaitRecipient  //
-                           ? resolvedAddress->events() |
-                                 rpl::map([](QString &&address) { return Ton::Wallet::ConvertIntoRaw(address); })
-                           : !emptyAddress  //
-                                 ? rpl::single(tokenTransaction->swapback
-                                                   ? tokenTransaction->recipient
-                                                   : Ton::Wallet::ConvertIntoRaw(tokenTransaction->recipient))
-                                 : rpl::single(QString{})
-                     : rpl::single(Ton::Wallet::ConvertIntoRaw(ExtractAddress(data)));
+  auto address = [&]() -> rpl::producer<QString> {
+    if (isTokenTransaction) {
+      if (shouldWaitRecipient) {
+        return resolvedAddress->events() |
+               rpl::map([](QString &&address) { return Ton::Wallet::ConvertIntoRaw(address); });
+      } else if (emptyAddress) {
+        return rpl::single(QString{});
+      } else {
+        return rpl::single(tokenTransaction->swapback  //
+                               ? tokenTransaction->recipient
+                               : Ton::Wallet::ConvertIntoRaw(tokenTransaction->recipient));
+      }
+    } else {
+      return rpl::single(Ton::Wallet::ConvertIntoRaw(ExtractAddress(data)));
+    }
+  }();
 
   auto currentAddress = box->lifetime().make_state<rpl::variable<QString>>();
   rpl::duplicate(address)  //
@@ -265,7 +271,7 @@ void ViewTransactionBox(not_null<Ui::GenericBox *> box, Ton::Transaction &&data,
                           : ph::lng_wallet_view_title());
 
   const auto id = data.id;
-  const auto incoming = data.outgoing.empty() || isTokenTransaction && tokenTransaction->incoming;
+  const auto incoming = data.outgoing.empty() || (isTokenTransaction && tokenTransaction->incoming);
   const auto encryptedComment = IsEncryptedMessage(data);
   const auto decryptedComment = encryptedComment ? QString() : ExtractMessage(data);
   const auto hasComment = encryptedComment || !decryptedComment.isEmpty();

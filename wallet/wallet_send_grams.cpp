@@ -219,11 +219,15 @@ void SendGramsBox(not_null<Ui::GenericBox *> box, const T &invoice, rpl::produce
           } else {
             return rpl::combine(  //
                        isEthereumAddress->value(),
-                       (transferType == nullptr  //
-                            ? rpl::single(false)
-                            : transferType->value() | rpl::map([](Ton::TokenTransferType type) {
-                                return type == Ton::TokenTransferType::SwapBack;
-                              })))  //
+                       [&]() -> rpl::producer<bool> {
+                         if (transferType == nullptr) {
+                           return rpl::single(false);
+                         } else {
+                           return transferType->value() | rpl::map([](Ton::TokenTransferType type) {
+                                    return type == Ton::TokenTransferType::SwapBack;
+                                  });
+                         }
+                       }())  //
                    | rpl::map([](bool isEthereumAddress, bool isSwapBack) {
                        if (isEthereumAddress || isSwapBack) {
                          return ph::lng_wallet_send_button_swap_back();

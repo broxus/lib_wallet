@@ -645,7 +645,7 @@ void History::resizeToWidth(int width) {
   }
   auto &rows = rowsIt->second;
 
-  auto top = ((symbol.isTon() && _pendingRows.empty() || symbol.isToken()) && rows.empty()) ? 0 : st::walletRowsSkip;
+  auto top = (((symbol.isTon() && _pendingRows.empty()) || symbol.isToken()) && rows.empty()) ? 0 : st::walletRowsSkip;
   int height = 0;
   if (symbol.isTon()) {
     for (const auto &row : _pendingRows) {
@@ -682,8 +682,9 @@ void History::setVisibleTopBottom(int top, int bottom) {
 
   auto transactionsIt = _transactions.find(symbol);
   auto rowsIt = _rows.find(symbol);
-  if (_visibleBottom <= _visibleTop || transactionsIt != end(_transactions) && !transactionsIt->second.previousId.lt ||
-      rowsIt != end(_rows) && rowsIt->second.empty()) {
+  if (_visibleBottom <= _visibleTop ||
+      (transactionsIt != end(_transactions) && !transactionsIt->second.previousId.lt) ||
+      (rowsIt != end(_rows) && rowsIt->second.empty())) {
     return;
   }
   checkPreload();
@@ -897,7 +898,7 @@ void History::paint(Painter &p, QRect clip) {
   }
   const auto &rows = rowsIt->second;
 
-  if ((symbol.isTon() && _pendingRows.empty() || symbol.isToken()) && rows.empty()) {
+  if (((symbol.isTon() && _pendingRows.empty()) || symbol.isToken()) && rows.empty()) {
     return;
   }
 
@@ -1080,6 +1081,9 @@ void History::refreshShowDates() {
 
   QSet<QString> unknownOwners;
 
+  std::map<QString, Ton::EthEventStatus> latestEthStatuses;
+  std::map<QString, Ton::TonEventStatus> latestTonStatuses;
+
   auto filterTransaction = [&, targetAddress = targetAddress](decltype(rows.front()) &row) {
     const auto &transaction = row->transaction();
 
@@ -1101,6 +1105,11 @@ void History::refreshShowDates() {
                     _newTokenWalletRequests.fire(&deployed.rootTokenContract);
                   },
                   [&](const Ton::EthEventStatusChanged &event) {
+                    const auto it = latestEthStatuses.find(transaction.incoming.source);
+                    if (it != latestEthStatuses.end()) {
+                      return;
+                    }
+                    latestEthStatuses.insert(std::make_pair(transaction.incoming.source, event.status));
                     if (event.status == Ton::EthEventStatus::Confirmed) {
                       row->setAdditionalInfo(&_widget, EventType::EthEvent, [=, address = transaction.incoming.source] {
                         _collectTokenRequests.fire(&address);
@@ -1108,6 +1117,11 @@ void History::refreshShowDates() {
                     }
                   },
                   [&](const Ton::TonEventStatusChanged &event) {
+                    const auto it = latestTonStatuses.find(transaction.incoming.source);
+                    if (it != latestTonStatuses.end()) {
+                      return;
+                    }
+                    latestTonStatuses.insert(std::make_pair(transaction.incoming.source, event.status));
                     if (event.status == Ton::TonEventStatus::Confirmed) {
                       row->setAdditionalInfo(&_widget, EventType::TonEvent, [=, address = transaction.incoming.source] {
                         _executeSwapBackRequests.fire(&address);

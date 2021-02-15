@@ -5,6 +5,7 @@
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/address_label.h"
+#include "ui/amount_label.h"
 #include "styles/style_wallet.h"
 #include "styles/style_layers.h"
 #include "styles/palette.h"
@@ -39,39 +40,12 @@ void CollectTokensBox(not_null<Ui::GenericBox *> box, const CollectTokensInvoice
                                    QString{"%1 / %2"}.arg(QString::number(current), QString::number(required)));
   };
 
-  auto status =
-      box->lifetime().make_state<rpl::variable<QString>>(replaceUnknown(ph::lng_wallet_collect_tokens_status));
+  auto status = box->lifetime().make_state<rpl::variable<QString>>(
+      replaceUnknown(ph::lng_wallet_collect_tokens_status) + QString(20, QChar{0x2800}));
   auto confirmations =
       box->lifetime().make_state<rpl::variable<QString>>(replaceUnknown(ph::lng_wallet_collect_tokens_confirmations));
   auto rejections =
       box->lifetime().make_state<rpl::variable<QString>>(replaceUnknown(ph::lng_wallet_collect_tokens_rejections));
-
-  std::move(loadedEventDetails) |
-      rpl::start_with_next(
-          [=](Ton::Result<Ton::EthEventDetails> details) {
-            if (details.has_value()) {
-              *status =
-                  ph::lng_wallet_collect_tokens_status(ph::now).replace("{value}", [](Ton::EthEventStatus status) {
-                    switch (status) {
-                      case Ton::EthEventStatus::InProcess:
-                        return ph::lng_wallet_collect_tokens_status_in_process;
-                      case Ton::EthEventStatus::Confirmed:
-                        return ph::lng_wallet_collect_tokens_status_confirmed;
-                      case Ton::EthEventStatus::Executed:
-                        return ph::lng_wallet_collect_tokens_status_executed;
-                      case Ton::EthEventStatus::Rejected:
-                        return ph::lng_wallet_collect_tokens_status_rejected;
-                      default:
-                        Unexpected("eth event status");
-                    }
-                  }(details->status)(ph::now));
-              *confirmations = replaceRatio(ph::lng_wallet_collect_tokens_confirmations, details->confirmationCount,
-                                            details->requiredConfirmationCount);
-              *rejections = replaceRatio(ph::lng_wallet_collect_tokens_rejections, details->rejectionCount,
-                                         details->requiredRejectionCount);
-            }
-          },
-          box->lifetime());
 
   box->addRow(  //
       object_ptr<Ui::FlatLabel>(box, status->value(), st::walletCollectTokensEventDetails),
@@ -84,6 +58,41 @@ void CollectTokensBox(not_null<Ui::GenericBox *> box, const CollectTokensInvoice
   box->addRow(  //
       object_ptr<Ui::FlatLabel>(box, rejections->value(), st::walletCollectTokensEventDetails),
       st::walletCollectTokensDescriptionPadding);
+
+  std::move(loadedEventDetails) |
+      rpl::start_with_next(
+          [=](Ton::Result<Ton::EthEventDetails> details) {
+            if (details.has_value()) {
+              QString statusName{"unknown"};
+              switch (details->status) {
+                case Ton::EthEventStatus::InProcess: {
+                  statusName = ph::lng_wallet_collect_tokens_status_in_process(ph::now);
+                  break;
+                }
+                case Ton::EthEventStatus::Confirmed: {
+                  statusName = ph::lng_wallet_collect_tokens_status_confirmed(ph::now);
+                  break;
+                }
+                case Ton::EthEventStatus::Executed: {
+                  statusName = ph::lng_wallet_collect_tokens_status_executed(ph::now);
+                  break;
+                }
+                case Ton::EthEventStatus::Rejected: {
+                  statusName = ph::lng_wallet_collect_tokens_status_rejected(ph::now);
+                  break;
+                }
+                default:
+                  break;
+              }
+
+              *status = ph::lng_wallet_collect_tokens_status(ph::now).replace("{value}", statusName);
+              *confirmations = replaceRatio(ph::lng_wallet_collect_tokens_confirmations, details->confirmationCount,
+                                            details->requiredConfirmationCount);
+              *rejections = replaceRatio(ph::lng_wallet_collect_tokens_rejections, details->rejectionCount,
+                                         details->requiredRejectionCount);
+            }
+          },
+          box->lifetime());
 
   box->addButton(
          ph::lng_wallet_collect_tokens_button(), [=] { done(invoice); }, st::walletBottomButton)
