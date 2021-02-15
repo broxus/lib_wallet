@@ -90,13 +90,15 @@ void CollectTokensBox(not_null<Ui::GenericBox *> box, const CollectTokensInvoice
                                             details->requiredConfirmationCount);
               *rejections = replaceRatio(ph::lng_wallet_collect_tokens_rejections, details->rejectionCount,
                                          details->requiredRejectionCount);
+
+              if (details->status == Ton::EthEventStatus::Confirmed) {
+                box->addButton(
+                       ph::lng_wallet_collect_tokens_button(), [=] { done(invoice); }, st::walletBottomButton)
+                    ->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+              }
             }
           },
           box->lifetime());
-
-  box->addButton(
-         ph::lng_wallet_collect_tokens_button(), [=] { done(invoice); }, st::walletBottomButton)
-      ->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 }
 
 }  // namespace Wallet

@@ -60,7 +60,7 @@ class History final {
                     rpl::producer<std::optional<SelectedAsset>> &&selectedAsset);
   void resizeToWidth(int width);
   void mergeState(HistoryState &&state);
-  bool mergePendingChanged(std::vector<Ton::PendingTransaction> &&list);
+  void mergePending(std::vector<Ton::PendingTransaction> &&list);
   bool mergeListChanged(std::map<Ton::Symbol, Ton::TransactionsSlice> &&data);
   void refreshRows();
   void refreshPending();
@@ -89,14 +89,19 @@ class History final {
     int64 leastScannedTransactionLt = std::numeric_limits<int64>::max();
   };
 
+  struct RowsState {
+    std::vector<std::unique_ptr<HistoryRow>> pendingRows;
+    std::vector<std::unique_ptr<HistoryRow>> regular;
+  };
+
   Ui::RpWidget _widget;
 
+  bool _pendingDataChanged{};
   std::vector<Ton::PendingTransaction> _pendingData;
   std::map<Ton::Symbol, TransactionsState> _transactions;
 
   rpl::variable<SelectedAsset> _selectedAsset;
-  std::vector<std::unique_ptr<HistoryRow>> _pendingRows;
-  std::map<Ton::Symbol, std::vector<std::unique_ptr<HistoryRow>>> _rows;
+  std::map<Ton::Symbol, RowsState> _rows;
   std::map<QString, QString> _tokenOwners;
   int _visibleTop = 0;
   int _visibleBottom = 0;

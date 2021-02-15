@@ -136,7 +136,7 @@ void SendingDoneBox(not_null<Ui::GenericBox *> box, const Ton::Transaction &resu
     isSwapBack = invoice.transferType == Ton::TokenTransferType::SwapBack;
   }
 
-  box->addButton(isSwapBack ? ph::lng_wallet_sent_close_view() : ph::lng_wallet_sent_close(), [=] {
+  box->addButton(ph::lng_wallet_sent_close(), [=] {
     box->closeBox();
     onClose();
   });
