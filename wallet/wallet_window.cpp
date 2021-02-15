@@ -556,19 +556,12 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
             _info->lifetime());
 
   _info->collectTokenRequests()  //
+      | rpl::start_with_next([=](const QString *eventContractAddress) { collectTokens(*eventContractAddress); },
+                             _info->lifetime());
+
+  _info->executeSwapBackRequests()  //
       | rpl::start_with_next(
-            [=](const QString *eventContractAddress) {
-              _wallet->getEthEventDetails(  //
-                  *eventContractAddress,
-                  [this, address = *eventContractAddress](Ton::Result<Ton::EthEventDetails> result) {
-                    if (result.has_value()) {
-                      std::cout << result->rootTokenContract.toStdString() << std::endl;
-                      collectTokens(address);
-                    } else {
-                      showToast(result.error().details);
-                    }
-                  });
-            },
+            [=](const QString *eventContractAddress) { _wallet->openGateExecuteSwapBack(*eventContractAddress); },
             _info->lifetime());
 
   _info->viewRequests() |
@@ -592,8 +585,6 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
                     }
                   };
 
-                  const auto reveal = [=](const QString &address) { _wallet->openReveal(_rawAddress, address); };
-
                   auto resolveOwner = crl::guard(this, [=](const QString &wallet, const Fn<void(QString &&)> &done) {
                     _wallet->getWalletOwner(selectedToken.symbol.rootContractAddress(), wallet,
                                             crl::guard(this, [=](Ton::Result<QString> result) {
@@ -603,10 +594,15 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
                                             }));
                   });
 
+                  auto collect = crl::guard(this, [=](const QString &eventAddress) { collectTokens(eventAddress); });
+
+                  auto execute = crl::guard(
+                      this, [=](const QString &eventAddress) { _wallet->openGateExecuteSwapBack(eventAddress); });
+
                   _layers->showBox(Box(
                       ViewTransactionBox, std::move(data), selectedToken.symbol, _collectEncryptedRequests.events(),
                       _decrypted.events(), shareAddressCallback(), [=] { decryptEverything(publicKey); }, resolveOwner,
-                      send, reveal));
+                      send, collect, execute));
                 },
                 [&](const SelectedDePool &selectedDePool) {
                   _layers->showBox(Box(ViewDePoolTransactionBox, std::move(data), shareAddressCallback()));
@@ -991,7 +987,37 @@ void Window::collectTokens(const QString &eventContractAddress) {
         invoice, [=](InvoiceField) {}, checking);
   };
 
-  auto box = Box(CollectTokensBox, CollectTokensInvoice{.eventContractAddress = eventContractAddress}, send);
+  auto ethEventDetails = std::make_shared<rpl::event_stream<Ton::Result<Ton::EthEventDetails>>>();
+  auto symbolEvents = std::make_shared<rpl::event_stream<Ton::Symbol>>();
+
+  _wallet->getEthEventDetails(  //
+      eventContractAddress, crl::guard(this, [=](Ton::Result<Ton::EthEventDetails> details) {
+        if (details.has_value() && !details->rootTokenContract.isEmpty()) {
+          const auto &rootTokenContract = details->rootTokenContract;
+          const auto state = _state.current();
+          auto found = false;
+          for (const auto &item : state.tokenStates) {
+            if (item.first.rootContractAddress() == rootTokenContract) {
+              found = true;
+              symbolEvents->fire_copy(item.first);
+              break;
+            }
+          }
+          if (!found) {
+            _wallet->getRootTokenContractDetails(
+                rootTokenContract, crl::guard(this, [=](Ton::Result<Ton::RootTokenContractDetails> details) {
+                  if (details.has_value()) {
+                    symbolEvents->fire(
+                        std::move(Ton::Symbol::tip3(details->name, details->decimals, rootTokenContract)));
+                  }
+                }));
+          }
+        }
+        ethEventDetails->fire(std::move(details));
+      }));
+
+  auto box = Box(CollectTokensBox, CollectTokensInvoice{.eventContractAddress = eventContractAddress},
+                 ethEventDetails->events(), symbolEvents->events(), shareAddressCallback(), send);
   _sendBox = box.data();
   _layers->showBox(std::move(box));
 }
@@ -1356,12 +1382,8 @@ void Window::showSendingDone(std::optional<Ton::Transaction> result, const Prepa
           return Box(SendingDoneBox<TonTransferInvoice>, *result, tonTransferInvoice, [this] { refreshNow(); });
         },
         [&](const TokenTransferInvoice &tokenTransferInvoice) {
-          return Box(SendingDoneBox<TokenTransferInvoice>, *result, tokenTransferInvoice, [this, tokenTransferInvoice] {
-            refreshNow();
-            if (tokenTransferInvoice.transferType == Ton::TokenTransferType::SwapBack) {
-              _wallet->openReveal(_rawAddress, tokenTransferInvoice.address);
-            }
-          });
+          return Box(SendingDoneBox<TokenTransferInvoice>, *result, tokenTransferInvoice,
+                     [this, tokenTransferInvoice] { refreshNow(); });
         },
         [&](const StakeInvoice &stakeInvoice) {
           return Box(SendingDoneBox<StakeInvoice>, *result, stakeInvoice, [this] { refreshNow(); });

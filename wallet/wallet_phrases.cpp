@@ -153,7 +153,8 @@ phrase lng_wallet_view_date = "Date";
 phrase lng_wallet_view_comment = "Comment";
 phrase lng_wallet_view_send_to_address = "Send {ticker} to this address";
 phrase lng_wallet_view_send_to_recipient = "Send {ticker} to this Recipient";
-phrase lng_wallet_view_reveal = "Reveal";
+phrase lng_wallet_view_execute_swapback = "Execute";
+phrase lng_wallet_view_collect_tokens = "Collect";
 
 phrase lng_wallet_receive_title = "Receive {ticker}";
 phrase lng_wallet_receive_description =
@@ -166,7 +167,7 @@ phrase lng_wallet_receive_share = "Share Wallet Address";
 phrase lng_wallet_receive_swap = "Swap {ticker}";
 phrase lng_wallet_receive_deploy = "Deploy wallet";
 phrase lng_wallet_receive_copied = "Transfer link copied to clipboard.";
-phrase lng_wallet_receive_address_copied = "Wallet address copied to clipboard.";
+phrase lng_wallet_receive_address_copied = "Address copied to clipboard.";
 phrase lng_wallet_receive_copied_qr = "QR Code copied to clipboard.";
 
 phrase lng_wallet_invoice_title = "Create Invoice";
@@ -251,6 +252,15 @@ phrase lng_wallet_deploy_token_wallet_target_description =
 phrase lng_wallet_deploy_token_wallet_button = "Confirm";
 
 phrase lng_wallet_collect_tokens_title = "Collect tokens";
+phrase lng_wallet_collect_tokens_details = "Event details";
+phrase lng_wallet_collect_tokens_symbol = "Event content";
+phrase lng_wallet_collect_tokens_status = "Status: {value}";
+phrase lng_wallet_collect_tokens_status_in_process = "in process";
+phrase lng_wallet_collect_tokens_status_confirmed = "confirmed";
+phrase lng_wallet_collect_tokens_status_executed = "executed";
+phrase lng_wallet_collect_tokens_status_rejected = "rejected";
+phrase lng_wallet_collect_tokens_confirmations = "Confirmations: {value}";
+phrase lng_wallet_collect_tokens_rejections = "Rejections: {value}";
 phrase lng_wallet_collect_tokens_description = "Event proxy callback must be executed to receive tokens from ETH";
 phrase lng_wallet_collect_tokens_button = "Confirm";
 

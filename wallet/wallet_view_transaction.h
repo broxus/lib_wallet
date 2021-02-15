@@ -20,6 +20,7 @@ void ViewTransactionBox(not_null<Ui::GenericBox *> box, Ton::Transaction &&data,
                         rpl::producer<not_null<const std::vector<Ton::Transaction> *>> decrypted,
                         const Fn<void(QImage, QString)> &share, const Fn<void()> &decryptComment,
                         const Fn<void(const QString &, const Fn<void(QString &&)> &)> &resolveAddress,
-                        const Fn<void(QString)> &send, const Fn<void(QString)> &reveal);
+                        const Fn<void(const QString &)> &send, const Fn<void(const QString &)> &collect,
+                        const Fn<void(const QString &)> &executeSwapBack);
 
 }  // namespace Wallet

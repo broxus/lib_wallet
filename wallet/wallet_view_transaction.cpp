@@ -37,6 +37,16 @@ struct TokenTransaction {
   bool direct{};
 };
 
+enum class NotificationType {
+  EthEvent,
+  TonEvent,
+};
+
+struct Notification {
+  NotificationType type;
+  QString eventAddress;
+};
+
 std::optional<TokenTransaction> TryGetTokenTransaction(const Ton::Transaction &data, const Ton::Symbol &selectedToken) {
   auto transaction = Ton::Wallet::ParseTokenTransaction(data.incoming.message);
   if (!transaction.has_value()) {
@@ -71,6 +81,32 @@ std::optional<TokenTransaction> TryGetTokenTransaction(const Ton::Transaction &d
             .mint = true,
         };
       });
+}
+
+std::optional<Notification> TryGetNotification(const Ton::Transaction &data) {
+  auto notification = Ton::Wallet::ParseNotification(data.incoming.message);
+  if (!notification.has_value()) {
+    return {};
+  }
+
+  using ReturnType = std::optional<Notification>;
+  return v::match(
+      *notification,
+      [&](const Ton::EthEventStatusChanged &event) -> ReturnType {
+        if (event.status == Ton::EthEventStatus::Confirmed) {
+          return Notification{.type = NotificationType::EthEvent, .eventAddress = data.incoming.source};
+        } else {
+          return std::nullopt;
+        }
+      },
+      [&](const Ton::TonEventStatusChanged &event) -> ReturnType {
+        if (event.status == Ton::TonEventStatus::Confirmed) {
+          return Notification{.type = NotificationType::TonEvent, .eventAddress = data.incoming.source};
+        } else {
+          return std::nullopt;
+        }
+      },
+      [](auto &&) -> ReturnType { return std::nullopt; });
 }
 
 object_ptr<Ui::RpWidget> CreateSummary(not_null<Ui::RpWidget *> parent, const Ton::Transaction &data,
@@ -187,13 +223,15 @@ void ViewTransactionBox(not_null<Ui::GenericBox *> box, Ton::Transaction &&data,
                         rpl::producer<not_null<const std::vector<Ton::Transaction> *>> decrypted,
                         const Fn<void(QImage, QString)> &share, const Fn<void()> &decryptComment,
                         const Fn<void(const QString &, const Fn<void(QString &&)> &)> &resolveAddress,
-                        const Fn<void(QString)> &send, const Fn<void(QString)> &reveal) {
+                        const Fn<void(const QString &)> &send, const Fn<void(const QString &)> &collect,
+                        const Fn<void(const QString &)> &executeSwapBack) {
   struct DecryptedText {
     QString text;
     bool success = false;
   };
 
   auto tokenTransaction = selectedToken.isToken() ? TryGetTokenTransaction(data, selectedToken) : std::nullopt;
+  auto notification = selectedToken.isTon() ? TryGetNotification(data) : std::nullopt;
   const auto isTokenTransaction = tokenTransaction.has_value();
 
   auto resolvedAddress = std::make_shared<rpl::event_stream<QString>>();
@@ -321,18 +359,34 @@ void ViewTransactionBox(not_null<Ui::GenericBox *> box, Ton::Transaction &&data,
   if (!service && !emptyAddress) {
     box->addRow(object_ptr<Ui::FixedHeightWidget>(box, st::walletTransactionBottomSkip));
 
-    auto text = isSwapBack  //
-                    ? ph::lng_wallet_view_reveal()
-                    : incoming  //
-                          ? ph::lng_wallet_view_send_to_address()
-                          : ph::lng_wallet_view_send_to_recipient();
+    auto text = [&] {
+      if (notification.has_value()) {
+        switch (notification->type) {
+          case NotificationType::EthEvent:
+            return ph::lng_wallet_view_collect_tokens();
+          case NotificationType::TonEvent:
+            return ph::lng_wallet_view_execute_swapback();
+          default:
+            Unexpected("notification type");
+        }
+      } else if (incoming) {
+        return ph::lng_wallet_view_send_to_address();
+      } else {
+        return ph::lng_wallet_view_send_to_recipient();
+      }
+    }();
 
     box->addButton(
            std::move(text)  //
                | rpl::map([selectedToken](QString &&text) { return text.replace("{ticker}", selectedToken.name()); }),
            [=] {
-             if (isSwapBack) {
-               reveal(currentAddress->current());
+             if (notification.has_value()) {
+               switch (notification->type) {
+                 case NotificationType::EthEvent:
+                   return collect(notification->eventAddress);
+                 case NotificationType::TonEvent:
+                   return executeSwapBack(notification->eventAddress);
+               }
              } else {
                send(currentAddress->current());
              }

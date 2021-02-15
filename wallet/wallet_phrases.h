@@ -144,7 +144,8 @@ extern phrase lng_wallet_view_date;
 extern phrase lng_wallet_view_comment;
 extern phrase lng_wallet_view_send_to_address;
 extern phrase lng_wallet_view_send_to_recipient;
-extern phrase lng_wallet_view_reveal;
+extern phrase lng_wallet_view_execute_swapback;
+extern phrase lng_wallet_view_collect_tokens;
 
 extern phrase lng_wallet_receive_title;
 extern phrase lng_wallet_receive_description;
@@ -230,6 +231,15 @@ extern phrase lng_wallet_deploy_token_wallet_target_description;
 extern phrase lng_wallet_deploy_token_wallet_button;
 
 extern phrase lng_wallet_collect_tokens_title;
+extern phrase lng_wallet_collect_tokens_details;
+extern phrase lng_wallet_collect_tokens_symbol;
+extern phrase lng_wallet_collect_tokens_status;
+extern phrase lng_wallet_collect_tokens_status_in_process;
+extern phrase lng_wallet_collect_tokens_status_confirmed;
+extern phrase lng_wallet_collect_tokens_status_executed;
+extern phrase lng_wallet_collect_tokens_status_rejected;
+extern phrase lng_wallet_collect_tokens_confirmations;
+extern phrase lng_wallet_collect_tokens_rejections;
 extern phrase lng_wallet_collect_tokens_description;
 extern phrase lng_wallet_collect_tokens_button;
 

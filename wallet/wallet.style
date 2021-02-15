@@ -484,6 +484,9 @@ walletTransactionDateTop: 6px;
 walletTransactionCommentTop: 11px;
 walletTransactionBottomSkip: 16px;
 
+walletCollectTokensEventDetails: FlatLabel(defaultFlatLabel) {
+}
+
 walletConfirmationLabelPadding: margins(22px, 0px, 22px, 24px);
 walletConfirmationAddressLabel: FlatLabel(walletReceiveAddressLabel) {
 	style: TextStyle(defaultTextStyle) {
