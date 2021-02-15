@@ -74,6 +74,10 @@ void CollectTokensBox(not_null<Ui::GenericBox *> box, const CollectTokensInvoice
           box->lifetime());
 
   box->addRow(  //
+      object_ptr<Ui::FlatLabel>(box, status->value(), st::walletCollectTokensEventDetails),
+      st::walletCollectTokensDescriptionPadding);
+
+  box->addRow(  //
       object_ptr<Ui::FlatLabel>(box, confirmations->value(), st::walletCollectTokensEventDetails),
       st::walletCollectTokensDescriptionPadding);
 

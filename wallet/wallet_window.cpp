@@ -536,9 +536,6 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
     if (result.has_value()) {
       refreshNow();
       showToast(ph::lng_wallet_add_token_succeeded(ph::now));
-    } else {
-      showSimpleError(ph::lng_wallet_add_token_failed_title(), ph::lng_wallet_add_token_failed_text(),
-                      ph::lng_wallet_continue());
     }
   };
 
