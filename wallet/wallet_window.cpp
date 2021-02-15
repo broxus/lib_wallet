@@ -556,8 +556,20 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
             _info->lifetime());
 
   _info->collectTokenRequests()  //
-      | rpl::start_with_next([=](const QString *eventContractAddress) { collectTokens(*eventContractAddress); },
-                             _info->lifetime());
+      | rpl::start_with_next(
+            [=](const QString *eventContractAddress) {
+              _wallet->getEthEventDetails(  //
+                  *eventContractAddress,
+                  [this, address = *eventContractAddress](Ton::Result<Ton::EthEventDetails> result) {
+                    if (result.has_value()) {
+                      std::cout << result->rootTokenContract.toStdString() << std::endl;
+                      collectTokens(address);
+                    } else {
+                      showToast(result.error().details);
+                    }
+                  });
+            },
+            _info->lifetime());
 
   _info->viewRequests() |
       rpl::start_with_next(
