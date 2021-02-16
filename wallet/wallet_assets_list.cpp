@@ -149,7 +149,7 @@ class AssetsListRow final {
     // TODO: handle contents resize
   }
 
-  auto data() const -> const AssetItem & {
+  [[nodiscard]] auto data() const -> const AssetItem & {
     return _data;
   }
 
@@ -244,18 +244,11 @@ void AssetsList::setupContent(rpl::producer<AssetsListState> &&state) {
             layout->lifetime());
 
   // open gate button
-  const auto gateButton =
-      Ui::CreateChild<Ui::RoundButton>(&_widget, ph::lng_wallet_tokens_list_swap(), st::walletCoverButton);
-  gateButton->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
-
-  gateButton->clicks() | rpl::start_with_next([=] { _gateOpenRequests.fire({}); }, gateButton->lifetime());
-
   const auto topSectionHeight = st::walletTokensListRowsTopOffset;
-  const auto bottomSectionHeight = gateButton->height() + 2 * st::walletTokensListGateButtonOffset;
-  const auto contentHeight = lifetime().make_state<rpl::variable<int>>(
-      st::walletTokensListPadding.top() + st::walletTokensListPadding.bottom() + bottomSectionHeight);
+  const auto contentHeight = lifetime().make_state<rpl::variable<int>>(st::walletTokensListPadding.top() +
+                                                                       st::walletTokensListPadding.bottom());
 
-  _height = topSectionHeight + contentHeight->current() + bottomSectionHeight;
+  _height = topSectionHeight + contentHeight->current();
 
   //
   rpl::combine(_widget.sizeValue(), contentHeight->value()) |
@@ -266,11 +259,6 @@ void AssetsList::setupContent(rpl::producer<AssetsListState> &&state) {
             const auto width = std::min(size.width(), st::walletRowWidthMax);
             const auto left = (size.width() - width) / 2;
 
-            const auto gateButtonWidth = width / 2;
-            const auto gateButtonTop =
-                std::max((topSectionHeight + height + (bottomSectionHeight - gateButton->height()) / 2),
-                         (size.height() - (bottomSectionHeight + gateButton->height()) / 2));
-
             titleLabel->move(left + st::walletTokensListPadding.left(), st::walletTokensListPadding.top());
             addAsset->move(left + width - addAsset->width() - st::walletTokensListPadding.left(),
                            st::walletTokensListPadding.top());
@@ -280,9 +268,6 @@ void AssetsList::setupContent(rpl::producer<AssetsListState> &&state) {
             const auto layoutWidth = std::max(width - paddingLeft - paddingRight, 0);
 
             layout->setGeometry(QRect(left + paddingLeft, topSectionHeight, layoutWidth, layout->size().height()));
-
-            gateButton->setGeometry(
-                QRect((size.width() - gateButtonWidth) / 2, gateButtonTop, gateButtonWidth, gateButton->height()));
 
             for (const auto &item : _buttons) {
               item.button->setFixedWidth(layoutWidth);
@@ -397,8 +382,8 @@ void AssetsList::setupContent(rpl::producer<AssetsListState> &&state) {
                 (_rows.empty() ? 0 : st::walletTokensListRowSpacing) + st::walletTokensListPadding.top() +
                 st::walletTokensListPadding.bottom();
 
-            layout->setMinimumHeight(std::max(contentHeight->current() + bottomSectionHeight, _widget.height()));
-            _height = topSectionHeight + contentHeight->current() + bottomSectionHeight;
+            layout->setMinimumHeight(std::max(contentHeight->current(), _widget.height()));
+            _height = topSectionHeight + contentHeight->current();
 
             reorder->start();
           },

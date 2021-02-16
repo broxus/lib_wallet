@@ -184,6 +184,9 @@ void refreshTimeTexts(TransactionLayout &layout, bool forceDateText = false) {
       },
       [](const Ton::TokenSwapBack &tokenSwapBack) {
         return std::make_tuple(tokenSwapBack.address, tokenSwapBack.value, /*incoming*/ false, Flag::SwapBack);
+      },
+      [](const Ton::TokensBounced &tokensBounced) {
+        return std::make_tuple(QString{}, tokensBounced.amount, /*incoming*/ false, Flag(0));
       });
 
   const auto amount = FormatAmount(incoming ? value : -value, token, FormatFlag::Signed | FormatFlag::Rounded);
@@ -1132,6 +1135,9 @@ void History::refreshShowDates() {
           }
 
           auto tokenTransaction = Ton::Wallet::ParseTokenTransaction(transaction.incoming.message);
+          //  if (!tokenTransaction.has_value()) {
+          //    tokenTransaction = Ton::Wallet::ParseTokensBounced(transaction.incoming.message);
+          //  }
           if (!tokenTransaction.has_value()) {
             return row->setVisible(false);
           }

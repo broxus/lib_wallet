@@ -80,6 +80,13 @@ std::optional<TokenTransaction> TryGetTokenTransaction(const Ton::Transaction &d
             .incoming = true,
             .mint = true,
         };
+      },
+      [&](const Ton::TokensBounced &tokensBounced) {
+        return TokenTransaction{
+            .token = selectedToken,
+            .amount = tokensBounced.amount,
+            .incoming = true,
+        };
       });
 }
 
