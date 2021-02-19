@@ -58,6 +58,7 @@ struct TransactionLayout {
   Ui::Text::String address;
   Ui::Text::String comment;
   Ui::Text::String fees;
+  Ui::Text::String additionalInfo;
   int addressWidth = 0;
   int addressHeight = 0;
   Flags flags = Flags();
@@ -86,8 +87,7 @@ void refreshTimeTexts(TransactionLayout &layout, bool forceDateText = false) {
   }
 }
 
-[[nodiscard]] TransactionLayout prepareLayout(const Ton::Transaction &data, const Fn<void()> &decrypt,
-                                              bool isInitTransaction) {
+[[nodiscard]] TransactionLayout prepareRegularLayout(const Ton::Transaction &data, const Fn<void()> &decrypt) {
   const auto service = IsServiceTransaction(data);
   const auto encrypted = IsEncryptedMessage(data) && decrypt;
   const auto amount = FormatAmount(service ? (-data.fee) : CalculateValue(data), Ton::Symbol::ton(),
@@ -113,29 +113,33 @@ void refreshTimeTexts(TransactionLayout &layout, bool forceDateText = false) {
   const auto fee = FormatAmount(data.fee, Ton::Symbol::ton()).full;
   result.fees.setText(st::defaultTextStyle, ph::lng_wallet_row_fees(ph::now).replace("{amount}", fee));
 
-  result.flags = Flag(0)                                                 //
-                 | (service ? Flag::Service : Flag(0))                   //
-                 | (isInitTransaction ? Flag::Initialization : Flag(0))  //
-                 | (encrypted ? Flag::Encrypted : Flag(0))               //
-                 | (incoming ? Flag::Incoming : Flag(0))                 //
+  result.flags = Flag(0)                                    //
+                 | (service ? Flag::Service : Flag(0))      //
+                 | (encrypted ? Flag::Encrypted : Flag(0))  //
+                 | (incoming ? Flag::Incoming : Flag(0))    //
                  | (pending ? Flag::Pending : Flag(0));
 
   refreshTimeTexts(result);
   return result;
 }
 
-[[nodiscard]] TransactionLayout prepareLayout(const Ton::Transaction &data,
-                                              const Ton::DePoolTransaction &dePoolTransaction) {
-  const auto [value, fee, flags] = v::match(
-      dePoolTransaction,
-      [&](const Ton::DePoolOrdinaryStakeTransaction &dePoolOrdinaryStakeTransaction) {
+[[nodiscard]] std::optional<TransactionLayout> prepareDePoolLayout(const Ton::Transaction &data) {
+  using Properties = std::optional<std::tuple<int64, int64, Flag>>;
+  auto properties = v::match(
+      data.additional,
+      [&](const Ton::DePoolOrdinaryStakeTransaction &dePoolOrdinaryStakeTransaction) -> Properties {
         return std::make_tuple(-dePoolOrdinaryStakeTransaction.stake,
                                -CalculateValue(data) - dePoolOrdinaryStakeTransaction.stake + data.otherFee,
                                Flag::DePoolStake);
       },
-      [&](const Ton::DePoolOnRoundCompleteTransaction &dePoolOnRoundCompleteTransaction) {
+      [&](const Ton::DePoolOnRoundCompleteTransaction &dePoolOnRoundCompleteTransaction) -> Properties {
         return std::make_tuple(dePoolOnRoundCompleteTransaction.reward, data.otherFee, Flag::DePoolReward);
-      });
+      },
+      [](auto &&) -> Properties { return std::nullopt; });
+  if (!properties.has_value()) {
+    return std::nullopt;
+  }
+  const auto [value, fee, flags] = std::move(*properties);
 
   const auto token = Ton::Symbol::ton();
 
@@ -171,23 +175,38 @@ void refreshTimeTexts(TransactionLayout &layout, bool forceDateText = false) {
   return result;
 }
 
-[[nodiscard]] TransactionLayout prepareLayout(const Ton::Symbol &token, const Ton::Transaction &transaction,
-                                              const Ton::TokenTransaction &tokenTransaction) {
-  const auto [address, value, incoming, flags] = v::match(
-      tokenTransaction,
-      [](const Ton::TokenTransfer &transfer) {
+[[nodiscard]] std::optional<TransactionLayout> prepareTokenLayout(const Ton::Symbol &token,
+                                                                  const Ton::Transaction &transaction) {
+  using Properties = std::optional<std::tuple<QString, int128, bool, Flag>>;
+  auto properties = v::match(
+      transaction.additional,
+      [](const Ton::TokenWalletDeployed &deployed) -> Properties {
+        return std::make_tuple(QString{}, 0, /*incoming*/ true, Flag(0));
+      },
+      [&](const Ton::EthEventStatusChanged &ethEventStatusChanged) -> Properties {
+        return std::make_tuple(Ton::Wallet::ConvertIntoRaw(transaction.incoming.source), 0, /*incoming*/ true, Flag(0));
+      },
+      [&](const Ton::TonEventStatusChanged &tonEventStatusChanged) -> Properties {
+        return std::make_tuple(Ton::Wallet::ConvertIntoRaw(transaction.incoming.source), 0, /*incoming*/ true, Flag(0));
+      },
+      [](const Ton::TokenTransfer &transfer) -> Properties {
         return std::make_tuple(transfer.direct ? Ton::kZeroAddress : Ton::Wallet::ConvertIntoRaw(transfer.address),
                                transfer.value, transfer.incoming, Flag(0));
       },
-      [](const Ton::TokenMint &tokenMint) {
+      [](const Ton::TokenMint &tokenMint) -> Properties {
         return std::make_tuple(QString{}, tokenMint.value, /*incoming*/ true, Flag(0));
       },
-      [](const Ton::TokenSwapBack &tokenSwapBack) {
+      [](const Ton::TokenSwapBack &tokenSwapBack) -> Properties {
         return std::make_tuple(tokenSwapBack.address, tokenSwapBack.value, /*incoming*/ false, Flag::SwapBack);
       },
-      [](const Ton::TokensBounced &tokensBounced) {
+      [](const Ton::TokensBounced &tokensBounced) -> Properties {
         return std::make_tuple(QString{}, tokensBounced.amount, /*incoming*/ false, Flag(0));
-      });
+      },
+      [](auto &&) -> Properties { return std::nullopt; });
+  if (!properties.has_value()) {
+    return std::nullopt;
+  }
+  const auto [address, value, incoming, flags] = std::move(*properties);
 
   const auto amount = FormatAmount(incoming ? value : -value, token, FormatFlag::Signed | FormatFlag::Rounded);
   const auto addressPartWidth = [address = std::ref(address)](int from, int length = -1) {
@@ -214,18 +233,15 @@ void refreshTimeTexts(TransactionLayout &layout, bool forceDateText = false) {
   return result;
 }
 
-using AdditionalTransactionInfo = std::variant<Ton::TokenTransaction, Ton::DePoolTransaction>;
-
 }  // namespace
 
 class HistoryRow final {
  public:
-  explicit HistoryRow(Ton::Transaction transaction, const Fn<void()> &decrypt = nullptr, bool isInitTransaction = false)
+  explicit HistoryRow(Ton::Transaction transaction, const Fn<void()> &decrypt = nullptr)
       : _symbol(Ton::Symbol::ton())
-      , _layout(prepareLayout(transaction, _decrypt, isInitTransaction))
+      , _layout(prepareRegularLayout(transaction, _decrypt))
       , _transaction(std::move(transaction))
-      , _decrypt(decrypt)
-      , _isInitTransaction(isInitTransaction) {
+      , _decrypt(decrypt) {
   }
 
   HistoryRow(const HistoryRow &) = delete;
@@ -240,6 +256,9 @@ class HistoryRow final {
   }
 
   [[nodiscard]] const Ton::Transaction &transaction() const {
+    return _transaction;
+  }
+  [[nodiscard]] Ton::Transaction &transaction() {
     return _transaction;
   }
 
@@ -327,25 +346,36 @@ class HistoryRow final {
     return _height > 0;
   }
 
-  void clearAdditionalInfo() {
+  void setRegularLayout() {
     resetButton();
-    _additionalInfo.reset();
     _symbol = Ton::Symbol::ton();
-    _layout = prepareLayout(_transaction, _decrypt, _isInitTransaction);
+    _layout = prepareRegularLayout(_transaction, _decrypt);
+    setVisible(true);
   }
-  void setAdditionalInfo(const Ton::Symbol &symbol, Ton::TokenTransaction &&tokenTransaction) {
+  void setTokenTransactionLayout(const Ton::Symbol &symbol) {
     resetButton();
-    _layout = prepareLayout(symbol, _transaction, tokenTransaction);
-    _additionalInfo = std::forward<Ton::TokenTransaction>(tokenTransaction);
-    _symbol = symbol;
+    auto layout = prepareTokenLayout(symbol, _transaction);
+    if (layout.has_value()) {
+      _layout = std::move(*layout);
+      _symbol = symbol;
+      setVisible(!_transaction.aborted || _transaction.incoming.bounce);
+    } else {
+      setVisible(false);
+    }
   }
-  void setAdditionalInfo(Ton::DePoolTransaction &&dePoolTransaction) {
+  void setDePoolTransactionLayout() {
     resetButton();
-    _layout = prepareLayout(_transaction, dePoolTransaction);
-    _additionalInfo = std::forward<Ton::DePoolTransaction>(dePoolTransaction);
-    _symbol = Ton::Symbol::ton();
+    auto layout = prepareDePoolLayout(_transaction);
+    if (layout.has_value()) {
+      _layout = std::move(*layout);
+      _symbol = Ton::Symbol::ton();
+      setVisible(!_transaction.aborted);
+    } else {
+      setVisible(false);
+    }
   }
-  void setAdditionalInfo(not_null<Ui::RpWidget *> parent, EventType eventType, const Fn<void()> &openRequest) {
+  void setNotificationLayout(not_null<Ui::RpWidget *> parent, EventType eventType, const Fn<void()> &openRequest) {
+    setRegularLayout();
     auto button = object_ptr<Ui::RoundButton>(  //
         parent,
         eventType == EventType::EthEvent  //
@@ -355,9 +385,6 @@ class HistoryRow final {
     button->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
     button->setVisible(false);
     button->setClickedCallback(openRequest);
-    if (_button.has_value()) {
-      (*_button)->setParent(nullptr);
-    }
     _button = std::move(button);
   }
 
@@ -527,11 +554,9 @@ class HistoryRow final {
   TransactionLayout _layout;
 
   Ton::Transaction _transaction;
-  std::optional<AdditionalTransactionInfo> _additionalInfo{};
 
   Fn<void()> _decrypt = [] {};
 
-  bool _isInitTransaction = false;
   int _top = 0;
   int _width = 0;
   int _height = 0;
@@ -740,13 +765,9 @@ void History::setupContent(rpl::producer<HistoryState> &&state,
               }
               auto &transactions = it->second;
 
-              const auto loadedLast = (transactions.previousId.lt != 0) && (slice.second.data.previousId.lt == 0);
               transactions.previousId = slice.second.data.previousId;
               transactions.list.insert(end(transactions.list), slice.second.data.list.begin(),
                                        slice.second.data.list.end());
-              if (loadedLast) {
-                computeInitTransactionId();
-              }
               refreshRows();
             },
             lifetime());
@@ -963,9 +984,6 @@ bool History::mergeListChanged(std::map<Ton::Symbol, Ton::TransactionsSlice> &&d
     if (i == newTransactions.list.cend()) {
       transactions.list = newTransactions.list | ranges::to_vector;
       transactions.previousId = std::move(newTransactions.previousId);
-      if (!transactions.previousId.lt) {
-        computeInitTransactionId();
-      }
       changed = true;
     } else if (i != newTransactions.list.cbegin()) {
       transactions.list.insert(begin(transactions.list), newTransactions.list.cbegin(), i);
@@ -1000,63 +1018,19 @@ bool History::takeDecrypted(int index, const std::vector<Ton::Transaction> &decr
     rows.regular[index]->setDecryptionFailed();
   } else {
     transactions.list[index] = *i;
-    rows.regular[index] = makeRow(*i, i->id == transactions.initTransactionId);
+    rows.regular[index] = makeRow(*i);
   }
   return true;
 }
 
-std::unique_ptr<HistoryRow> History::makeRow(const Ton::Transaction &data, bool isInit) {
+std::unique_ptr<HistoryRow> History::makeRow(const Ton::Transaction &data) {
   const auto id = data.id;
   if (id.lt == 0) {
     // pending
     return std::make_unique<HistoryRow>(data);
   }
 
-  return std::make_unique<HistoryRow>(
-      data, [=] { decryptById(id); }, isInit);
-}
-
-void History::computeInitTransactionId() {
-  for (auto &[symbol, transactions] : _transactions) {
-    const auto was = transactions.initTransactionId;
-    auto found = static_cast<Ton::Transaction *>(nullptr);
-    for (auto &row : ranges::views::reverse(transactions.list)) {
-      if (IsServiceTransaction(row)) {
-        found = &row;
-        break;
-      } else if (row.incoming.source.isEmpty()) {
-        break;
-      }
-    }
-    const auto now = found ? found->id : Ton::TransactionId();
-    if (was == now) {
-      return;
-    }
-
-    transactions.initTransactionId = now;
-
-    auto it = _rows.find(symbol);
-    const auto wasItem = ranges::find(transactions.list, was, &Ton::Transaction::id);
-    if (wasItem != end(transactions.list)) {
-      wasItem->initializing = false;
-
-      if (it != end(_rows)) {
-        const auto wasRow = ranges::find(it->second.regular, was, &HistoryRow::id);
-        if (wasRow != end(it->second.regular)) {
-          *wasRow = makeRow(*wasItem, false);
-        }
-      }
-    }
-    if (found) {
-      found->initializing = true;
-      if (it != end(_rows)) {
-        const auto nowRow = ranges::find(it->second.regular, now, &HistoryRow::id);
-        if (nowRow != end(it->second.regular)) {
-          *nowRow = makeRow(*found, true);
-        }
-      }
-    }
-  }
+  return std::make_unique<HistoryRow>(data, [=] { decryptById(id); });
 }
 
 void History::refreshShowDates() {
@@ -1064,9 +1038,7 @@ void History::refreshShowDates() {
 
   const auto [symbol, targetAddress] = v::match(
       selectedAsset, [](const SelectedToken &selectedToken) { return std::make_pair(selectedToken.symbol, QString{}); },
-      [](const SelectedDePool &selectedDePool) {
-        return std::make_pair(Ton::Symbol::ton(), Ton::Wallet::ConvertIntoRaw(selectedDePool.address));
-      });
+      [](const SelectedDePool &selectedDePool) { return std::make_pair(Ton::Symbol::ton(), selectedDePool.address); });
 
   const auto rowsIt = _rows.find(symbol);
   const auto transactionsIt = _transactions.find(symbol);
@@ -1083,7 +1055,7 @@ void History::refreshShowDates() {
 
   auto filterTransaction = [&, targetAddress = targetAddress](const SelectedAsset &selectedAsset,
                                                               decltype(rows.regular.front()) &row) {
-    const auto &transaction = row->transaction();
+    auto &transaction = row->transaction();
 
     const auto isUnprocessed = transaction.id.lt < transactions.leastScannedTransactionLt ||
                                transaction.id.lt > transactions.latestScannedTransactionLt;
@@ -1091,107 +1063,78 @@ void History::refreshShowDates() {
     v::match(
         selectedAsset,
         [&](const SelectedToken &selectedToken) {
-          row->setVisible(true);
-          row->clearAdditionalInfo();
-
           if (selectedToken.symbol.isTon()) {
-            if (auto notification = Ton::Wallet::ParseNotification(transaction.incoming.message);
-                notification.has_value()) {
-              v::match(
-                  *notification,
-                  [&](const Ton::TokenWalletDeployed &deployed) {
-                    _newTokenWalletRequests.fire(&deployed.rootTokenContract);
-                  },
-                  [&](const Ton::EthEventStatusChanged &event) {
-                    const auto it = latestEthStatuses.find(transaction.incoming.source);
-                    if (it != latestEthStatuses.end()) {
-                      return;
-                    }
-                    latestEthStatuses.insert(std::make_pair(transaction.incoming.source, event.status));
-                    if (event.status == Ton::EthEventStatus::Confirmed) {
-                      row->setAdditionalInfo(&_widget, EventType::EthEvent, [=, address = transaction.incoming.source] {
-                        _collectTokenRequests.fire(&address);
-                      });
-                    }
-                  },
-                  [&](const Ton::TonEventStatusChanged &event) {
-                    const auto it = latestTonStatuses.find(transaction.incoming.source);
-                    if (it != latestTonStatuses.end()) {
-                      return;
-                    }
-                    latestTonStatuses.insert(std::make_pair(transaction.incoming.source, event.status));
-                    if (event.status == Ton::TonEventStatus::Confirmed) {
-                      row->setAdditionalInfo(&_widget, EventType::TonEvent, [=, address = transaction.incoming.source] {
-                        _executeSwapBackRequests.fire(&address);
-                      });
-                    }
-                  });
-            }
-            return;
+            return v::match(
+                transaction.additional,
+                [&](const Ton::TokenWalletDeployed &deployed) {
+                  _newTokenWalletRequests.fire(&deployed.rootTokenContract);
+                  row->setRegularLayout();
+                },
+                [&](const Ton::EthEventStatusChanged &event) {
+                  const auto it = latestEthStatuses.find(transaction.incoming.source);
+                  if (it != latestEthStatuses.end()) {
+                    return;
+                  }
+                  latestEthStatuses.insert(std::make_pair(transaction.incoming.source, event.status));
+                  if (event.status == Ton::EthEventStatus::Confirmed) {
+                    row->setNotificationLayout(
+                        &_widget, EventType::EthEvent,
+                        [=, address = transaction.incoming.source] { _collectTokenRequests.fire(&address); });
+                  }
+                },
+                [&](const Ton::TonEventStatusChanged &event) {
+                  const auto it = latestTonStatuses.find(transaction.incoming.source);
+                  if (it != latestTonStatuses.end()) {
+                    return;
+                  }
+                  latestTonStatuses.insert(std::make_pair(transaction.incoming.source, event.status));
+                  if (event.status == Ton::TonEventStatus::Confirmed) {
+                    row->setNotificationLayout(
+                        &_widget, EventType::TonEvent,
+                        [=, address = transaction.incoming.source] { _executeSwapBackRequests.fire(&address); });
+                  }
+                },
+                [&](auto &&) { row->setRegularLayout(); });
+          } else {
+            v::match(
+                transaction.additional,
+                [&](Ton::TokenTransfer &tokenTransfer) {
+                  if (!tokenTransfer.direct) {
+                    return;
+                  }
+                  const auto it = _tokenOwners.find(tokenTransfer.address);
+                  if (it != _tokenOwners.end()) {
+                    tokenTransfer.address = it->second;
+                    tokenTransfer.direct = false;
+                  } else if (isUnprocessed) {
+                    unknownOwners.insert(tokenTransfer.address);
+                  }
+                },
+                [&](auto &&) {});
+            row->setTokenTransactionLayout(selectedToken.symbol);
           }
-
-          if (transaction.aborted || !transaction.incoming.bounce) {
-            return row->setVisible(false);
-          }
-
-          auto tokenTransaction = Ton::Wallet::ParseTokenTransaction(transaction.incoming.message);
-          //  if (!tokenTransaction.has_value()) {
-          //    tokenTransaction = Ton::Wallet::ParseTokensBounced(transaction.incoming.message);
-          //  }
-          if (!tokenTransaction.has_value()) {
-            return row->setVisible(false);
-          }
-
-          v::match(
-              *tokenTransaction,
-              [&](Ton::TokenTransfer &tokenTransfer) {
-                if (!tokenTransfer.direct) {
-                  return;
-                }
-                const auto it = _tokenOwners.find(tokenTransfer.address);
-                if (it != _tokenOwners.end()) {
-                  tokenTransfer.address = it->second;
-                  tokenTransfer.direct = false;
-                } else if (isUnprocessed) {
-                  unknownOwners.insert(tokenTransfer.address);
-                }
-              },
-              [](auto &&) {});
-
-          row->setAdditionalInfo(selectedToken.symbol, std::move(*tokenTransaction));
         },
         [&](const SelectedDePool &selectedDePool) {
+          auto maybeDePool = false;
+
           const auto incoming = !transaction.incoming.source.isEmpty();
-
-          if (incoming && Ton::Wallet::ConvertIntoRaw(transaction.incoming.source) == targetAddress) {
-            auto parsedTransaction = Ton::Wallet::ParseDePoolTransaction(transaction.incoming.message, incoming);
-            if (parsedTransaction.has_value()) {
-              row->setAdditionalInfo(std::move(*parsedTransaction));
-              row->setVisible(true);
-              return;
-            }
-          } else if (!incoming) {
-            if (transaction.aborted) {
-              return row->setVisible(false);
-            }
-
+          if (incoming && transaction.incoming.source == targetAddress) {
+            maybeDePool = true;
+          } else if (!incoming && !transaction.aborted) {
             for (const auto &out : transaction.outgoing) {
-              if (Ton::Wallet::ConvertIntoRaw(out.destination) != targetAddress) {
+              if (out.destination != targetAddress) {
                 continue;
               }
-
-              auto stakeTransaction = Ton::Wallet::ParseDePoolTransaction(out.message, incoming);
-              if (!stakeTransaction.has_value()) {
-                break;
-              }
-
-              row->setAdditionalInfo(std::move(*stakeTransaction));
-              row->setVisible(true);
-              return;
+              maybeDePool = true;
+              break;
             }
           }
 
-          row->setVisible(false);
+          if (maybeDePool) {
+            row->setDePoolTransactionLayout();
+          } else {
+            row->setVisible(false);
+          }
         });
   };
 
@@ -1237,8 +1180,8 @@ void History::refreshPending() {
   if (symbol.isTon()) {
     if (_pendingDataChanged) {
       pendingRows =
-          ranges::views::all(_pendingData)                                                                            //
-          | ranges::views::transform([&](const Ton::PendingTransaction &data) { return makeRow(data.fake, false); })  //
+          ranges::views::all(_pendingData)                                                                     //
+          | ranges::views::transform([&](const Ton::PendingTransaction &data) { return makeRow(data.fake); })  //
           | ranges::to_vector;
     }
   }
@@ -1272,15 +1215,13 @@ void History::refreshRows() {
       if (!rows.regular.empty() && element.id == rows.regular.front()->id()) {
         break;
       }
-      addedFront.push_back(makeRow(element, element.id == transactions.initTransactionId));
+      addedFront.push_back(makeRow(element));
     }
     if (!rows.regular.empty()) {
       const auto from = ranges::find(transactions.list, rows.regular.back()->id(), &Ton::Transaction::id);
       if (from != end(transactions.list)) {
-        addedBack = ranges::make_subrange(from + 1, end(transactions.list))  //
-                    | ranges::views::transform([&](const Ton::Transaction &data) {
-                        return makeRow(data, data.id == transactions.initTransactionId);
-                      })  //
+        addedBack = ranges::make_subrange(from + 1, end(transactions.list))                                  //
+                    | ranges::views::transform([&](const Ton::Transaction &data) { return makeRow(data); })  //
                     | ranges::to_vector;
       }
     }

@@ -75,16 +75,14 @@ class History final {
   void releaseRow();
   void decryptById(const Ton::TransactionId &id);
 
-  void computeInitTransactionId();
   void refreshShowDates();
   void setRowShowDate(const std::unique_ptr<HistoryRow> &row, bool show = true);
   bool takeDecrypted(int index, const std::vector<Ton::Transaction> &decrypted);
-  [[nodiscard]] std::unique_ptr<HistoryRow> makeRow(const Ton::Transaction &data, bool isInit);
+  [[nodiscard]] std::unique_ptr<HistoryRow> makeRow(const Ton::Transaction &data);
 
   struct TransactionsState {
     std::vector<Ton::Transaction> list;
     Ton::TransactionId previousId;
-    Ton::TransactionId initTransactionId;
     int64 latestScannedTransactionLt = 0;
     int64 leastScannedTransactionLt = std::numeric_limits<int64>::max();
   };

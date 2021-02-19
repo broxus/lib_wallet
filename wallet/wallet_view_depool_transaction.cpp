@@ -19,27 +19,6 @@ namespace Wallet {
 
 namespace {
 
-std::optional<Ton::DePoolTransaction> TryGetDePoolTransaction(const Ton::Transaction &data) {
-  const auto incoming = !data.incoming.source.isEmpty();
-
-  if (incoming) {
-    auto parsedTransaction = Ton::Wallet::ParseDePoolTransaction(data.incoming.message, incoming);
-    if (parsedTransaction.has_value()) {
-      return *parsedTransaction;
-    }
-  } else {
-    for (const auto &out : data.outgoing) {
-      auto stakeTransaction = Ton::Wallet::ParseDePoolTransaction(out.message, incoming);
-      if (!stakeTransaction.has_value()) {
-        break;
-      }
-      return *stakeTransaction;
-    }
-  }
-
-  return std::nullopt;
-}
-
 template <typename T>
 object_ptr<Ui::RpWidget> CreateSummary(not_null<Ui::RpWidget *> parent, const Ton::Transaction &data,
                                        const T &dePoolTransaction) {
@@ -93,28 +72,23 @@ object_ptr<Ui::RpWidget> CreateSummary(not_null<Ui::RpWidget *> parent, const To
 
 void ViewDePoolTransactionBox(not_null<Ui::GenericBox *> box, const Ton::Transaction &data,
                               const Fn<void(QImage, QString)> &share) {
-  const auto dePoolTransaction = TryGetDePoolTransaction(data);
-
   box->setStyle(st::walletNoButtonsBox);
   box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
 
   const auto id = data.id;
   const auto address = Ton::Wallet::ConvertIntoRaw(ExtractAddress(data));
 
-  if (dePoolTransaction.has_value()) {
-    v::match(
-        *dePoolTransaction,
-        [&](const Ton::DePoolOnRoundCompleteTransaction &onRoundCompleteTransaction) {
-          box->setTitle(ph::lng_wallet_view_round_complete());
-          box->addRow(CreateSummary(box, data, onRoundCompleteTransaction));
-        },
-        [&](const Ton::DePoolOrdinaryStakeTransaction &ordinaryStakeTransaction) {
-          box->setTitle(ph::lng_wallet_view_ordinary_stake());
-          box->addRow(CreateSummary(box, data, ordinaryStakeTransaction));
-        });
-  } else {
-    box->setTitle(ph::lng_wallet_view_title());
-  }
+  v::match(
+      data.additional,
+      [&](const Ton::DePoolOnRoundCompleteTransaction &onRoundCompleteTransaction) {
+        box->setTitle(ph::lng_wallet_view_round_complete());
+        box->addRow(CreateSummary(box, data, onRoundCompleteTransaction));
+      },
+      [&](const Ton::DePoolOrdinaryStakeTransaction &ordinaryStakeTransaction) {
+        box->setTitle(ph::lng_wallet_view_ordinary_stake());
+        box->addRow(CreateSummary(box, data, ordinaryStakeTransaction));
+      },
+      [&](auto &&) { box->setTitle(ph::lng_wallet_view_title()); });
 
   AddBoxSubtitle(box, ph::lng_wallet_view_depool());
 

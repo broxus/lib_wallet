@@ -48,23 +48,20 @@ struct Notification {
 };
 
 std::optional<TokenTransaction> TryGetTokenTransaction(const Ton::Transaction &data, const Ton::Symbol &selectedToken) {
-  auto transaction = Ton::Wallet::ParseTokenTransaction(data.incoming.message);
-  if (!transaction.has_value()) {
-    return {};
-  }
-
+  using ReturnType = std::optional<TokenTransaction>;
   return v::match(
-      *transaction,
-      [&](const Ton::TokenTransfer &transfer) {
+      data.additional,
+      [&](const Ton::TokenTransfer &transfer) -> ReturnType {
         return TokenTransaction{
             .token = selectedToken,
             .recipient = transfer.address,
             .amount = transfer.value,
             .incoming = transfer.incoming,
             .direct = transfer.direct,
+
         };
       },
-      [&](const Ton::TokenSwapBack &swapBack) {
+      [&](const Ton::TokenSwapBack &swapBack) -> ReturnType {
         return TokenTransaction{
             .token = selectedToken,
             .recipient = swapBack.address,
@@ -73,7 +70,7 @@ std::optional<TokenTransaction> TryGetTokenTransaction(const Ton::Transaction &d
             .swapback = true,
         };
       },
-      [&](const Ton::TokenMint &tokenMint) {
+      [&](const Ton::TokenMint &tokenMint) -> ReturnType {
         return TokenTransaction{
             .token = selectedToken,
             .amount = tokenMint.value,
@@ -81,24 +78,20 @@ std::optional<TokenTransaction> TryGetTokenTransaction(const Ton::Transaction &d
             .mint = true,
         };
       },
-      [&](const Ton::TokensBounced &tokensBounced) {
+      [&](const Ton::TokensBounced &tokensBounced) -> ReturnType {
         return TokenTransaction{
             .token = selectedToken,
             .amount = tokensBounced.amount,
             .incoming = true,
         };
-      });
+      },
+      [](auto &&) -> ReturnType { return std::nullopt; });
 }
 
 std::optional<Notification> TryGetNotification(const Ton::Transaction &data) {
-  auto notification = Ton::Wallet::ParseNotification(data.incoming.message);
-  if (!notification.has_value()) {
-    return {};
-  }
-
   using ReturnType = std::optional<Notification>;
   return v::match(
-      *notification,
+      data.additional,
       [&](const Ton::EthEventStatusChanged &event) -> ReturnType {
         if (event.status == Ton::EthEventStatus::Confirmed) {
           return Notification{.type = NotificationType::EthEvent, .eventAddress = data.incoming.source};
@@ -271,11 +264,12 @@ void ViewTransactionBox(not_null<Ui::GenericBox *> box, Ton::Transaction &&data,
 
   const auto service = IsServiceTransaction(data);
 
-  box->setTitle(data.initializing  //
-                    ? ph::lng_wallet_row_init()
-                    : service  //
-                          ? ph::lng_wallet_row_service()
-                          : ph::lng_wallet_view_title());
+  /*data.initializing  //
+    ? ph::lng_wallet_row_init()
+    : */
+  box->setTitle(service  //
+                    ? ph::lng_wallet_row_service()
+                    : ph::lng_wallet_view_title());
 
   const auto id = data.id;
   const auto incoming = data.outgoing.empty() || (isTokenTransaction && tokenTransaction->incoming);

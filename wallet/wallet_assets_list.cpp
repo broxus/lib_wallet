@@ -254,8 +254,6 @@ void AssetsList::setupContent(rpl::producer<AssetsListState> &&state) {
   rpl::combine(_widget.sizeValue(), contentHeight->value()) |
       rpl::start_with_next(
           [=](QSize size, int) {
-            const auto height = contentHeight->current();
-
             const auto width = std::min(size.width(), st::walletRowWidthMax);
             const auto left = (size.width() - width) / 2;
 
@@ -281,7 +279,7 @@ void AssetsList::setupContent(rpl::producer<AssetsListState> &&state) {
           [=](AssetsListState &&state) {
             refreshItemValues(state);
             if (!mergeListChanged(std::move(state))) {
-              return;
+              return _widget.update();
             }
 
             for (size_t i = 0; i < _rows.size(); ++i) {
@@ -386,6 +384,8 @@ void AssetsList::setupContent(rpl::producer<AssetsListState> &&state) {
             _height = topSectionHeight + contentHeight->current();
 
             reorder->start();
+
+            _widget.update();
           },
           lifetime());
 }
