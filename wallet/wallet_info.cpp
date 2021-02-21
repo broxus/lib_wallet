@@ -89,10 +89,6 @@ rpl::producer<std::pair<const Ton::Symbol *, const QSet<QString> *>> Info::owner
   return _ownerResolutionRequests.events();
 }
 
-rpl::producer<const QString *> Info::newTokenWalletRequests() const {
-  return _newTokenWalletRequests.events();
-}
-
 rpl::producer<const QString *> Info::collectTokenRequests() const {
   return _collectTokenRequests.events();
 }
@@ -261,7 +257,6 @@ void Info::setupControls(Data &&data) {
   history->viewRequests() | rpl::start_to_stream(_viewRequests, history->lifetime());
   history->decryptRequests() | rpl::start_to_stream(_decryptRequests, history->lifetime());
   history->ownerResolutionRequests() | rpl::start_to_stream(_ownerResolutionRequests, history->lifetime());
-  history->newTokenWalletRequests() | rpl::start_to_stream(_newTokenWalletRequests, history->lifetime());
   history->collectTokenRequests() | rpl::start_to_stream(_collectTokenRequests, history->lifetime());
   history->executeSwapBackRequests() | rpl::start_to_stream(_executeSwapBackRequests, history->lifetime());
 

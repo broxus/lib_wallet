@@ -63,29 +63,8 @@ void CollectTokensBox(not_null<Ui::GenericBox *> box, const CollectTokensInvoice
       rpl::start_with_next(
           [=](Ton::Result<Ton::EthEventDetails> details) {
             if (details.has_value()) {
-              QString statusName{"unknown"};
-              switch (details->status) {
-                case Ton::EthEventStatus::InProcess: {
-                  statusName = ph::lng_wallet_collect_tokens_status_in_process(ph::now);
-                  break;
-                }
-                case Ton::EthEventStatus::Confirmed: {
-                  statusName = ph::lng_wallet_collect_tokens_status_confirmed(ph::now);
-                  break;
-                }
-                case Ton::EthEventStatus::Executed: {
-                  statusName = ph::lng_wallet_collect_tokens_status_executed(ph::now);
-                  break;
-                }
-                case Ton::EthEventStatus::Rejected: {
-                  statusName = ph::lng_wallet_collect_tokens_status_rejected(ph::now);
-                  break;
-                }
-                default:
-                  break;
-              }
-
-              *status = ph::lng_wallet_collect_tokens_status(ph::now).replace("{value}", statusName);
+              *status = ph::lng_wallet_collect_tokens_status(ph::now).replace(
+                  "{value}", ph::lng_wallet_eth_event_status(details->status)(ph::now));
               *confirmations = replaceRatio(ph::lng_wallet_collect_tokens_confirmations, details->confirmationCount,
                                             details->requiredConfirmationCount);
               *rejections = replaceRatio(ph::lng_wallet_collect_tokens_rejections, details->rejectionCount,

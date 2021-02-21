@@ -43,7 +43,6 @@ class History final {
   [[nodiscard]] rpl::producer<Ton::Transaction> viewRequests() const;
   [[nodiscard]] rpl::producer<Ton::Transaction> decryptRequests() const;
   [[nodiscard]] rpl::producer<std::pair<const Ton::Symbol *, const QSet<QString> *>> ownerResolutionRequests() const;
-  [[nodiscard]] rpl::producer<const QString *> newTokenWalletRequests() const;
   [[nodiscard]] rpl::producer<const QString *> collectTokenRequests() const;
   [[nodiscard]] rpl::producer<const QString *> executeSwapBackRequests() const;
 
@@ -110,7 +109,6 @@ class History final {
   rpl::event_stream<Ton::Transaction> _viewRequests;
   rpl::event_stream<Ton::Transaction> _decryptRequests;
   rpl::event_stream<std::pair<const Ton::Symbol *, const QSet<QString> *>> _ownerResolutionRequests;
-  rpl::event_stream<const QString *> _newTokenWalletRequests;
   rpl::event_stream<const QString *> _collectTokenRequests;
   rpl::event_stream<const QString *> _executeSwapBackRequests;
 };

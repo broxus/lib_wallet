@@ -365,6 +365,7 @@ walletRowNanoStyle: TextStyle(defaultTextStyle) {
 walletRowAddressTop: 5px;
 walletRowCommentTop: 4px;
 walletRowFeesTop: 4px;
+walletRowAdditionalInfoTop: 4px;
 walletRowPending: icon {{ "wallet_pending", windowSubTextFg }};
 walletRowPendingPosition: point(5px, 0px);
 walletRowButton: RoundButton(defaultActiveButton) {

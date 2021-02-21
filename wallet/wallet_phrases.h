@@ -13,6 +13,8 @@ class QTime;
 
 namespace Ton {
 class Symbol;
+enum class EthEventStatus;
+enum class TonEventStatus;
 }  // namespace Ton
 
 namespace ph {
@@ -121,10 +123,16 @@ extern phrase lng_wallet_depool_info_withdrawal_value;
 extern phrase lng_wallet_depool_info_owner;
 
 extern phrase lng_wallet_row_from;
+extern phrase lng_wallet_row_minted;
+extern phrase lng_wallet_row_token_wallet_deployed;
+extern phrase lng_wallet_row_eth_event_notification;
+extern phrase lng_wallet_row_ton_event_notification;
+extern phrase lng_wallet_row_change;
 extern phrase lng_wallet_row_reward_from;
 extern phrase lng_wallet_row_swap_back_to;
 extern phrase lng_wallet_row_ordinary_stake_to;
 extern phrase lng_wallet_row_to;
+extern phrase lng_wallet_row_new_event_status;
 extern phrase lng_wallet_row_init;
 extern phrase lng_wallet_row_service;
 extern phrase lng_wallet_row_fees;
@@ -234,10 +242,6 @@ extern phrase lng_wallet_collect_tokens_title;
 extern phrase lng_wallet_collect_tokens_details;
 extern phrase lng_wallet_collect_tokens_symbol;
 extern phrase lng_wallet_collect_tokens_status;
-extern phrase lng_wallet_collect_tokens_status_in_process;
-extern phrase lng_wallet_collect_tokens_status_confirmed;
-extern phrase lng_wallet_collect_tokens_status_executed;
-extern phrase lng_wallet_collect_tokens_status_rejected;
 extern phrase lng_wallet_collect_tokens_confirmations;
 extern phrase lng_wallet_collect_tokens_rejections;
 extern phrase lng_wallet_collect_tokens_description;
@@ -318,6 +322,12 @@ extern phrase lng_wallet_settings_mainnet;
 extern phrase lng_wallet_settings_testnet;
 extern phrase lng_wallet_settings_blockchain_name;
 
+extern phrase lng_wallet_event_status_unknown;
+extern phrase lng_wallet_event_status_in_process;
+extern phrase lng_wallet_event_status_confirmed;
+extern phrase lng_wallet_event_status_executed;
+extern phrase lng_wallet_event_status_rejected;
+
 extern phrase lng_wallet_warning_reconnect;
 extern phrase lng_wallet_warning_blockchain_name;
 extern phrase lng_wallet_warning_to_testnet;
@@ -335,5 +345,7 @@ extern Fn<phrase(QTime)> lng_wallet_short_time;
 extern Fn<phrase(QString, const Ton::Symbol &)> lng_wallet_grams_count;
 extern Fn<phrase(QString, const Ton::Symbol &)> lng_wallet_grams_count_sent;
 extern Fn<phrase(QString)> lng_wallet_grams_count_withdrawn;
+extern Fn<phrase(Ton::EthEventStatus)> lng_wallet_eth_event_status;
+extern Fn<phrase(Ton::TonEventStatus)> lng_wallet_ton_event_status;
 
 }  // namespace ph

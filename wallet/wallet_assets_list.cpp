@@ -417,6 +417,11 @@ rpl::producer<AssetsListState> MakeTokensListState(rpl::producer<Ton::WalletView
            const auto &account = data.wallet.account;
            const auto unlockedTonBalance = account.fullBalance - account.lockedBalance;
 
+           std::cout << "data.wallet.assetsList: " << data.wallet.assetsList.size() << std::endl;
+           for (const auto &dePool : data.wallet.dePoolParticipantStates) {
+             std::cout << "||||| DePool: " << dePool.first.toStdString() << std::endl;
+           }
+
            AssetsListState result{};
            result.items.reserve(data.wallet.assetsList.size());
 

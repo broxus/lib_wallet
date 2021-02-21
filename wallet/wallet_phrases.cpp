@@ -130,10 +130,16 @@ phrase lng_wallet_depool_info_withdrawal_value = "Withdrawal value: {amount}";
 phrase lng_wallet_depool_info_owner = "Owner:";
 
 phrase lng_wallet_row_from = "from:";
+phrase lng_wallet_row_minted = "minted";
+phrase lng_wallet_row_token_wallet_deployed = "wallet deployment notification from:";
+phrase lng_wallet_row_eth_event_notification = "ETH event notification from:";
+phrase lng_wallet_row_ton_event_notification = "TON event notification from:";
+phrase lng_wallet_row_change = "change from:";
 phrase lng_wallet_row_reward_from = "reward from:";
 phrase lng_wallet_row_swap_back_to = "swap back to:";
 phrase lng_wallet_row_ordinary_stake_to = "ordinary stake to:";
 phrase lng_wallet_row_to = "to:";
+phrase lng_wallet_row_new_event_status = "new event status: {value}";
 phrase lng_wallet_row_init = "Wallet initialization";
 phrase lng_wallet_row_service = "Empty transaction";
 phrase lng_wallet_row_fees = "blockchain fees: {amount}";
@@ -255,10 +261,6 @@ phrase lng_wallet_collect_tokens_title = "Collect tokens";
 phrase lng_wallet_collect_tokens_details = "Event details";
 phrase lng_wallet_collect_tokens_symbol = "Event content";
 phrase lng_wallet_collect_tokens_status = "Status: {value}";
-phrase lng_wallet_collect_tokens_status_in_process = "in process";
-phrase lng_wallet_collect_tokens_status_confirmed = "confirmed";
-phrase lng_wallet_collect_tokens_status_executed = "executed";
-phrase lng_wallet_collect_tokens_status_rejected = "rejected";
 phrase lng_wallet_collect_tokens_confirmations = "Confirmations: {value}";
 phrase lng_wallet_collect_tokens_rejections = "Rejections: {value}";
 phrase lng_wallet_collect_tokens_description = "Event proxy callback must be executed to receive tokens from ETH";
@@ -342,6 +344,12 @@ phrase lng_wallet_settings_config_from_file = "Load from file";
 phrase lng_wallet_settings_mainnet = "Main Network";
 phrase lng_wallet_settings_testnet = "Test Network";
 phrase lng_wallet_settings_blockchain_name = "Blockchain ID";
+
+phrase lng_wallet_event_status_unknown = "unknown";
+phrase lng_wallet_event_status_in_process = "in process";
+phrase lng_wallet_event_status_confirmed = "confirmed";
+phrase lng_wallet_event_status_executed = "executed";
+phrase lng_wallet_event_status_rejected = "rejected";
 
 phrase lng_wallet_warning_reconnect = "If you proceed, you will need to reconnect your wallet using 24 secret words.";
 phrase lng_wallet_warning_blockchain_name =
@@ -429,6 +437,34 @@ Fn<phrase(QString, const Ton::Symbol &)> lng_wallet_grams_count_sent = [](QStrin
 Fn<phrase(QString)> lng_wallet_grams_count_withdrawn = [](QString text) {
   return text + " " + Ton::Symbol::ton().name() +
          ((text == "1") ? " was requested for withdrawal." : " were requested for withdrawal.");
+};
+
+Fn<phrase(Ton::EthEventStatus)> lng_wallet_eth_event_status = [](Ton::EthEventStatus status) {
+  switch (status) {
+    case Ton::EthEventStatus::InProcess:
+      return ph::lng_wallet_event_status_in_process;
+    case Ton::EthEventStatus::Confirmed:
+      return ph::lng_wallet_event_status_confirmed;
+    case Ton::EthEventStatus::Executed:
+      return ph::lng_wallet_event_status_executed;
+    case Ton::EthEventStatus::Rejected:
+      return ph::lng_wallet_event_status_rejected;
+    default:
+      return ph::lng_wallet_event_status_unknown;
+  }
+};
+
+Fn<phrase(Ton::TonEventStatus)> lng_wallet_ton_event_status = [](Ton::TonEventStatus status) {
+  switch (status) {
+    case Ton::TonEventStatus::InProcess:
+      return ph::lng_wallet_event_status_in_process;
+    case Ton::TonEventStatus::Confirmed:
+      return ph::lng_wallet_event_status_confirmed;
+    case Ton::TonEventStatus::Rejected:
+      return ph::lng_wallet_event_status_rejected;
+    default:
+      return ph::lng_wallet_event_status_unknown;
+  }
 };
 
 }  // namespace ph

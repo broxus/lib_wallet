@@ -39,14 +39,22 @@ enum class Flag : uchar {
   Encrypted = 0x04,
   Service = 0x08,
   Initialization = 0x10,
-  SwapBack = 0x20,
-  DePoolReward = 0x40,
-  DePoolStake = 0x80,
 };
 inline constexpr bool is_flag_type(Flag) {
   return true;
 };
 using Flags = base::flags<Flag>;
+
+enum class TransactionType {
+  Transfer,
+  TokenWalletDeployed,
+  EthEventStatusChanged,
+  TonEventStatusChanged,
+  SwapBack,
+  Mint,
+  DePoolReward,
+  DePoolStake,
+};
 
 struct TransactionLayout {
   TimeId serverTime = 0;
@@ -62,6 +70,7 @@ struct TransactionLayout {
   int addressWidth = 0;
   int addressHeight = 0;
   Flags flags = Flags();
+  TransactionType type;
 };
 
 enum class EventType {
@@ -118,28 +127,43 @@ void refreshTimeTexts(TransactionLayout &layout, bool forceDateText = false) {
                  | (encrypted ? Flag::Encrypted : Flag(0))  //
                  | (incoming ? Flag::Incoming : Flag(0))    //
                  | (pending ? Flag::Pending : Flag(0));
+  result.type = v::match(
+      data.additional,
+      [&](const Ton::EthEventStatusChanged &event) {
+        result.additionalInfo.setText(  //
+            st::defaultTextStyle, ph::lng_wallet_row_new_event_status(ph::now).replace(
+                                      "{value}", ph::lng_wallet_eth_event_status(event.status)(ph::now)));
+        return TransactionType::EthEventStatusChanged;
+      },
+      [&](const Ton::TonEventStatusChanged &event) {
+        result.additionalInfo.setText(  //
+            st::defaultTextStyle, ph::lng_wallet_row_new_event_status(ph::now).replace(
+                                      "{value}", ph::lng_wallet_ton_event_status(event.status)(ph::now)));
+        return TransactionType::TonEventStatusChanged;
+      },
+      [](auto &&) { return TransactionType::Transfer; });
 
   refreshTimeTexts(result);
   return result;
 }
 
 [[nodiscard]] std::optional<TransactionLayout> prepareDePoolLayout(const Ton::Transaction &data) {
-  using Properties = std::optional<std::tuple<int64, int64, Flag>>;
+  using Properties = std::optional<std::tuple<int64, int64, TransactionType>>;
   auto properties = v::match(
       data.additional,
       [&](const Ton::DePoolOrdinaryStakeTransaction &dePoolOrdinaryStakeTransaction) -> Properties {
         return std::make_tuple(-dePoolOrdinaryStakeTransaction.stake,
                                -CalculateValue(data) - dePoolOrdinaryStakeTransaction.stake + data.otherFee,
-                               Flag::DePoolStake);
+                               TransactionType::DePoolStake);
       },
       [&](const Ton::DePoolOnRoundCompleteTransaction &dePoolOnRoundCompleteTransaction) -> Properties {
-        return std::make_tuple(dePoolOnRoundCompleteTransaction.reward, data.otherFee, Flag::DePoolReward);
+        return std::make_tuple(dePoolOnRoundCompleteTransaction.reward, data.otherFee, TransactionType::DePoolReward);
       },
       [](auto &&) -> Properties { return std::nullopt; });
   if (!properties.has_value()) {
     return std::nullopt;
   }
-  const auto [value, fee, flags] = std::move(*properties);
+  const auto [value, fee, type] = std::move(*properties);
 
   const auto token = Ton::Symbol::ton();
 
@@ -168,8 +192,8 @@ void refreshTimeTexts(TransactionLayout &layout, bool forceDateText = false) {
 
   result.flags = Flag(0)                                  //
                  | (incoming ? Flag::Incoming : Flag(0))  //
-                 | (pending ? Flag::Pending : Flag(0))    //
-                 | flags;
+                 | (pending ? Flag::Pending : Flag(0));
+  result.type = type;
 
   refreshTimeTexts(result);
   return result;
@@ -177,36 +201,39 @@ void refreshTimeTexts(TransactionLayout &layout, bool forceDateText = false) {
 
 [[nodiscard]] std::optional<TransactionLayout> prepareTokenLayout(const Ton::Symbol &token,
                                                                   const Ton::Transaction &transaction) {
-  using Properties = std::optional<std::tuple<QString, int128, bool, Flag>>;
+  using Properties = std::optional<std::tuple<QString, int128, bool, TransactionType>>;
   auto properties = v::match(
       transaction.additional,
       [](const Ton::TokenWalletDeployed &deployed) -> Properties {
-        return std::make_tuple(QString{}, 0, /*incoming*/ true, Flag(0));
+        return std::make_tuple(QString{}, 0, /*incoming*/ true, TransactionType::TokenWalletDeployed);
       },
       [&](const Ton::EthEventStatusChanged &ethEventStatusChanged) -> Properties {
-        return std::make_tuple(Ton::Wallet::ConvertIntoRaw(transaction.incoming.source), 0, /*incoming*/ true, Flag(0));
+        return std::make_tuple(Ton::Wallet::ConvertIntoRaw(transaction.incoming.source), 0, /*incoming*/ true,
+                               TransactionType::EthEventStatusChanged);
       },
       [&](const Ton::TonEventStatusChanged &tonEventStatusChanged) -> Properties {
-        return std::make_tuple(Ton::Wallet::ConvertIntoRaw(transaction.incoming.source), 0, /*incoming*/ true, Flag(0));
+        return std::make_tuple(Ton::Wallet::ConvertIntoRaw(transaction.incoming.source), 0, /*incoming*/ true,
+                               TransactionType::TonEventStatusChanged);
       },
       [](const Ton::TokenTransfer &transfer) -> Properties {
         return std::make_tuple(transfer.direct ? Ton::kZeroAddress : Ton::Wallet::ConvertIntoRaw(transfer.address),
-                               transfer.value, transfer.incoming, Flag(0));
+                               transfer.value, transfer.incoming, TransactionType::Transfer);
       },
       [](const Ton::TokenMint &tokenMint) -> Properties {
-        return std::make_tuple(QString{}, tokenMint.value, /*incoming*/ true, Flag(0));
+        return std::make_tuple(QString{}, tokenMint.value, /*incoming*/ true, TransactionType::Mint);
       },
       [](const Ton::TokenSwapBack &tokenSwapBack) -> Properties {
-        return std::make_tuple(tokenSwapBack.address, tokenSwapBack.value, /*incoming*/ false, Flag::SwapBack);
+        return std::make_tuple(tokenSwapBack.address, tokenSwapBack.value, /*incoming*/ false,
+                               TransactionType::SwapBack);
       },
       [](const Ton::TokensBounced &tokensBounced) -> Properties {
-        return std::make_tuple(QString{}, tokensBounced.amount, /*incoming*/ false, Flag(0));
+        return std::make_tuple(QString{}, tokensBounced.amount, /*incoming*/ false, TransactionType::Transfer);
       },
       [](auto &&) -> Properties { return std::nullopt; });
   if (!properties.has_value()) {
     return std::nullopt;
   }
-  const auto [address, value, incoming, flags] = std::move(*properties);
+  const auto [address, value, incoming, type] = std::move(*properties);
 
   const auto amount = FormatAmount(incoming ? value : -value, token, FormatFlag::Signed | FormatFlag::Rounded);
   const auto addressPartWidth = [address = std::ref(address)](int from, int length = -1) {
@@ -227,7 +254,8 @@ void refreshTimeTexts(TransactionLayout &layout, bool forceDateText = false) {
   const auto fee = FormatAmount(CalculateValue(transaction), Ton::Symbol::ton()).full;
   result.fees.setText(st::defaultTextStyle, ph::lng_wallet_row_fees(ph::now).replace("{amount}", fee));
 
-  result.flags = flags | (incoming ? Flag::Incoming : Flag(0));
+  result.flags = incoming ? Flag::Incoming : Flag(0);
+  result.type = type;
 
   refreshTimeTexts(result);
   return result;
@@ -318,6 +346,9 @@ class HistoryRow final {
       _commentHeight =
           std::min(_layout.comment.countHeight(avail), st::defaultTextStyle.font->height * kCommentLinesMax);
       _height += st::walletRowCommentTop + _commentHeight;
+    }
+    if (!_layout.additionalInfo.isEmpty()) {
+      _height += st::walletRowAdditionalInfoTop + _layout.additionalInfo.minHeight();
     }
     if (!_layout.fees.isEmpty()) {
       _height += st::walletRowFeesTop + _layout.fees.minHeight();
@@ -418,10 +449,6 @@ class HistoryRow final {
                                                          : ph::lng_wallet_row_service(ph::now)));
     } else {
       const auto incoming = (_layout.flags & Flag::Incoming);
-      const auto swapBack = (_layout.flags & Flag::SwapBack);
-
-      const auto reward = (_layout.flags & Flag::DePoolReward);
-      const auto stake = (_layout.flags & Flag::DePoolStake);
 
       p.setPen(incoming ? st::boxTextFgGood : st::boxTextFgError);
       _layout.amountGrams.draw(p, x, y, avail);
@@ -438,11 +465,26 @@ class HistoryRow final {
       const auto labelLeft = diamondLeft + st::walletDiamondSize + st::normalFont->spacew;
       p.setPen(st::windowFg);
       p.setFont(st::normalFont);
-      p.drawText(labelLeft, labelTop + st::normalFont->ascent,
-                 (incoming   ? reward ? ph::lng_wallet_row_reward_from(ph::now) : ph::lng_wallet_row_from(ph::now)
-                    : swapBack ? ph::lng_wallet_row_swap_back_to(ph::now)
-                  : stake    ? ph::lng_wallet_row_ordinary_stake_to(ph::now)
-                             : ph::lng_wallet_row_to(ph::now)));
+      p.drawText(labelLeft, labelTop + st::normalFont->ascent, [&] {
+        switch (_layout.type) {
+          case TransactionType::TokenWalletDeployed:
+            return ph::lng_wallet_row_token_wallet_deployed;
+          case TransactionType::EthEventStatusChanged:
+            return ph::lng_wallet_row_eth_event_notification;
+          case TransactionType::TonEventStatusChanged:
+            return ph::lng_wallet_row_ton_event_notification;
+          case TransactionType::SwapBack:
+            return ph::lng_wallet_row_swap_back_to;
+          case TransactionType::Mint:
+            return ph::lng_wallet_row_minted;
+          default:
+            if (incoming) {
+              return ph::lng_wallet_row_from;
+            } else {
+              return ph::lng_wallet_row_to;
+            }
+        };
+      }()(ph::now));
 
       const auto timeTop = labelTop;
       const auto timeLeft = x + avail - _layout.time.maxWidth();
@@ -480,6 +522,12 @@ class HistoryRow final {
       }
       _layout.comment.drawElided(p, x, y, avail, kCommentLinesMax);
       y += _commentHeight;
+    }
+    if (!_layout.additionalInfo.isEmpty()) {
+      p.setPen(st::windowSubTextFg);
+      y += st::walletRowAdditionalInfoTop;
+      _layout.additionalInfo.draw(p, x, y, avail);
+      y += _layout.additionalInfo.minHeight();
     }
     if (!_layout.fees.isEmpty()) {
       p.setPen(st::windowSubTextFg);
@@ -732,10 +780,6 @@ rpl::producer<std::pair<const Ton::Symbol *, const QSet<QString> *>> History::ow
   return _ownerResolutionRequests.events();
 }
 
-rpl::producer<const QString *> History::newTokenWalletRequests() const {
-  return _newTokenWalletRequests.events();
-}
-
 rpl::producer<const QString *> History::collectTokenRequests() const {
   return _collectTokenRequests.events();
 }
@@ -751,9 +795,10 @@ rpl::lifetime &History::lifetime() {
 void History::setupContent(rpl::producer<HistoryState> &&state,
                            rpl::producer<std::pair<Ton::Symbol, Ton::LoadedSlice>> &&loaded,
                            rpl::producer<std::optional<SelectedAsset>> &&selectedAsset) {
-  std::move(state) | rpl::start_with_next([=](HistoryState &&state) { mergeState(std::move(state)); }, lifetime());
+  std::forward<std::decay_t<decltype(state)>>(state)  //
+      | rpl::start_with_next([=](HistoryState &&state) { mergeState(std::move(state)); }, lifetime());
 
-  std::move(loaded)  //
+  std::forward<std::decay_t<decltype(loaded)>>(loaded)  //
       | rpl::start_with_next(
             [=](const std::pair<Ton::Symbol, Ton::LoadedSlice> &slice) {
               auto it = _transactions.find(slice.first);
@@ -804,7 +849,7 @@ void History::setupContent(rpl::producer<HistoryState> &&state,
             },
             lifetime());
 
-  rpl::combine(std::move(selectedAsset))  //
+  rpl::combine(std::forward<std::decay_t<decltype(selectedAsset)>>(selectedAsset))  //
       | rpl::start_with_next(
             [=](const std::optional<SelectedAsset> &asset) {
               _selectedAsset = asset.value_or(SelectedToken::defaultToken());
@@ -1066,10 +1111,6 @@ void History::refreshShowDates() {
           if (selectedToken.symbol.isTon()) {
             return v::match(
                 transaction.additional,
-                [&](const Ton::TokenWalletDeployed &deployed) {
-                  _newTokenWalletRequests.fire(&deployed.rootTokenContract);
-                  row->setRegularLayout();
-                },
                 [&](const Ton::EthEventStatusChanged &event) {
                   const auto it = latestEthStatuses.find(transaction.incoming.source);
                   if (it != latestEthStatuses.end()) {
