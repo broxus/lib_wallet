@@ -30,6 +30,7 @@ class Info final {
     rpl::producer<not_null<std::vector<Ton::Transaction> *>> collectEncrypted;
     rpl::producer<not_null<const std::vector<Ton::Transaction> *>> updateDecrypted;
     rpl::producer<not_null<std::map<QString, QString> *>> updateWalletOwners;
+    rpl::producer<NotificationsHistoryUpdate> updateNotifications;
     rpl::producer<InfoTransition> transitionEvents;
     Fn<void(QImage, QString)> share;
     Fn<void()> openGate;
@@ -50,8 +51,9 @@ class Info final {
   [[nodiscard]] rpl::producer<Ton::Transaction> viewRequests() const;
   [[nodiscard]] rpl::producer<Ton::Transaction> decryptRequests() const;
   [[nodiscard]] rpl::producer<std::pair<const Ton::Symbol *, const QSet<QString> *>> ownerResolutionRequests() const;
-  [[nodiscard]] rpl::producer<const QString *> collectTokenRequests() const;
-  [[nodiscard]] rpl::producer<const QString *> executeSwapBackRequests() const;
+  [[nodiscard]] rpl::producer<not_null<const Ton::Transaction *>> notificationDetailsRequests() const;
+  [[nodiscard]] rpl::producer<not_null<const QString *>> collectTokenRequests() const;
+  [[nodiscard]] rpl::producer<not_null<const QString *>> executeSwapBackRequests() const;
 
   [[nodiscard]] rpl::lifetime &lifetime();
 
@@ -71,8 +73,9 @@ class Info final {
   rpl::event_stream<Ton::Transaction> _viewRequests;
   rpl::event_stream<Ton::Transaction> _decryptRequests;
   rpl::event_stream<std::pair<const Ton::Symbol *, const QSet<QString> *>> _ownerResolutionRequests;
-  rpl::event_stream<const QString *> _collectTokenRequests;
-  rpl::event_stream<const QString *> _executeSwapBackRequests;
+  rpl::event_stream<not_null<const Ton::Transaction *>> _notificationDetailsRequests;
+  rpl::event_stream<not_null<const QString *>> _collectTokenRequests;
+  rpl::event_stream<not_null<const QString *>> _executeSwapBackRequests;
 };
 
 }  // namespace Wallet

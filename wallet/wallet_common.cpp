@@ -186,7 +186,7 @@ FormattedAmount FormatAmount(const int128 &amount, const Ton::Symbol &symbol, Fo
   result.gramsString = SeparateDecimals(amountInt, locale);
   if ((flags & FormatFlag::Signed) && amount > 0) {
     result.gramsString = locale.positiveSign() + result.gramsString;
-  } else if (amount < 0 && amountInt == 0) {
+  } else if (amount < 0) {
     result.gramsString = locale.negativeSign() + result.gramsString;
   }
   result.full = result.gramsString;

@@ -51,6 +51,20 @@ using SelectedAsset = std::variant<SelectedToken, SelectedDePool>;
 
 auto operator==(const SelectedAsset &a, const SelectedAsset &b) -> bool;
 
+struct AddNotification {
+  Ton::Symbol symbol;
+  Ton::Transaction transaction;
+};
+
+struct RemoveNotification {
+  Ton::Symbol symbol;
+  Ton::TransactionId transactionId;
+};
+
+struct RefreshNotifications {};
+
+using NotificationsHistoryUpdate = std::variant<AddNotification, RemoveNotification, RefreshNotifications>;
+
 enum CustomAssetType { Token = 0, DePool = 1 };
 
 struct CustomAsset {

@@ -93,18 +93,10 @@ std::optional<Notification> TryGetNotification(const Ton::Transaction &data) {
   return v::match(
       data.additional,
       [&](const Ton::EthEventStatusChanged &event) -> ReturnType {
-        if (event.status == Ton::EthEventStatus::Confirmed) {
-          return Notification{.type = NotificationType::EthEvent, .eventAddress = data.incoming.source};
-        } else {
-          return std::nullopt;
-        }
+        return Notification{.type = NotificationType::EthEvent, .eventAddress = data.incoming.source};
       },
       [&](const Ton::TonEventStatusChanged &event) -> ReturnType {
-        if (event.status == Ton::TonEventStatus::Confirmed) {
-          return Notification{.type = NotificationType::TonEvent, .eventAddress = data.incoming.source};
-        } else {
-          return std::nullopt;
-        }
+        return Notification{.type = NotificationType::TonEvent, .eventAddress = data.incoming.source};
       },
       [](auto &&) -> ReturnType { return std::nullopt; });
 }
@@ -231,7 +223,7 @@ void ViewTransactionBox(not_null<Ui::GenericBox *> box, Ton::Transaction &&data,
   };
 
   auto tokenTransaction = selectedToken.isToken() ? TryGetTokenTransaction(data, selectedToken) : std::nullopt;
-  auto notification = selectedToken.isTon() ? TryGetNotification(data) : std::nullopt;
+  auto notification = TryGetNotification(data);
   const auto isTokenTransaction = tokenTransaction.has_value();
 
   auto resolvedAddress = std::make_shared<rpl::event_stream<QString>>();

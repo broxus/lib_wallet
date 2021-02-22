@@ -388,6 +388,7 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
       .collectEncrypted = _collectEncryptedRequests.events(),
       .updateDecrypted = _decrypted.events(),
       .updateWalletOwners = _updateTokenOwners.events(),
+      .updateNotifications = _notificationHistoryUpdates.events(),
       .transitionEvents = _infoTransitions.events(),
       .share = shareAddressCallback(),
       .openGate = [this] { _wallet->openGate(_rawAddress); },
@@ -572,13 +573,67 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
                 }),
             _info->lifetime());
 
+  _info->notificationDetailsRequests() |
+      rpl::start_with_next(
+          [=](not_null<const Ton::Transaction *> transaction) {
+            auto gotDetails = [=, transaction = *transaction](auto details) mutable {
+              if (details.has_value() && !details->rootTokenContract.isEmpty()) {
+                const auto &rootTokenContract = details->rootTokenContract;
+
+                const auto state = _state.current();
+                for (const auto &item : state.tokenStates) {
+                  if (item.first.rootContractAddress() == rootTokenContract) {
+                    return _notificationHistoryUpdates.fire(AddNotification{
+                        .symbol = item.first,
+                        .transaction = std::move(transaction),
+                    });
+                  }
+                }
+
+                _wallet->getRootTokenContractDetails(
+                    rootTokenContract,
+                    crl::guard(this, [=](const Ton::Result<Ton::RootTokenContractDetails> &details) mutable {
+                      const auto symbol = Ton::Symbol::tip3(details->symbol, details->decimals, rootTokenContract);
+
+                      _notificationHistoryUpdates.fire(AddNotification{
+                          .symbol = symbol,
+                          .transaction = std::move(transaction),
+                      });
+
+                      _wallet->addToken(  //
+                          _wallet->publicKeys().front(), rootTokenContract,
+                          crl::guard(this, [this](const Ton::Result<> &result) {
+                            if (result.has_value()) {
+                              showToast(ph::lng_wallet_add_token_succeeded(ph::now));
+                            } else {
+                              std::cout << "Failed to add token: " << result.error().details.toStdString() << std::endl;
+                            }
+                          }));
+                    }));
+              }
+            };
+            v::match(
+                transaction->additional,
+                [&](const Ton::EthEventStatusChanged &) {
+                  _wallet->getEthEventDetails(transaction->incoming.source, crl::guard(this, gotDetails));
+                },
+                [&](const Ton::TonEventStatusChanged &) {
+                  _wallet->getTonEventDetails(transaction->incoming.source, crl::guard(this, gotDetails));
+                },
+                [](auto &&) {});
+          },
+          _info->lifetime());
+
   _info->collectTokenRequests()  //
-      | rpl::start_with_next([=](const QString *eventContractAddress) { collectTokens(*eventContractAddress); },
-                             _info->lifetime());
+      | rpl::start_with_next(
+            [=](not_null<const QString *> eventContractAddress) { collectTokens(*eventContractAddress); },
+            _info->lifetime());
 
   _info->executeSwapBackRequests()  //
       | rpl::start_with_next(
-            [=](const QString *eventContractAddress) { _wallet->openGateExecuteSwapBack(*eventContractAddress); },
+            [=](not_null<const QString *> eventContractAddress) {
+              _wallet->openGateExecuteSwapBack(*eventContractAddress);
+            },
             _info->lifetime());
 
   _info->viewRequests() |
@@ -1024,7 +1079,7 @@ void Window::collectTokens(const QString &eventContractAddress) {
             _wallet->getRootTokenContractDetails(
                 rootTokenContract, crl::guard(this, [=](Ton::Result<Ton::RootTokenContractDetails> details) {
                   if (details.has_value()) {
-                    symbolEvents->fire(Ton::Symbol::tip3(details->name, details->decimals, rootTokenContract));
+                    symbolEvents->fire(Ton::Symbol::tip3(details->symbol, details->decimals, rootTokenContract));
                   }
                 }));
           }

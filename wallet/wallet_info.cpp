@@ -89,11 +89,15 @@ rpl::producer<std::pair<const Ton::Symbol *, const QSet<QString> *>> Info::owner
   return _ownerResolutionRequests.events();
 }
 
-rpl::producer<const QString *> Info::collectTokenRequests() const {
+rpl::producer<not_null<const Ton::Transaction *>> Info::notificationDetailsRequests() const {
+  return _notificationDetailsRequests.events();
+}
+
+rpl::producer<not_null<const QString *>> Info::collectTokenRequests() const {
   return _collectTokenRequests.events();
 }
 
-rpl::producer<const QString *> Info::executeSwapBackRequests() const {
+rpl::producer<not_null<const QString *>> Info::executeSwapBackRequests() const {
   return _executeSwapBackRequests.events();
 }
 
@@ -171,7 +175,8 @@ void Info::setupControls(Data &&data) {
   // create transactions lists
   const auto history = _widget->lifetime().make_state<History>(
       tonHistoryWrapper, MakeHistoryState(rpl::duplicate(state)), std::move(loaded), std::move(data.collectEncrypted),
-      std::move(data.updateDecrypted), std::move(data.updateWalletOwners), _selectedAsset.value());
+      std::move(data.updateDecrypted), std::move(data.updateWalletOwners), std::move(data.updateNotifications),
+      _selectedAsset.value());
 
   const auto emptyHistory = _widget->lifetime().make_state<EmptyHistory>(
       tonHistoryWrapper, MakeEmptyHistoryState(rpl::duplicate(state), _selectedAsset.value(), data.justCreated),
@@ -257,6 +262,7 @@ void Info::setupControls(Data &&data) {
   history->viewRequests() | rpl::start_to_stream(_viewRequests, history->lifetime());
   history->decryptRequests() | rpl::start_to_stream(_decryptRequests, history->lifetime());
   history->ownerResolutionRequests() | rpl::start_to_stream(_ownerResolutionRequests, history->lifetime());
+  history->notificationDetailsRequests() | rpl::start_to_stream(_notificationDetailsRequests, history->lifetime());
   history->collectTokenRequests() | rpl::start_to_stream(_collectTokenRequests, history->lifetime());
   history->executeSwapBackRequests() | rpl::start_to_stream(_executeSwapBackRequests, history->lifetime());
 
