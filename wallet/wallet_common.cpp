@@ -327,7 +327,7 @@ PreparedInvoice ParseInvoice(QString invoice) {
             .comment = comment,
         };
       } else {
-        return TokenTransferInvoice{.token = token, .amount = amount, .address = address};
+        return TokenTransferInvoice{.token = token, .amount = amount, .ownerAddress = address, .address = address};
       }
     case InvoiceKind::Stake:
       return StakeInvoice{.stake = amount, .dePool = address};

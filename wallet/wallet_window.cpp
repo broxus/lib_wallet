@@ -652,6 +652,7 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
                     } else {
                       sendMoney(TokenTransferInvoice{
                           .token = selectedToken.symbol,
+                          .ownerAddress = address,
                           .address = address,
                       });
                     }

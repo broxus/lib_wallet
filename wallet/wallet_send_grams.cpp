@@ -275,6 +275,7 @@ void SendGramsBox(not_null<Ui::GenericBox *> box, const T &invoice, rpl::produce
       collected.amount = static_cast<int64>(*parsed);
       collected.comment = comment->getLastText();
     } else if constexpr (isTokenTransfer) {
+      collected.ownerAddress = collected.address;
       collected.amount = *parsed;
       collected.token = symbol;
       collected.callbackAddress = callbackAddress->getLastText();

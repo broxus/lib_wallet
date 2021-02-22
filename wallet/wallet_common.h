@@ -96,6 +96,7 @@ struct TokenTransferInvoice {
   int64 realAmount{};
   QString rootContractAddress;
   QString walletContractAddress;
+  QString ownerAddress{};
   QString address;
   QString callbackAddress{};
   Ton::TokenTransferType transferType{Ton::TokenTransferType::ToOwner};

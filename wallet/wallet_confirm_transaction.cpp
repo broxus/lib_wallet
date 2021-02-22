@@ -90,8 +90,10 @@ void ConfirmTransactionBox(not_null<Ui::GenericBox *> box, const T &invoice, int
   }
 
   QString address{};
-  if constexpr (isTonTransfer || isTokenTransfer) {
+  if constexpr (isTonTransfer) {
     address = invoice.address;
+  } else if constexpr (isTokenTransfer) {
+    address = invoice.ownerAddress;
   } else if constexpr (isStakeTransfer || isWithdrawal || isCancelWithdrawal) {
     address = invoice.dePool;
   } else if constexpr (isDeployTokenWallet) {
