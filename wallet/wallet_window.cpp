@@ -422,10 +422,9 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
             _wallet->addToken(  //
                 _wallet->publicKeys().front(), *rootTokenAddress, crl::guard(this, [this](const Ton::Result<> &result) {
                   if (result.has_value()) {
-                    refreshNow();
                     showToast(ph::lng_wallet_add_token_succeeded(ph::now));
                   } else {
-                    std::cout << "Failed to add depool: " << result.error().details.toStdString() << std::endl;
+                    std::cout << "Failed to add token: " << result.error().details.toStdString() << std::endl;
                   }
                 }));
           },
@@ -440,13 +439,9 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
                   return;
                 }
               }
-
-              std::cout << "Add depool: " << Ton::Wallet::ConvertIntoRaw(*dePoolAddress).toStdString() << std::endl;
-
               _wallet->addDePool(  //
                   _wallet->publicKeys().front(), *dePoolAddress, crl::guard(this, [this](const Ton::Result<> &result) {
                     if (result.has_value()) {
-                      refreshNow();
                       showToast(ph::lng_wallet_add_depool_succeeded(ph::now));
                     } else {
                       std::cout << "Failed to add depool: " << result.error().details.toStdString() << std::endl;
@@ -1753,3 +1748,4 @@ void Window::back() {
 }
 
 }  // namespace Wallet
+ 
