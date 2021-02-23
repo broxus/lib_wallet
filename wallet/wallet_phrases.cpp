@@ -136,6 +136,7 @@ phrase lng_wallet_row_eth_event_notification = "swap {value}";
 phrase lng_wallet_row_ton_event_notification = "swapback {value}";
 phrase lng_wallet_row_change = "change from:";
 phrase lng_wallet_row_reward_from = "reward from:";
+phrase lng_wallet_row_reward_notification_from = "reward notification from:";
 phrase lng_wallet_row_swap_back_to = "swap back to:";
 phrase lng_wallet_row_token_transfer = "token transfer from:";
 phrase lng_wallet_row_ordinary_stake_to = "ordinary stake to:";

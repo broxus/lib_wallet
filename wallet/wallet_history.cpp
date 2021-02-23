@@ -55,6 +55,7 @@ enum class TransactionType {
   SwapBack,
   Mint,
   DePoolReward,
+  DePoolRewardNotification,
   DePoolStake,
 };
 
@@ -153,7 +154,7 @@ void refreshTimeTexts(TransactionLayout &layout, bool forceDateText = false) {
       [](const Ton::TokenWalletDeployed &deployed) { return TransactionType::TokenWalletDeployed; },
       [](const Ton::TokenTransfer &transfer) { return TransactionType::ExplicitTokenTransfer; },
       [](const Ton::TokenSwapBack &tokenSwapBack) { return TransactionType::SwapBack; },
-      [](const Ton::DePoolOnRoundCompleteTransaction &) { return TransactionType::DePoolReward; },
+      [](const Ton::DePoolOnRoundCompleteTransaction &) { return TransactionType::DePoolRewardNotification; },
       [](const Ton::DePoolOrdinaryStakeTransaction &) { return TransactionType::DePoolStake; },
       [&](auto &&) {
         if (params.asReturnedChange) {
@@ -513,6 +514,8 @@ class HistoryRow final {
             return ph::lng_wallet_row_change(ph::now);
           case TransactionType::DePoolReward:
             return ph::lng_wallet_row_reward_from(ph::now);
+          case TransactionType::DePoolRewardNotification:
+            return ph::lng_wallet_row_reward_notification_from(ph::now);
           case TransactionType::DePoolStake:
             return ph::lng_wallet_row_ordinary_stake_to(ph::now);
           default:
