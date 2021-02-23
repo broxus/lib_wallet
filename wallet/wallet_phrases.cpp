@@ -131,12 +131,13 @@ phrase lng_wallet_depool_info_owner = "Owner:";
 
 phrase lng_wallet_row_from = "from:";
 phrase lng_wallet_row_minted = "minted";
-phrase lng_wallet_row_token_wallet_deployed = "wallet deployment notification from:";
-phrase lng_wallet_row_eth_event_notification = "ETH event notification from:";
-phrase lng_wallet_row_ton_event_notification = "TON event notification from:";
+phrase lng_wallet_row_token_wallet_deployed = "wallet deployment notification";
+phrase lng_wallet_row_eth_event_notification = "swap {value}";
+phrase lng_wallet_row_ton_event_notification = "swapback {value}";
 phrase lng_wallet_row_change = "change from:";
 phrase lng_wallet_row_reward_from = "reward from:";
 phrase lng_wallet_row_swap_back_to = "swap back to:";
+phrase lng_wallet_row_token_transfer = "token transfer from:";
 phrase lng_wallet_row_ordinary_stake_to = "ordinary stake to:";
 phrase lng_wallet_row_to = "to:";
 phrase lng_wallet_row_new_event_status = "new event status: {value}";

@@ -47,6 +47,7 @@ using Flags = base::flags<Flag>;
 
 enum class TransactionType {
   Transfer,
+  ExplicitTokenTransfer,
   Change,
   TokenWalletDeployed,
   EthEventStatusChanged,
@@ -67,7 +68,7 @@ struct TransactionLayout {
   Ui::Text::String address;
   Ui::Text::String comment;
   Ui::Text::String fees;
-  Ui::Text::String additionalInfo;
+  QString additionalInfo;
   int addressWidth = 0;
   int addressHeight = 0;
   Flags flags = Flags();
@@ -131,10 +132,8 @@ void refreshTimeTexts(TransactionLayout &layout, bool forceDateText = false) {
   result.comment = Ui::Text::String(st::walletAddressWidthMin);
   result.comment.setText(st::defaultTextStyle, (encrypted ? QString() : ExtractMessage(data)), _textPlainOptions);
 
-  if (!params.brief) {
-    const auto fee = FormatAmount(data.fee, Ton::Symbol::ton()).full;
-    result.fees.setText(st::defaultTextStyle, ph::lng_wallet_row_fees(ph::now).replace("{amount}", fee));
-  }
+  const auto fee = FormatAmount(data.fee, Ton::Symbol::ton()).full;
+  result.fees.setText(st::defaultTextStyle, ph::lng_wallet_row_fees(ph::now).replace("{amount}", fee));
 
   result.flags = Flag(0)                                    //
                  | (service ? Flag::Service : Flag(0))      //
@@ -144,17 +143,16 @@ void refreshTimeTexts(TransactionLayout &layout, bool forceDateText = false) {
   result.type = v::match(
       data.additional,
       [&](const Ton::EthEventStatusChanged &event) {
-        result.additionalInfo.setText(  //
-            st::defaultTextStyle, ph::lng_wallet_row_new_event_status(ph::now).replace(
-                                      "{value}", ph::lng_wallet_eth_event_status(event.status)(ph::now)));
+        result.additionalInfo = ph::lng_wallet_eth_event_status(event.status)(ph::now);
         return TransactionType::EthEventStatusChanged;
       },
       [&](const Ton::TonEventStatusChanged &event) {
-        result.additionalInfo.setText(  //
-            st::defaultTextStyle, ph::lng_wallet_row_new_event_status(ph::now).replace(
-                                      "{value}", ph::lng_wallet_ton_event_status(event.status)(ph::now)));
+        result.additionalInfo = ph::lng_wallet_ton_event_status(event.status)(ph::now);
         return TransactionType::TonEventStatusChanged;
       },
+      [](const Ton::TokenWalletDeployed &deployed) { return TransactionType::TokenWalletDeployed; },
+      [](const Ton::TokenTransfer &transfer) { return TransactionType::ExplicitTokenTransfer; },
+      [](const Ton::TokenSwapBack &tokenSwapBack) { return TransactionType::SwapBack; },
       [&](auto &&) {
         if (params.asReturnedChange) {
           return TransactionType::Change;
@@ -367,9 +365,6 @@ class HistoryRow final {
           std::min(_layout.comment.countHeight(avail), st::defaultTextStyle.font->height * kCommentLinesMax);
       _height += st::walletRowCommentTop + _commentHeight;
     }
-    if (!_layout.additionalInfo.isEmpty()) {
-      _height += st::walletRowAdditionalInfoTop + _layout.additionalInfo.minHeight();
-    }
     if (!_layout.fees.isEmpty()) {
       _height += st::walletRowFeesTop + _layout.fees.minHeight();
     }
@@ -500,26 +495,32 @@ class HistoryRow final {
       p.setFont(st::normalFont);
       p.drawText(labelLeft, labelTop + st::normalFont->ascent, [&] {
         switch (_layout.type) {
+          case TransactionType::ExplicitTokenTransfer:
+            return ph::lng_wallet_row_token_transfer(ph::now);
           case TransactionType::TokenWalletDeployed:
-            return ph::lng_wallet_row_token_wallet_deployed;
+            return ph::lng_wallet_row_token_wallet_deployed(ph::now);
           case TransactionType::EthEventStatusChanged:
-            return ph::lng_wallet_row_eth_event_notification;
+            return ph::lng_wallet_row_eth_event_notification(ph::now).replace("{value}", _layout.additionalInfo);
           case TransactionType::TonEventStatusChanged:
-            return ph::lng_wallet_row_ton_event_notification;
+            return ph::lng_wallet_row_ton_event_notification(ph::now).replace("{value}", _layout.additionalInfo);
           case TransactionType::SwapBack:
-            return ph::lng_wallet_row_swap_back_to;
+            return ph::lng_wallet_row_swap_back_to(ph::now);
           case TransactionType::Mint:
-            return ph::lng_wallet_row_minted;
+            return ph::lng_wallet_row_minted(ph::now);
           case TransactionType::Change:
-            return ph::lng_wallet_row_change;
+            return ph::lng_wallet_row_change(ph::now);
+          case TransactionType::DePoolReward:
+            return ph::lng_wallet_row_reward_from(ph::now);
+          case TransactionType::DePoolStake:
+            return ph::lng_wallet_row_ordinary_stake_to(ph::now);
           default:
             if (incoming) {
-              return ph::lng_wallet_row_from;
+              return ph::lng_wallet_row_from(ph::now);
             } else {
-              return ph::lng_wallet_row_to;
+              return ph::lng_wallet_row_to(ph::now);
             }
         };
-      }()(ph::now));
+      }());
 
       const auto timeTop = labelTop;
       const auto timeLeft = x + avail - _layout.time.maxWidth();
@@ -557,12 +558,6 @@ class HistoryRow final {
       }
       _layout.comment.drawElided(p, x, y, avail, kCommentLinesMax);
       y += _commentHeight;
-    }
-    if (!_layout.additionalInfo.isEmpty()) {
-      p.setPen(st::windowSubTextFg);
-      y += st::walletRowAdditionalInfoTop;
-      _layout.additionalInfo.draw(p, x, y, avail);
-      y += _layout.additionalInfo.minHeight();
     }
     if (!_layout.fees.isEmpty()) {
       p.setPen(st::windowSubTextFg);

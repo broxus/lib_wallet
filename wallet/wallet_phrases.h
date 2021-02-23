@@ -130,6 +130,7 @@ extern phrase lng_wallet_row_ton_event_notification;
 extern phrase lng_wallet_row_change;
 extern phrase lng_wallet_row_reward_from;
 extern phrase lng_wallet_row_swap_back_to;
+extern phrase lng_wallet_row_token_transfer;
 extern phrase lng_wallet_row_ordinary_stake_to;
 extern phrase lng_wallet_row_to;
 extern phrase lng_wallet_row_new_event_status;
