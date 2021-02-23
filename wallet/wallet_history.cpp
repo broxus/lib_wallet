@@ -1267,7 +1267,7 @@ void History::refreshShowDates(const SelectedAsset &selectedAsset) {
                   const auto asReturnedChange = !transaction.incoming.source.isEmpty() &&
                                                 v::is<Ton::RegularTransaction>(transaction.additional) &&
                                                 (_knownContracts.contains(transaction.incoming.source) ||
-                                                 _tokenOwners.contains(transaction.incoming.source));
+                                                 _tokenOwners.find(transaction.incoming.source) != _tokenOwners.end());
                   row->setRegularLayout(RegularTransactionParams{.asReturnedChange = asReturnedChange});
                 });
           } else {
