@@ -153,6 +153,8 @@ void refreshTimeTexts(TransactionLayout &layout, bool forceDateText = false) {
       [](const Ton::TokenWalletDeployed &deployed) { return TransactionType::TokenWalletDeployed; },
       [](const Ton::TokenTransfer &transfer) { return TransactionType::ExplicitTokenTransfer; },
       [](const Ton::TokenSwapBack &tokenSwapBack) { return TransactionType::SwapBack; },
+      [](const Ton::DePoolOnRoundCompleteTransaction &) { return TransactionType::DePoolReward; },
+      [](const Ton::DePoolOrdinaryStakeTransaction &) { return TransactionType::DePoolStake; },
       [&](auto &&) {
         if (params.asReturnedChange) {
           return TransactionType::Change;
@@ -415,7 +417,7 @@ class HistoryRow final {
     if (layout.has_value()) {
       _layout = std::move(*layout);
       _symbol = Ton::Symbol::ton();
-      setVisible(!_transaction.aborted);
+      setVisible(true);
     } else {
       setVisible(false);
     }
@@ -1261,7 +1263,8 @@ void History::refreshShowDates(const SelectedAsset &selectedAsset) {
                 [&](auto &&) {
                   const auto asReturnedChange = !transaction.incoming.source.isEmpty() &&
                                                 v::is<Ton::RegularTransaction>(transaction.additional) &&
-                                                _knownContracts.contains(transaction.incoming.source);
+                                                (_knownContracts.contains(transaction.incoming.source) ||
+                                                 _tokenOwners.contains(transaction.incoming.source));
                   row->setRegularLayout(RegularTransactionParams{.asReturnedChange = asReturnedChange});
                 });
           } else {
