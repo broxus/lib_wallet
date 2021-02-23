@@ -1811,4 +1811,3 @@ void Window::back() {
 }
 
 }  // namespace Wallet
- 
