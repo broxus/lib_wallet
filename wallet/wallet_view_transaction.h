@@ -18,7 +18,8 @@ namespace Wallet {
 void ViewTransactionBox(not_null<Ui::GenericBox *> box, Ton::Transaction &&data, const Ton::Symbol &selectedToken,
                         rpl::producer<not_null<std::vector<Ton::Transaction> *>> collectEncrypted,
                         rpl::producer<not_null<const std::vector<Ton::Transaction> *>> decrypted,
-                        const Fn<void(QImage, QString)> &share, const Fn<void()> &decryptComment,
+                        const Fn<void(QImage, QString)> &share, const Fn<void(const QString &)> &viewInExplorer,
+                        const Fn<void()> &decryptComment,
                         const Fn<void(const QString &, const Fn<void(QString &&)> &)> &resolveAddress,
                         const Fn<void(const QString &)> &send, const Fn<void(const QString &)> &collect,
                         const Fn<void(const QString &)> &executeSwapBack);

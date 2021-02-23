@@ -149,6 +149,7 @@ extern phrase lng_wallet_view_sender;
 extern phrase lng_wallet_view_depool;
 extern phrase lng_wallet_view_recipient;
 extern phrase lng_wallet_view_date;
+extern phrase lng_wallet_view_hash;
 extern phrase lng_wallet_view_comment;
 extern phrase lng_wallet_view_send_to_address;
 extern phrase lng_wallet_view_send_to_recipient;

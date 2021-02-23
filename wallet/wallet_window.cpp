@@ -54,6 +54,7 @@
 #include <QtGui/QClipboard>
 #include <QtGui/QGuiApplication>
 #include <QtGui/QScreen>
+#include <QtGui/QDesktopServices>
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QDesktopWidget>
 
@@ -674,8 +675,9 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
 
                   _layers->showBox(Box(
                       ViewTransactionBox, std::move(data), selectedToken.symbol, _collectEncryptedRequests.events(),
-                      _decrypted.events(), shareAddressCallback(), [=] { decryptEverything(publicKey); }, resolveOwner,
-                      send, collect, execute));
+                      _decrypted.events(), shareAddressCallback(),
+                      [=](const QString &transactionHash) { openInExplorer(transactionHash); },
+                      [=] { decryptEverything(publicKey); }, resolveOwner, send, collect, execute));
                 },
                 [&](const SelectedDePool &selectedDePool) {
                   _layers->showBox(Box(ViewDePoolTransactionBox, std::move(data), shareAddressCallback()));
@@ -747,6 +749,11 @@ void Window::doneDecryptPassword(const Ton::DecryptPasswordGood &data) {
     _decryptPasswordState->success = true;
     _decryptPasswordState->box->closeBox();
   }
+}
+
+void Window::openInExplorer(const QString &transactionHash) {
+  auto url = QUrl(kExplorerPath).resolved(transactionHash);
+  QDesktopServices::openUrl(url);
 }
 
 void Window::setupUpdateWithInfo() {

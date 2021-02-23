@@ -156,6 +156,7 @@ phrase lng_wallet_view_sender = "Sender";
 phrase lng_wallet_view_recipient = "Recipient";
 phrase lng_wallet_view_depool = "DePool";
 phrase lng_wallet_view_date = "Date";
+phrase lng_wallet_view_hash = "Transaction";
 phrase lng_wallet_view_comment = "Comment";
 phrase lng_wallet_view_send_to_address = "Send {ticker} to this address";
 phrase lng_wallet_view_send_to_recipient = "Send {ticker} to this Recipient";
@@ -346,7 +347,7 @@ phrase lng_wallet_settings_testnet = "Test Network";
 phrase lng_wallet_settings_blockchain_name = "Blockchain ID";
 
 phrase lng_wallet_event_status_unknown = "unknown";
-phrase lng_wallet_event_status_in_process = "in process";
+phrase lng_wallet_event_status_in_process = "in progress";
 phrase lng_wallet_event_status_confirmed = "confirmed";
 phrase lng_wallet_event_status_executed = "executed";
 phrase lng_wallet_event_status_rejected = "rejected";

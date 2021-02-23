@@ -59,23 +59,29 @@ void ReceiveTokensBox(not_null<Ui::GenericBox *> box, const QString &rawAddress,
           box, rpl::single(rawAddress), st::walletReceiveAddressLabel, [=] { share(QImage(), rawAddress); })),
       st::walletReceiveAddressPadding);
 
-  box->addRow(object_ptr<Ui::BoxContentDivider>(box), st::walletSettingsDividerMargin);
+  auto separatorMargins = st::walletSettingsDividerMargin;
+  if (symbol.isToken()) {
+    separatorMargins.setBottom(4);
+  }
+  box->addRow(object_ptr<Ui::BoxContentDivider>(box), separatorMargins);
 
-  // Create link button
-  const auto createLinkWrap =
-      box->addRow(object_ptr<Ui::FixedHeightWidget>(box, st::boxLinkButton.font->height), st::walletReceiveLinkPadding);
+  if (symbol.isTon()) {
+    // Create link button
+    const auto createLinkWrap = box->addRow(object_ptr<Ui::FixedHeightWidget>(box, st::boxLinkButton.font->height),
+                                            st::walletReceiveLinkPadding);
 
-  const auto createLink = Ui::CreateChild<Ui::LinkButton>(
-      createLinkWrap, ph::lng_wallet_receive_create_invoice(ph::now), st::boxLinkButton);
+    const auto createLink = Ui::CreateChild<Ui::LinkButton>(
+        createLinkWrap, ph::lng_wallet_receive_create_invoice(ph::now), st::boxLinkButton);
 
-  createLinkWrap->widthValue() |
-      rpl::start_with_next([=](int width) { createLink->move((width - createLink->width()) / 2, 0); },
-                           createLink->lifetime());
+    createLinkWrap->widthValue() |
+        rpl::start_with_next([=](int width) { createLink->move((width - createLink->width()) / 2, 0); },
+                             createLink->lifetime());
 
-  createLink->setClickedCallback([=] {
-    box->closeBox();
-    createInvoice();
-  });
+    createLink->setClickedCallback([=] {
+      box->closeBox();
+      createInvoice();
+    });
+  }
 
   const QString submitText = symbol.isTon()  //
                                  ? ph::lng_wallet_receive_share(ph::now)

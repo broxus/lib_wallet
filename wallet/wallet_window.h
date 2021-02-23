@@ -86,6 +86,8 @@ class Window final : public base::has_weak_ptr {
   void askDecryptPassword(const Ton::DecryptPasswordNeeded &data);
   void doneDecryptPassword(const Ton::DecryptPasswordGood &data);
 
+  void openInExplorer(const QString &transactionHash);
+
   void showAccount(const QByteArray &publicKey, bool justCreated = false);
   void setupUpdateWithInfo();
   void setupRefreshEach();

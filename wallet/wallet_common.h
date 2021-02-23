@@ -31,6 +31,8 @@ inline constexpr auto kEncodedAddressLength = 48;
 inline constexpr auto kRawAddressLength = 64;
 inline constexpr auto kEtheriumAddressLength = 40;
 
+inline constexpr auto kExplorerPath = "https://ton-explorer.com/transactions/";
+
 using int128 = Ton::int128;
 
 struct SelectedToken {

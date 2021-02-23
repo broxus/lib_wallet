@@ -213,7 +213,8 @@ void SetupScrollByDrag(not_null<Ui::BoxContent *> box, not_null<Ui::RpWidget *> 
 void ViewTransactionBox(not_null<Ui::GenericBox *> box, Ton::Transaction &&data, const Ton::Symbol &selectedToken,
                         rpl::producer<not_null<std::vector<Ton::Transaction> *>> collectEncrypted,
                         rpl::producer<not_null<const std::vector<Ton::Transaction> *>> decrypted,
-                        const Fn<void(QImage, QString)> &share, const Fn<void()> &decryptComment,
+                        const Fn<void(QImage, QString)> &share, const Fn<void(const QString &)> &viewInExplorer,
+                        const Fn<void()> &decryptComment,
                         const Fn<void(const QString &, const Fn<void(QString &&)> &)> &resolveAddress,
                         const Fn<void(const QString &)> &send, const Fn<void(const QString &)> &collect,
                         const Fn<void(const QString &)> &executeSwapBack) {
@@ -312,6 +313,18 @@ void ViewTransactionBox(not_null<Ui::GenericBox *> box, Ton::Transaction &&data,
         });
   }
 
+  const QString transactionHash = data.id.hash.toHex();
+  AddBoxSubtitle(box, ph::lng_wallet_view_hash());
+  box->addRow(  //
+      object_ptr<Ui::RpWidget>::fromRaw(Ui::CreateAddressLabel(
+          box, rpl::single(transactionHash), st::walletTransactionAddress, [=] { viewInExplorer(transactionHash); })),
+      {
+          st::boxRowPadding.left(),
+          st::boxRowPadding.top(),
+          st::boxRowPadding.right(),
+          st::walletTransactionDateTop,
+      });
+
   AddBoxSubtitle(box, ph::lng_wallet_view_date());
   box->addRow(  //
       object_ptr<Ui::FlatLabel>(box, base::unixtime::parse(data.time).toString(Qt::DefaultLocaleLongDate),
@@ -320,9 +333,7 @@ void ViewTransactionBox(not_null<Ui::GenericBox *> box, Ton::Transaction &&data,
           st::boxRowPadding.left(),
           st::boxRowPadding.top(),
           st::boxRowPadding.right(),
-          (hasComment  //
-               ? st::walletTransactionCommentTop
-               : (!emptyAddress ? st::boxRowPadding.bottom() : 0)),
+          st::walletTransactionDateTop,
       });
 
   if (hasComment) {
