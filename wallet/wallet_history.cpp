@@ -47,6 +47,7 @@ using Flags = base::flags<Flag>;
 
 enum class TransactionType {
   Transfer,
+  Change,
   TokenWalletDeployed,
   EthEventStatusChanged,
   TonEventStatusChanged,
@@ -78,6 +79,11 @@ enum class EventType {
   TonEvent,
 };
 
+struct RegularTransactionParams {
+  bool brief{};
+  bool asReturnedChange{};
+};
+
 [[nodiscard]] const style::TextStyle &addressStyle() {
   const static auto result = Ui::ComputeAddressStyle(st::defaultTextStyle);
   return result;
@@ -97,7 +103,7 @@ void refreshTimeTexts(TransactionLayout &layout, bool forceDateText = false) {
 }
 
 [[nodiscard]] TransactionLayout prepareRegularLayout(const Ton::Transaction &data, const Fn<void()> &decrypt,
-                                                     bool brief) {
+                                                     const RegularTransactionParams &params) {
   const auto service = IsServiceTransaction(data);
   const auto encrypted = IsEncryptedMessage(data) && decrypt;
   const auto amount = FormatAmount(service ? (-data.fee) : CalculateValue(data), Ton::Symbol::ton(),
@@ -112,7 +118,7 @@ void refreshTimeTexts(TransactionLayout &layout, bool forceDateText = false) {
   auto result = TransactionLayout();
   result.serverTime = data.time;
 
-  if (!brief) {
+  if (!params.brief) {
     result.amountGrams.setText(st::walletRowGramsStyle, amount.gramsString);
     result.amountNano.setText(st::walletRowNanoStyle, amount.separator + amount.nanoString);
   }
@@ -125,7 +131,7 @@ void refreshTimeTexts(TransactionLayout &layout, bool forceDateText = false) {
   result.comment = Ui::Text::String(st::walletAddressWidthMin);
   result.comment.setText(st::defaultTextStyle, (encrypted ? QString() : ExtractMessage(data)), _textPlainOptions);
 
-  if (!brief) {
+  if (!params.brief) {
     const auto fee = FormatAmount(data.fee, Ton::Symbol::ton()).full;
     result.fees.setText(st::defaultTextStyle, ph::lng_wallet_row_fees(ph::now).replace("{amount}", fee));
   }
@@ -149,7 +155,13 @@ void refreshTimeTexts(TransactionLayout &layout, bool forceDateText = false) {
                                       "{value}", ph::lng_wallet_ton_event_status(event.status)(ph::now)));
         return TransactionType::TonEventStatusChanged;
       },
-      [](auto &&) { return TransactionType::Transfer; });
+      [&](auto &&) {
+        if (params.asReturnedChange) {
+          return TransactionType::Change;
+        } else {
+          return TransactionType::Transfer;
+        }
+      });
 
   refreshTimeTexts(result);
   return result;
@@ -275,7 +287,7 @@ class HistoryRow final {
  public:
   explicit HistoryRow(Ton::Transaction transaction, const Fn<void()> &decrypt = nullptr)
       : _symbol(Ton::Symbol::ton())
-      , _layout(prepareRegularLayout(transaction, _decrypt, false))
+      , _layout(prepareRegularLayout(transaction, _decrypt, RegularTransactionParams{}))
       , _transaction(std::move(transaction))
       , _decrypt(decrypt) {
   }
@@ -385,10 +397,10 @@ class HistoryRow final {
     return _height > 0;
   }
 
-  void setRegularLayout(bool brief = false) {
+  void setRegularLayout(const RegularTransactionParams &params) {
     resetButton();
     _symbol = Ton::Symbol::ton();
-    _layout = prepareRegularLayout(_transaction, _decrypt, brief);
+    _layout = prepareRegularLayout(_transaction, _decrypt, params);
     setVisible(true);
   }
   void setTokenTransactionLayout(const Ton::Symbol &symbol) {
@@ -413,9 +425,9 @@ class HistoryRow final {
       setVisible(false);
     }
   }
-  void setNotificationLayout(not_null<Ui::RpWidget *> parent, EventType eventType, bool briefNotifications,
-                             const Fn<void()> &openRequest) {
-    setRegularLayout(briefNotifications);
+  void setNotificationLayout(not_null<Ui::RpWidget *> parent, EventType eventType,
+                             const RegularTransactionParams &params, const Fn<void()> &openRequest) {
+    setRegularLayout(params);
     if (openRequest) {
       auto button = object_ptr<Ui::RoundButton>(  //
           parent,
@@ -498,6 +510,8 @@ class HistoryRow final {
             return ph::lng_wallet_row_swap_back_to;
           case TransactionType::Mint:
             return ph::lng_wallet_row_minted;
+          case TransactionType::Change:
+            return ph::lng_wallet_row_change;
           default:
             if (incoming) {
               return ph::lng_wallet_row_from;
@@ -1063,6 +1077,7 @@ void History::paint(Painter &p, QRect clip) {
 }
 
 void History::mergeState(HistoryState &&state) {
+  _knownContracts = std::move(state.knownContracts);
   mergePending(std::move(state.pendingTransactions));
   //refreshPending();
   if (mergeListChanged(std::move(state.lastTransactions))) {
@@ -1229,7 +1244,7 @@ void History::refreshShowDates(const SelectedAsset &selectedAsset) {
                   }
 
                   row->setNotificationLayout(
-                      &_widget, EventType::EthEvent, briefNotifications,
+                      &_widget, EventType::EthEvent, RegularTransactionParams{.brief = briefNotifications},
                       showButton ? [=, address = transaction.incoming.source] { _collectTokenRequests.fire(&address); }
                                  : Fn<void()>{nullptr});
                 },
@@ -1243,12 +1258,17 @@ void History::refreshShowDates(const SelectedAsset &selectedAsset) {
                   }
 
                   row->setNotificationLayout(
-                      &_widget, EventType::TonEvent, briefNotifications,
+                      &_widget, EventType::TonEvent, RegularTransactionParams{.brief = briefNotifications},
                       showButton
                           ? [=, address = transaction.incoming.source] { _executeSwapBackRequests.fire(&address); }
                           : Fn<void()>{nullptr});
                 },
-                [&](auto &&) { row->setRegularLayout(); });
+                [&](auto &&) {
+                  const auto asReturnedChange = !transaction.incoming.source.isEmpty() &&
+                                                v::is<Ton::RegularTransaction>(transaction.additional) &&
+                                                _knownContracts.contains(transaction.incoming.source);
+                  row->setRegularLayout(RegularTransactionParams{.asReturnedChange = asReturnedChange});
+                });
           } else {
             v::match(
                 transaction.additional,
@@ -1460,13 +1480,25 @@ Ton::Symbol History::currentSymbol() const {
 rpl::producer<HistoryState> MakeHistoryState(rpl::producer<Ton::WalletViewerState> state) {
   return std::move(state)  //
          | rpl::map([](Ton::WalletViewerState &&state) {
+             QSet<QString> knownContracts;
+             for (const auto &item : state.wallet.dePoolParticipantStates) {
+               knownContracts.insert(item.first);
+             }
+
              std::map<Ton::Symbol, Ton::TransactionsSlice> lastTransactions{
                  {Ton::Symbol::ton(), state.wallet.lastTransactions}};
              for (auto &&[symbol, token] : state.wallet.tokenStates) {
                lastTransactions.emplace(symbol, token.lastTransactions);
+               knownContracts.insert(token.walletContractAddress);
+               knownContracts.insert(token.rootOwnerAddress);
+               knownContracts.insert(symbol.rootContractAddress());
              }
-             return HistoryState{.lastTransactions = std::move(lastTransactions),
-                                 .pendingTransactions = std::move(state.wallet.pendingTransactions)};
+
+             return HistoryState{
+                 .lastTransactions = std::move(lastTransactions),
+                 .pendingTransactions = std::move(state.wallet.pendingTransactions),
+                 .knownContracts = std::move(knownContracts),
+             };
            });
 }
 

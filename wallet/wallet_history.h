@@ -13,6 +13,8 @@
 
 #include "wallet_common.h"
 
+#include <QSet>
+
 class Painter;
 
 namespace Wallet {
@@ -20,6 +22,7 @@ namespace Wallet {
 struct HistoryState {
   std::map<Ton::Symbol, Ton::TransactionsSlice> lastTransactions;
   std::vector<Ton::PendingTransaction> pendingTransactions;
+  QSet<QString> knownContracts;
 };
 
 class HistoryRow;
@@ -104,6 +107,7 @@ class History final {
   rpl::variable<SelectedAsset> _selectedAsset;
   std::map<Ton::Symbol, RowsState> _rows;
   std::map<QString, QString> _tokenOwners;
+  QSet<QString> _knownContracts;
   int _visibleTop = 0;
   int _visibleBottom = 0;
 
