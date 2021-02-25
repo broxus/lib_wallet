@@ -136,11 +136,14 @@ void SendGramsBox(not_null<Ui::GenericBox *> box, const T &invoice, rpl::produce
           },
           balanceLabel->lifetime());
 
+  auto isEthereumAddress = box->lifetime().make_state<rpl::variable<bool>>(prepared->address.indexOf("0x") != -1);
+
   Ui::InputField *callbackAddress = nullptr;
   Ui::VerticalLayout *callbackAddressWrapper = nullptr;
   rpl::variable<Ton::TokenTransferType> *transferType = nullptr;
   if constexpr (isTokenTransfer) {
-    transferType = box->lifetime().make_state<rpl::variable<Ton::TokenTransferType>>(prepared->transferType);
+    transferType = box->lifetime().make_state<rpl::variable<Ton::TokenTransferType>>(
+        isEthereumAddress->current() ? Ton::TokenTransferType::SwapBack : prepared->transferType);
     callbackAddressWrapper = box->addRow(object_ptr<Ui::VerticalLayout>(box), QMargins{});
 
     AddBoxSubtitle(callbackAddressWrapper, ph::lng_wallet_send_token_proxy_address());
@@ -160,8 +163,6 @@ void SendGramsBox(not_null<Ui::GenericBox *> box, const T &invoice, rpl::produce
         object_ptr<Ui::InputField>::fromRaw(CreateCommentInput(box, ph::lng_wallet_send_comment(), prepared->comment)),
         st::walletSendCommentPadding);
   }
-
-  auto isEthereumAddress = box->lifetime().make_state<rpl::variable<bool>>(false);
 
   if (transferType != nullptr) {
     isEthereumAddress->value()  //
@@ -407,7 +408,7 @@ void SendGramsBox(not_null<Ui::GenericBox *> box, const T &invoice, rpl::produce
     Ui::Connect(comment, &Ui::InputField::submitted, submit);
   }
 
-  if (callbackAddressWrapper != nullptr) {
+  if (callbackAddressWrapper != nullptr && !isEthereumAddress->current()) {
     callbackAddressWrapper->setMaximumHeight(0);
   }
 }
