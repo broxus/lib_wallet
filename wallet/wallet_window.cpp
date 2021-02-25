@@ -412,46 +412,6 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
             [](Ton::Result<std::pair<Ton::Symbol, Ton::LoadedSlice>> &&value) { return std::move(value.error()); })  //
       | rpl::start_with_next([=](const Ton::Error &error) { showGenericError(error); }, _info->lifetime());
 
-  _viewer->tokenWalletDeployed() |
-      rpl::start_with_next(
-          [=](not_null<const QString *> rootTokenAddress) {
-            const auto state = _state.current();
-            for (const auto &item : state.tokenStates) {
-              if (item.first.rootContractAddress() == *rootTokenAddress) {
-                return;
-              }
-            }
-            _wallet->addToken(  //
-                _wallet->publicKeys().front(), *rootTokenAddress, crl::guard(this, [this](const Ton::Result<> &result) {
-                  if (result.has_value()) {
-                    showToast(ph::lng_wallet_add_token_succeeded(ph::now));
-                  } else {
-                    std::cout << "Failed to add token: " << result.error().details.toStdString() << std::endl;
-                  }
-                }));
-          },
-          _info->lifetime());
-
-  _viewer->dePoolAdded()  //
-      | rpl::start_with_next(
-            [=](not_null<const QString *> dePoolAddress) {
-              const auto state = _state.current();
-              for (const auto &item : state.dePoolParticipantStates) {
-                if (item.first == *dePoolAddress) {
-                  return;
-                }
-              }
-              _wallet->addDePool(  //
-                  _wallet->publicKeys().front(), *dePoolAddress, crl::guard(this, [this](const Ton::Result<> &result) {
-                    if (result.has_value()) {
-                      showToast(ph::lng_wallet_add_depool_succeeded(ph::now));
-                    } else {
-                      std::cout << "Failed to add depool: " << result.error().details.toStdString() << std::endl;
-                    }
-                  }));
-            },
-            _info->lifetime());
-
   setupUpdateWithInfo();
 
   _info->actionRequests()  //
@@ -574,9 +534,47 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
                 }),
             _info->lifetime());
 
-  _info->notificationDetailsRequests() |
+  _info->dePoolDetailsRequests() |
+      rpl::start_with_next(
+          [=](not_null<const QString *> dePoolAddress) {
+            const auto state = _state.current();
+            for (const auto &item : state.dePoolParticipantStates) {
+              if (item.first == *dePoolAddress) {
+                return;
+              }
+            }
+            _wallet->addDePool(  //
+                _wallet->publicKeys().front(), *dePoolAddress, crl::guard(this, [this](const Ton::Result<> &result) {
+                  if (result.has_value()) {
+                    showToast(ph::lng_wallet_add_depool_succeeded(ph::now));
+                  } else {
+                    std::cout << "Failed to add depool: " << result.error().details.toStdString() << std::endl;
+                  }
+                }));
+          },
+          _info->lifetime());
+
+  _info->tokenDetailsRequests() |
       rpl::start_with_next(
           [=](not_null<const Ton::Transaction *> transaction) {
+            auto addToken = [&](const QString &rootTokenContract) {
+              const auto state = _state.current();
+              for (const auto &item : state.tokenStates) {
+                if (rootTokenContract == item.first.rootContractAddress()) {
+                  return;
+                }
+              }
+              _wallet->addToken(  //
+                  _wallet->publicKeys().front(), rootTokenContract,
+                  crl::guard(this, [this](const Ton::Result<> &result) {
+                    if (result.has_value()) {
+                      showToast(ph::lng_wallet_add_token_succeeded(ph::now));
+                    } else {
+                      std::cout << "Failed to add token: " << result.error().details.toStdString() << std::endl;
+                    }
+                  }));
+            };
+
             auto gotDetails = [=, transaction = *transaction](auto details) mutable {
               if (details.has_value() && !details->rootTokenContract.isEmpty()) {
                 const auto &rootTokenContract = details->rootTokenContract;
@@ -601,20 +599,13 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
                           .transaction = std::move(transaction),
                       });
 
-                      _wallet->addToken(  //
-                          _wallet->publicKeys().front(), rootTokenContract,
-                          crl::guard(this, [this](const Ton::Result<> &result) {
-                            if (result.has_value()) {
-                              showToast(ph::lng_wallet_add_token_succeeded(ph::now));
-                            } else {
-                              std::cout << "Failed to add token: " << result.error().details.toStdString() << std::endl;
-                            }
-                          }));
+                      addToken(rootTokenContract);
                     }));
               }
             };
             v::match(
                 transaction->additional,
+                [&](const Ton::TokenWalletDeployed &event) { addToken(event.rootTokenContract); },
                 [&](const Ton::EthEventStatusChanged &) {
                   _wallet->getEthEventDetails(transaction->incoming.source, crl::guard(this, gotDetails));
                 },

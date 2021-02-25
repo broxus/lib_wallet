@@ -89,8 +89,12 @@ rpl::producer<std::pair<const Ton::Symbol *, const QSet<QString> *>> Info::owner
   return _ownerResolutionRequests.events();
 }
 
-rpl::producer<not_null<const Ton::Transaction *>> Info::notificationDetailsRequests() const {
-  return _notificationDetailsRequests.events();
+rpl::producer<not_null<const QString *>> Info::dePoolDetailsRequests() const {
+  return _dePoolDetailsRequests.events();
+}
+
+rpl::producer<not_null<const Ton::Transaction *>> Info::tokenDetailsRequests() const {
+  return _tokenDetailsRequests.events();
 }
 
 rpl::producer<not_null<const QString *>> Info::collectTokenRequests() const {
@@ -262,7 +266,9 @@ void Info::setupControls(Data &&data) {
   history->viewRequests() | rpl::start_to_stream(_viewRequests, history->lifetime());
   history->decryptRequests() | rpl::start_to_stream(_decryptRequests, history->lifetime());
   history->ownerResolutionRequests() | rpl::start_to_stream(_ownerResolutionRequests, history->lifetime());
-  history->notificationDetailsRequests() | rpl::start_to_stream(_notificationDetailsRequests, history->lifetime());
+
+  history->dePoolDetailsRequests() | rpl::start_to_stream(_dePoolDetailsRequests, history->lifetime());
+  history->tokenDetailsRequests() | rpl::start_to_stream(_tokenDetailsRequests, history->lifetime());
   history->collectTokenRequests() | rpl::start_to_stream(_collectTokenRequests, history->lifetime());
   history->executeSwapBackRequests() | rpl::start_to_stream(_executeSwapBackRequests, history->lifetime());
 

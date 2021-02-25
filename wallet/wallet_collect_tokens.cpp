@@ -34,18 +34,21 @@ void CollectTokensBox(not_null<Ui::GenericBox *> box, const CollectTokensInvoice
           st::walletTransactionDateTop,
       });
 
-  auto replaceUnknown = [](const ph::phrase &phrase) { return phrase(ph::now).replace("{value}", "unknown"); };
+  auto replaceLoading = [](const ph::phrase &phrase) {
+    return phrase(ph::now).replace("{value}", ph::lng_wallet_collect_tokens_loading(ph::now)) +
+           QString(15, QChar{0x2800});
+  };
   auto replaceRatio = [](const ph::phrase &phrase, int current, int required) {
     return phrase(ph::now).replace("{value}",
                                    QString{"%1 / %2"}.arg(QString::number(current), QString::number(required)));
   };
 
-  auto status = box->lifetime().make_state<rpl::variable<QString>>(
-      replaceUnknown(ph::lng_wallet_collect_tokens_status) + QString(20, QChar{0x2800}));
+  auto status =
+      box->lifetime().make_state<rpl::variable<QString>>(replaceLoading(ph::lng_wallet_collect_tokens_status));
   auto confirmations =
-      box->lifetime().make_state<rpl::variable<QString>>(replaceUnknown(ph::lng_wallet_collect_tokens_confirmations));
+      box->lifetime().make_state<rpl::variable<QString>>(replaceLoading(ph::lng_wallet_collect_tokens_confirmations));
   auto rejections =
-      box->lifetime().make_state<rpl::variable<QString>>(replaceUnknown(ph::lng_wallet_collect_tokens_rejections));
+      box->lifetime().make_state<rpl::variable<QString>>(replaceLoading(ph::lng_wallet_collect_tokens_rejections));
 
   box->addRow(  //
       object_ptr<Ui::FlatLabel>(box, status->value(), st::walletCollectTokensEventDetails),
@@ -65,6 +68,7 @@ void CollectTokensBox(not_null<Ui::GenericBox *> box, const CollectTokensInvoice
             if (details.has_value()) {
               *status = ph::lng_wallet_collect_tokens_status(ph::now).replace(
                   "{value}", ph::lng_wallet_eth_event_status(details->status)(ph::now));
+
               *confirmations = replaceRatio(ph::lng_wallet_collect_tokens_confirmations, details->confirmationCount,
                                             details->requiredConfirmationCount);
               *rejections = replaceRatio(ph::lng_wallet_collect_tokens_rejections, details->rejectionCount,

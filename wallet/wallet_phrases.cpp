@@ -263,6 +263,7 @@ phrase lng_wallet_deploy_token_wallet_button = "Confirm";
 phrase lng_wallet_collect_tokens_title = "Collect tokens";
 phrase lng_wallet_collect_tokens_details = "Event details";
 phrase lng_wallet_collect_tokens_symbol = "Event content";
+phrase lng_wallet_collect_tokens_loading = "loading...";
 phrase lng_wallet_collect_tokens_status = "Status: {value}";
 phrase lng_wallet_collect_tokens_confirmations = "Confirmations: {value}";
 phrase lng_wallet_collect_tokens_rejections = "Rejections: {value}";

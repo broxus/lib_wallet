@@ -244,6 +244,7 @@ extern phrase lng_wallet_deploy_token_wallet_button;
 extern phrase lng_wallet_collect_tokens_title;
 extern phrase lng_wallet_collect_tokens_details;
 extern phrase lng_wallet_collect_tokens_symbol;
+extern phrase lng_wallet_collect_tokens_loading;
 extern phrase lng_wallet_collect_tokens_status;
 extern phrase lng_wallet_collect_tokens_confirmations;
 extern phrase lng_wallet_collect_tokens_rejections;

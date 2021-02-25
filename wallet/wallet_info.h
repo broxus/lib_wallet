@@ -51,7 +51,10 @@ class Info final {
   [[nodiscard]] rpl::producer<Ton::Transaction> viewRequests() const;
   [[nodiscard]] rpl::producer<Ton::Transaction> decryptRequests() const;
   [[nodiscard]] rpl::producer<std::pair<const Ton::Symbol *, const QSet<QString> *>> ownerResolutionRequests() const;
-  [[nodiscard]] rpl::producer<not_null<const Ton::Transaction *>> notificationDetailsRequests() const;
+
+  [[nodiscard]] rpl::producer<not_null<const QString *>> dePoolDetailsRequests() const;
+  [[nodiscard]] rpl::producer<not_null<const Ton::Transaction *>> tokenDetailsRequests() const;
+
   [[nodiscard]] rpl::producer<not_null<const QString *>> collectTokenRequests() const;
   [[nodiscard]] rpl::producer<not_null<const QString *>> executeSwapBackRequests() const;
 
@@ -73,7 +76,9 @@ class Info final {
   rpl::event_stream<Ton::Transaction> _viewRequests;
   rpl::event_stream<Ton::Transaction> _decryptRequests;
   rpl::event_stream<std::pair<const Ton::Symbol *, const QSet<QString> *>> _ownerResolutionRequests;
-  rpl::event_stream<not_null<const Ton::Transaction *>> _notificationDetailsRequests;
+
+  rpl::event_stream<not_null<const QString *>> _dePoolDetailsRequests;
+  rpl::event_stream<not_null<const Ton::Transaction *>> _tokenDetailsRequests;
   rpl::event_stream<not_null<const QString *>> _collectTokenRequests;
   rpl::event_stream<not_null<const QString *>> _executeSwapBackRequests;
 };

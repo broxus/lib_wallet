@@ -32,6 +32,7 @@ namespace {
 
 constexpr auto kPreloadScreens = 3;
 constexpr auto kCommentLinesMax = 3;
+constexpr auto kExecuteVisibleTimeout = 86400;
 
 enum class Flag : uchar {
   Incoming = 0x01,
@@ -834,8 +835,12 @@ rpl::producer<std::pair<const Ton::Symbol *, const QSet<QString> *>> History::ow
   return _ownerResolutionRequests.events();
 }
 
-rpl::producer<not_null<const Ton::Transaction *>> History::notificationDetailsRequests() const {
-  return _notificationDetailsRequests.events();
+rpl::producer<not_null<const QString *>> History::dePoolDetailsRequests() const {
+  return _dePoolDetailsRequests.events();
+}
+
+rpl::producer<not_null<const Ton::Transaction *>> History::tokenDetailsRequests() const {
+  return _tokenDetailsRequests.events();
 }
 
 rpl::producer<not_null<const QString *>> History::collectTokenRequests() const {
@@ -1257,6 +1262,11 @@ void History::refreshShowDates(const SelectedAsset &selectedAsset) {
                     latestTonStatuses.insert(std::make_pair(transaction.incoming.source, event.status));
                   }
 
+                  if (showButton &&
+                      (base::unixtime::now() - static_cast<TimeId>(transaction.time) > kExecuteVisibleTimeout)) {
+                    showButton = false;
+                  }
+
                   row->setNotificationLayout(
                       &_widget, EventType::TonEvent, RegularTransactionParams{.brief = briefNotifications},
                       showButton
@@ -1389,7 +1399,7 @@ void History::refreshRows(const SelectedAsset &selectedAsset) {
 
   auto mergeTransactions = [&](std::vector<std::unique_ptr<HistoryRow>> &rows,
                                const std::vector<Ton::Transaction> &transactions,
-                               const Fn<RowItem(const Ton::Transaction &)> makeRow) {
+                               const Fn<RowItem(const Ton::Transaction &)> &makeRow) {
     auto addedFront = std::vector<std::unique_ptr<HistoryRow>>();
     auto addedBack = std::vector<std::unique_ptr<HistoryRow>>();
     for (const auto &element : transactions) {
@@ -1417,9 +1427,15 @@ void History::refreshRows(const SelectedAsset &selectedAsset) {
     rows.insert(end(rows), std::make_move_iterator(begin(addedBack)), std::make_move_iterator(end(addedBack)));
   };
 
+  auto addDePool = [&](const QString &address) {
+    if (_knownDePools.insert(address).second) {
+      _dePoolDetailsRequests.fire(&address);
+    }
+  };
+
   auto requestDetails = [this](const Ton::Transaction &transaction) {
     if (!transaction.incoming.source.isEmpty()) {
-      _notificationDetailsRequests.fire(&transaction);
+      _tokenDetailsRequests.fire(&transaction);
     }
   };
 
@@ -1434,9 +1450,25 @@ void History::refreshRows(const SelectedAsset &selectedAsset) {
     if (symbol.isTon()) {
       mergeTransactions(rowsIt->second.regular, transactions.list, [&](const Ton::Transaction &transaction) {
         v::match(
-            transaction.additional,                                                    //
-            [&](const Ton::EthEventStatusChanged &) { requestDetails(transaction); },  //
-            [&](const Ton::TonEventStatusChanged &) { requestDetails(transaction); },  //
+            transaction.additional,  //
+            [&](const Ton::TokenWalletDeployed &event) {
+              if (_knownRootTokenContracts.insert(event.rootTokenContract).second) {
+                _tokenDetailsRequests.fire(&transaction);
+              }
+            },
+            [&](const Ton::EthEventStatusChanged &) { requestDetails(transaction); },
+            [&](const Ton::TonEventStatusChanged &) { requestDetails(transaction); },
+            [&](const Ton::DePoolOrdinaryStakeTransaction &) {
+              for (const auto &out : transaction.outgoing) {
+                addDePool(out.destination);
+                break;
+              }
+            },
+            [&](const Ton::DePoolOnRoundCompleteTransaction &) {
+              if (!transaction.incoming.source.isEmpty()) {
+                addDePool(transaction.incoming.source);
+              }
+            },
             [](auto &&) {});
         return makeRow(transaction);
       });
