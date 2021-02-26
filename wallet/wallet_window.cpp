@@ -1399,6 +1399,8 @@ void Window::showSendConfirmation(const PreparedInvoice &invoice, const Ton::Tra
       [&](const CollectTokensInvoice &collectTokensInvoice) -> object_ptr<Ui::GenericBox> {
         if (!checkAmount(collectTokensInvoice.realAmount)) {
           showInvoiceError(InvoiceField::Address);
+          showSimpleError(ph::lng_wallet_send_failed_title(), ph::lng_wallet_send_failed_text(),
+                          ph::lng_wallet_continue());
           return nullptr;
         }
 
