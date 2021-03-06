@@ -32,7 +32,12 @@ struct DePoolItem {
   int64_t reward = 0;
 };
 
-using AssetItem = std::variant<TokenItem, DePoolItem>;
+struct MultisigItem {
+  QString address = "";
+  int64_t balance = 0;
+};
+
+using AssetItem = std::variant<TokenItem, DePoolItem, MultisigItem>;
 
 bool operator==(const AssetItem &a, const AssetItem &b);
 bool operator!=(const AssetItem &a, const AssetItem &b);

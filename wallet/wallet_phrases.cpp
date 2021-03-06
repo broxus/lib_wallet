@@ -113,6 +113,7 @@ phrase lng_wallet_empty_history_welcome = "Welcome";
 phrase lng_wallet_empty_history_address = "Your wallet address";
 phrase lng_wallet_empty_history_depool_address = "DePool address";
 phrase lng_wallet_empty_history_token_address = "TIP3 Token wallet";
+phrase lng_wallet_empty_history_multisig_address = "Multisig wallet";
 
 phrase lng_wallet_history_receive_tokens = "Collect";
 phrase lng_wallet_history_execute_callback = "Execute";
@@ -283,6 +284,10 @@ phrase lng_wallet_add_token_succeeded = "TIP3 Token added successfully!";
 phrase lng_wallet_add_token_failed_title = "Failed to add TIP3 Token";
 phrase lng_wallet_add_token_failed_text = "The specified account was not found, or it is not a root token contract";
 
+phrase lng_wallet_add_multisig_succeeded = "Multisig wallet added successfully!";
+phrase lng_wallet_add_multisig_failed_title = "Failed to add multisig wallet";
+phrase lng_wallet_add_multisig_failed_text = "The specified account was not found, or it is not a multisig contract";
+
 phrase lng_wallet_send_tokens_recipient_not_found = "Recipient token wallet not found";
 phrase lng_wallet_send_tokens_recipient_changed = "Sending directly to the token wallet";
 
@@ -325,9 +330,11 @@ phrase lng_wallet_sent_close_view = "View";
 phrase lng_wallet_add_asset_title = "New Asset";
 phrase lng_wallet_add_asset_token = "Add TIP3 Token";
 phrase lng_wallet_add_asset_depool = "Add DePool";
+phrase lng_wallet_add_asset_multisig = "Add multisig";
 phrase lng_wallet_add_asset_address = "Address";
 phrase lng_wallet_add_asset_token_address = "Root token contract address";
 phrase lng_wallet_add_asset_depool_address = "DePool address";
+phrase lng_wallet_add_asset_multisig_address = "Multisig address";
 phrase lng_wallet_add_asset_confirm = "Confirm";
 
 phrase lng_wallet_settings_title = "Settings";

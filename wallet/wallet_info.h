@@ -18,6 +18,8 @@ class ScrollArea;
 
 namespace Wallet {
 
+using HistoryPageKey = std::pair<Ton::Symbol, QString>;
+
 enum class Action;
 enum class InfoTransition;
 
@@ -25,7 +27,7 @@ class Info final {
  public:
   struct Data {
     rpl::producer<Ton::WalletViewerState> state;
-    rpl::producer<Ton::Result<std::pair<Ton::Symbol, Ton::LoadedSlice>>> loaded;
+    rpl::producer<Ton::Result<std::pair<HistoryPageKey, Ton::LoadedSlice>>> loaded;
     rpl::producer<Ton::Update> updates;
     rpl::producer<not_null<std::vector<Ton::Transaction> *>> collectEncrypted;
     rpl::producer<not_null<const std::vector<Ton::Transaction> *>> updateDecrypted;
@@ -46,7 +48,7 @@ class Info final {
 
   [[nodiscard]] rpl::producer<Action> actionRequests() const;
   [[nodiscard]] rpl::producer<CustomAsset> removeAssetRequests() const;
-  [[nodiscard]] rpl::producer<std::pair<Ton::Symbol, Ton::TransactionId>> preloadRequests() const;
+  [[nodiscard]] rpl::producer<std::pair<HistoryPageKey, Ton::TransactionId>> preloadRequests() const;
   [[nodiscard]] rpl::producer<std::pair<int, int>> assetsReorderRequests() const;
   [[nodiscard]] rpl::producer<Ton::Transaction> viewRequests() const;
   [[nodiscard]] rpl::producer<Ton::Transaction> decryptRequests() const;
@@ -72,7 +74,7 @@ class Info final {
   rpl::event_stream<Action> _actionRequests;
   rpl::event_stream<CustomAsset> _removeAssetRequests;
   rpl::event_stream<std::pair<int, int>> _assetsReorderRequests;
-  rpl::event_stream<std::pair<Ton::Symbol, Ton::TransactionId>> _preloadRequests;
+  rpl::event_stream<std::pair<HistoryPageKey, Ton::TransactionId>> _preloadRequests;
   rpl::event_stream<Ton::Transaction> _viewRequests;
   rpl::event_stream<Ton::Transaction> _decryptRequests;
   rpl::event_stream<std::pair<const Ton::Symbol *, const QSet<QString> *>> _ownerResolutionRequests;

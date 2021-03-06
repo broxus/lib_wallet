@@ -16,7 +16,7 @@ struct WalletViewerState;
 
 namespace Wallet {
 
-enum class AddressLabelType { YourAddress, TokenAddress, DePoolAddress };
+enum class AddressLabelType { YourAddress, TokenAddress, DePoolAddress, MultisigAddress };
 
 struct EmptyHistoryState {
   QString address;
@@ -27,7 +27,7 @@ struct EmptyHistoryState {
 class EmptyHistory final {
  public:
   EmptyHistory(not_null<Ui::RpWidget *> parent, rpl::producer<EmptyHistoryState> state,
-               Fn<void(QImage, QString)> share);
+               const Fn<void(QImage, QString)>& share);
 
   void setGeometry(QRect geometry);
   void setVisible(bool visible);

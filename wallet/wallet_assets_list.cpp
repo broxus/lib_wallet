@@ -49,6 +49,10 @@ auto addressPartWidth(const QString &address, int from, int length = -1) {
       [](const DePoolItem &item) {
         return std::make_tuple(QString{"DePool"}, Ton::Symbol::ton(), Ton::Wallet::ConvertIntoRaw(item.address),
                                int128{item.total});
+      },
+      [](const MultisigItem &item) {
+        return std::make_tuple(QString{"Msig"}, Ton::Symbol::ton(), Ton::Wallet::ConvertIntoRaw(item.address),
+                               int128{item.balance});
       });
 
   const auto formattedBalance = FormatAmount(balance > 0 ? balance : 0, token);
@@ -274,7 +278,7 @@ void AssetsList::setupContent(rpl::producer<AssetsListState> &&state) {
           lifetime());
 
   //
-  std::move(state) |
+  std::forward<std::decay_t<decltype(state)>>(state) |
       rpl::start_with_next(
           [=](AssetsListState &&state) {
             refreshItemValues(state);
@@ -336,6 +340,10 @@ void AssetsList::setupContent(rpl::producer<AssetsListState> &&state) {
                                   },
                                   [](const DePoolItem &dePoolItem) {
                                     return CustomAsset{.type = CustomAssetType::DePool, .address = dePoolItem.address};
+                                  },
+                                  [](const MultisigItem &multisigItem) {
+                                    return CustomAsset{.type = CustomAssetType::Multisig,
+                                                       .address = multisigItem.address};
                                   }));
                             });
                             return (new Ui::PopupMenu(&_widget, menu))->popup(e->globalPos());
@@ -450,6 +458,21 @@ rpl::producer<AssetsListState> MakeTokensListState(rpl::producer<Ton::WalletView
                    } else {
                      return TokenItem{.token = token.symbol, .address = Ton::kZeroAddress};
                    }
+                 },
+                 [&](const Ton::AssetListItemMultisig &multisig) -> AssetItem {
+                   const auto it = data.wallet.multisigStates.find(multisig.address);
+                   if (it != end(data.wallet.multisigStates)) {
+                     const auto &accountState = it->second.accountState;
+                     return MultisigItem{
+                         .address = it->first,
+                         .balance = accountState.fullBalance - accountState.lockedBalance,
+                     };
+                   } else {
+                     return MultisigItem{
+                         .address = it->first,
+                         .balance = 0,
+                     };
+                   }
                  }));
            }
            return result;
@@ -470,6 +493,10 @@ bool operator==(const AssetItem &a, const AssetItem &b) {
       [&](const DePoolItem &left) {
         const auto &right = v::get<DePoolItem>(b);
         return left.address == right.address && left.reward == right.reward && left.total == right.total;
+      },
+      [&](const MultisigItem &left) {
+        const auto &right = v::get<MultisigItem>(b);
+        return left.address == right.address && left.balance == right.balance;
       });
 }
 

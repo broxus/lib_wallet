@@ -42,7 +42,8 @@ not_null<Ui::RoundButton *> CreateCoverButton(not_null<QWidget *> parent, rpl::p
 auto CoverState::selectedToken() const -> Ton::Symbol {
   return v::match(
       asset, [](const SelectedToken &selectedToken) { return selectedToken.symbol; },
-      [&](const SelectedDePool & /*selectedDePool*/) { return Ton::Symbol::ton(); });
+      [&](const SelectedDePool & /*selectedDePool*/) { return Ton::Symbol::ton(); },
+      [&](const SelectedMultisig & /*selectedMultisig*/) { return Ton::Symbol::ton(); });
 }
 
 Cover::Cover(not_null<Ui::RpWidget *> parent, rpl::producer<CoverState> state)
@@ -108,6 +109,11 @@ void Cover::setupBalance() {
               const auto lockedBalance = FormatAmount(state.lockedBalance, defaultToken, FormatFlag::Rounded).full;
               const auto reward = FormatAmount(state.reward, defaultToken, FormatFlag::Rounded).full;
               return QString{"%1 / %2"}.arg(lockedBalance, reward);
+            },
+            [&](const SelectedMultisig &selectedMultisig) {
+              return (state.lockedBalance > 0)
+                         ? FormatAmount(state.lockedBalance, Ton::Symbol::ton(), FormatFlag::Rounded).full
+                         : QString();
             });
       });
 
@@ -132,8 +138,10 @@ void Cover::setupBalance() {
   const auto lockedLabel = Ui::CreateChild<Ui::FlatLabel>(
       locked, _state.value() | rpl::map([](const CoverState &state) {
                 return v::match(
-                    state.asset, [](const SelectedToken &) { return ph::lng_wallet_cover_locked(); },
-                    [](const SelectedDePool &) { return ph::lng_wallet_cover_reward(); });
+                    state.asset,                                                           //
+                    [](const SelectedToken &) { return ph::lng_wallet_cover_locked(); },   //
+                    [](const SelectedDePool &) { return ph::lng_wallet_cover_reward(); },  //
+                    [](const SelectedMultisig &) { return ph::lng_wallet_cover_locked(); });
               }) | rpl::flatten_latest(),
       st::walletCoverLockedLabel);
 
@@ -154,7 +162,13 @@ void Cover::setupBalance() {
                   }
                   return std::make_pair(false, state.lockedBalance != 0);
                 },
-                [&](const SelectedDePool &) { return std::make_pair(true, true); });
+                [&](const SelectedDePool &) { return std::make_pair(true, true); },
+                [&](const SelectedMultisig &multisig) {
+                  if (!token->current().isTon()) {
+                    *token = Ton::Symbol::ton();
+                  }
+                  return std::make_pair(false, state.lockedBalance != 0);
+                });
 
             lockedLabel->setVisible(true);
             lockedBalance->setVisible(!isDePool);
@@ -256,6 +270,14 @@ void Cover::setupControls() {
                     } else {
                       return ph::lng_wallet_cover_withdraw();
                     }
+                  },
+                  [&](const SelectedMultisig &selected) -> rpl::producer<QString> {
+                    if (coverState.unlockedBalance > 0) {
+                      return ph::lng_wallet_cover_receive();
+                    } else {
+                      return rpl::combine(ph::lng_wallet_cover_receive_full(), rpl::single(Ton::Symbol::ton())) |
+                             replaceTickerTag();
+                    }
                   });
             }) |
           rpl::flatten_latest(),
@@ -271,7 +293,14 @@ void Cover::setupControls() {
                         }
                         return ph::lng_wallet_cover_send();
                       },
-                      [](const SelectedDePool & /*selectedDePool*/) { return ph::lng_wallet_cover_stake(); });
+                      [](const SelectedDePool & /*selectedDePool*/) { return ph::lng_wallet_cover_stake(); },
+                      [&](const SelectedMultisig & /*selectedMultisig*/) {
+                        if (state.isDeployed) {
+                          return ph::lng_wallet_cover_send();
+                        } else {
+                          return ph::lng_wallet_cover_deploy();
+                        }
+                      });
                 }) | rpl::flatten_latest(),
       st::walletCoverSendIcon);
   send->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
@@ -295,6 +324,10 @@ void Cover::setupControls() {
                 [&](const SelectedDePool & /*selectedDePool*/) {
                   *shouldDeploy = false;
                   return std::make_pair(true, hasUnlockedFunds);
+                },
+                [&](const SelectedMultisig & /*selectedMultisig*/) {
+                  *shouldDeploy = !isDeployed;
+                  return std::make_pair(hasUnlockedFunds || shouldDeploy->current(), true);
                 });
 
             receive->setVisible(showReceive);
@@ -343,7 +376,7 @@ rpl::producer<CoverState> MakeCoverState(rpl::producer<Ton::WalletViewerState> s
                .reward = 0,
                .justCreated = justCreated,
                .useTestNetwork = useTestNetwork,
-               .isDeployed = justCreated,
+               .isDeployed = account.isDeployed,
            };
 
            v::match(
@@ -368,6 +401,15 @@ rpl::producer<CoverState> MakeCoverState(rpl::producer<Ton::WalletViewerState> s
                    result.lockedBalance = it->second.withdrawValue;
                    result.reward = it->second.reward;
                    result.reinvest = it->second.reinvest;
+                 }
+               },
+               [&](const SelectedMultisig &selectedMultisig) {
+                 const auto it = data.wallet.multisigStates.find(selectedMultisig.address);
+                 if (it != data.wallet.multisigStates.end()) {
+                   const auto &account = it->second.accountState;
+                   result.unlockedBalance = account.fullBalance - account.lockedBalance;
+                   result.lockedBalance = account.lockedBalance;
+                   result.isDeployed = account.isDeployed;
                  }
                });
 

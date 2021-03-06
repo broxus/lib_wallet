@@ -34,6 +34,8 @@ constexpr auto kPreloadScreens = 3;
 constexpr auto kCommentLinesMax = 3;
 constexpr auto kExecuteVisibleTimeout = 86400;
 
+static const HistoryPageKey kMainPageKey = std::make_pair(Ton::Symbol::ton(), QString{});
+
 enum class Flag : uchar {
   Incoming = 0x01,
   Pending = 0x02,
@@ -87,6 +89,10 @@ struct RegularTransactionParams {
   bool asReturnedChange{};
 };
 
+[[nodiscard]] HistoryPageKey accountPageKey(const QString &address) {
+  return std::make_pair(Ton::Symbol::ton(), address);
+}
+
 [[nodiscard]] const style::TextStyle &addressStyle() {
   const static auto result = Ui::ComputeAddressStyle(st::defaultTextStyle);
   return result;
@@ -113,7 +119,9 @@ void refreshTimeTexts(TransactionLayout &layout, bool forceDateText = false) {
                                    FormatFlag::Signed | FormatFlag::Rounded);
   const auto incoming = !data.incoming.source.isEmpty();
   const auto pending = (data.id.lt == 0);
-  const auto address = Ton::Wallet::ConvertIntoRaw(ExtractAddress(data));
+
+  const auto extractedAddress = ExtractAddress(data);
+  const auto address = extractedAddress.isEmpty() ? QString{} : Ton::Wallet::ConvertIntoRaw(extractedAddress);
   const auto addressPartWidth = [&](int from, int length = -1) {
     return addressStyle().font->width(address.mid(from, length));
   };
@@ -654,7 +662,7 @@ class HistoryRow final {
 };
 
 History::History(not_null<Ui::RpWidget *> parent, rpl::producer<HistoryState> state,
-                 rpl::producer<std::pair<Ton::Symbol, Ton::LoadedSlice>> loaded,
+                 rpl::producer<std::pair<HistoryPageKey, Ton::LoadedSlice>> loaded,
                  rpl::producer<not_null<std::vector<Ton::Transaction> *>> collectEncrypted,
                  rpl::producer<not_null<const std::vector<Ton::Transaction> *>> updateDecrypted,
                  rpl::producer<not_null<std::map<QString, QString> *>> updateWalletOwners,
@@ -681,7 +689,7 @@ History::History(not_null<Ui::RpWidget *> parent, rpl::producer<HistoryState> st
   std::move(collectEncrypted)  //
       | rpl::start_with_next(
             [=](not_null<std::vector<Ton::Transaction> *> list) {
-              auto it = _transactions.find(Ton::Symbol::ton());
+              auto it = _transactions.find(kMainPageKey);
               if (it != end(_transactions)) {
                 auto &&encrypted = ranges::views::all(it->second.list) | ranges::views::filter(IsEncryptedMessage);
                 list->insert(list->end(), encrypted.begin(), encrypted.end());
@@ -692,7 +700,7 @@ History::History(not_null<Ui::RpWidget *> parent, rpl::producer<HistoryState> st
   std::move(updateDecrypted)  //
       | rpl::start_with_next(
             [=](not_null<const std::vector<Ton::Transaction> *> list) {
-              auto it = _transactions.find(Ton::Symbol::ton());
+              auto it = _transactions.find(kMainPageKey);
               if (it == end(_transactions)) {
                 return;
               }
@@ -751,13 +759,11 @@ void History::updateGeometry(QPoint position, int width) {
 }
 
 void History::resizeToWidth(int width) {
-  auto symbol = currentSymbol();
-
   if (!width) {
     return;
   }
 
-  auto rowsIt = _rows.find(symbol);
+  auto rowsIt = _rows.find(currentPage());
   if (rowsIt == end(_rows)) {
     return;
   }
@@ -804,13 +810,13 @@ void History::setVisible(bool visible) {
 }
 
 void History::setVisibleTopBottom(int top, int bottom) {
-  auto symbol = currentSymbol();
+  auto page = currentPage();
 
   _visibleTop = top - _widget.y();
   _visibleBottom = bottom - _widget.y();
 
-  auto transactionsIt = _transactions.find(symbol);
-  auto rowsIt = _rows.find(symbol);
+  auto transactionsIt = _transactions.find(page);
+  auto rowsIt = _rows.find(page);
   if (_visibleBottom <= _visibleTop ||
       (transactionsIt != end(_transactions) && !transactionsIt->second.previousId.lt) ||
       (rowsIt != end(_rows) && rowsIt->second.regular.empty())) {
@@ -819,7 +825,7 @@ void History::setVisibleTopBottom(int top, int bottom) {
   checkPreload();
 }
 
-rpl::producer<std::pair<Ton::Symbol, Ton::TransactionId>> History::preloadRequests() const {
+rpl::producer<std::pair<HistoryPageKey, Ton::TransactionId>> History::preloadRequests() const {
   return _preloadRequests.events();
 }
 
@@ -856,14 +862,14 @@ rpl::lifetime &History::lifetime() {
 }
 
 void History::setupContent(rpl::producer<HistoryState> &&state,
-                           rpl::producer<std::pair<Ton::Symbol, Ton::LoadedSlice>> &&loaded,
+                           rpl::producer<std::pair<HistoryPageKey, Ton::LoadedSlice>> &&loaded,
                            rpl::producer<std::optional<SelectedAsset>> &&selectedAsset) {
   std::forward<std::decay_t<decltype(state)>>(state)  //
       | rpl::start_with_next([=](HistoryState &&state) { mergeState(std::move(state)); }, lifetime());
 
   std::forward<std::decay_t<decltype(loaded)>>(loaded)  //
       | rpl::start_with_next(
-            [=](const std::pair<Ton::Symbol, Ton::LoadedSlice> &slice) {
+            [=](const std::pair<HistoryPageKey, Ton::LoadedSlice> &slice) {
               auto it = _transactions.find(slice.first);
               if (it == end(_transactions)) {
                 it = _transactions
@@ -918,7 +924,7 @@ void History::setupContent(rpl::producer<HistoryState> &&state,
               v::match(
                   _selectedAsset.current(),
                   [&](const SelectedToken &selectedToken) {
-                    const auto it = _rows.find(selectedToken.symbol);
+                    const auto it = _rows.find(std::make_pair(selectedToken.symbol, QString{}));
                     if (it == _rows.end()) {
                       return;
                     }
@@ -937,8 +943,7 @@ void History::setupContent(rpl::producer<HistoryState> &&state,
 void History::selectRow(const std::pair<bool, int> &selected, const ClickHandlerPtr &handler) {
   Expects(selected.second >= 0 || !handler);
 
-  auto symbol = currentSymbol();
-  const auto rowsIt = _rows.find(symbol);
+  const auto rowsIt = _rows.find(currentPage());
   if (rowsIt == end(_rows)) {
     return;
   }
@@ -967,8 +972,7 @@ void History::selectRow(const std::pair<bool, int> &selected, const ClickHandler
 }
 
 void History::selectRowByMouse() {
-  auto symbol = currentSymbol();
-  const auto rowsIt = _rows.find(symbol);
+  const auto rowsIt = _rows.find(currentPage());
   if (rowsIt == end(_rows)) {
     return;
   }
@@ -998,10 +1002,10 @@ void History::pressRow() {
 }
 
 void History::releaseRow() {
-  auto symbol = currentSymbol();
+  auto page = currentPage();
   const auto [pending, selected] = _selected;
 
-  const auto rowsIt = _rows.find(symbol);
+  const auto rowsIt = _rows.find(page);
   if (rowsIt == end(_rows)) {
     return;
   }
@@ -1020,7 +1024,7 @@ void History::releaseRow() {
   if (handler) {
     handler->onClick(ClickContext());
   } else {
-    const auto it = _transactions.find(pending ? Ton::Symbol::ton() : symbol);
+    const auto it = _transactions.find(pending ? kMainPageKey : page);
     if (it != _transactions.end()) {
       const auto i = ranges::find(it->second.list, rows[selected]->id(), &Ton::Transaction::id);
       Assert(i != end(it->second.list));
@@ -1030,7 +1034,7 @@ void History::releaseRow() {
 }
 
 void History::decryptById(const Ton::TransactionId &id) {
-  const auto transactionsIt = _transactions.find(Ton::Symbol::ton());
+  const auto transactionsIt = _transactions.find(kMainPageKey);
   if (transactionsIt == _transactions.end()) {
     return;
   }
@@ -1042,7 +1046,7 @@ void History::decryptById(const Ton::TransactionId &id) {
 }
 
 void History::paint(Painter &p, QRect clip) {
-  const auto symbol = currentSymbol();
+  const auto symbol = currentPage();
 
   auto rowsIt = _rows.find(symbol);
   if (rowsIt == _rows.end()) {
@@ -1101,12 +1105,12 @@ void History::mergeNotifications(NotificationsHistoryUpdate &&update) {
   v::match(
       update,
       [&](AddNotification &notification) {
-        auto it = _rows.find(notification.symbol);
+        const auto page = std::make_pair(notification.symbol, QString{});
+
+        auto it = _rows.find(page);
         auto newSymbol = it == _rows.end();
         if (newSymbol) {
-          it = _rows
-                   .emplace(std::piecewise_construct, std::forward_as_tuple(notification.symbol),
-                            std::forward_as_tuple(RowsState{}))
+          it = _rows.emplace(std::piecewise_construct, std::forward_as_tuple(page), std::forward_as_tuple(RowsState{}))
                    .first;
         }
         auto &rows = it->second.pending;
@@ -1125,7 +1129,9 @@ void History::mergeNotifications(NotificationsHistoryUpdate &&update) {
         }
       },
       [&](RemoveNotification &notification) {
-        const auto it = _rows.find(notification.symbol);
+        const auto page = std::make_pair(notification.symbol, QString{});
+
+        const auto it = _rows.find(page);
         if (it == _rows.end()) {
           return;
         }
@@ -1139,13 +1145,13 @@ void History::mergeNotifications(NotificationsHistoryUpdate &&update) {
       [&](RefreshNotifications &) { refreshShowDates(_selectedAsset.current()); });
 }
 
-bool History::mergeListChanged(std::map<Ton::Symbol, Ton::TransactionsSlice> &&data) {
+bool History::mergeListChanged(std::map<HistoryPageKey, Ton::TransactionsSlice> &&data) {
   auto changed = false;
-  for (auto &&[symbol, newTransactions] : data) {
-    auto transactionsIt = _transactions.find(symbol);
+  for (auto &&[page, newTransactions] : data) {
+    auto transactionsIt = _transactions.find(page);
     if (transactionsIt == end(_transactions)) {
       transactionsIt = _transactions
-                           .emplace(std::piecewise_construct, std::forward_as_tuple(symbol),
+                           .emplace(std::piecewise_construct, std::forward_as_tuple(page),
                                     std::forward_as_tuple(TransactionsState{}))
                            .first;
     }
@@ -1171,9 +1177,8 @@ void History::setRowShowDate(not_null<HistoryRow *> row, bool show) {
 }
 
 bool History::takeDecrypted(int index, const std::vector<Ton::Transaction> &decrypted) {
-  const auto symbol = Ton::Symbol::ton();
-  auto rowsIt = _rows.find(symbol);
-  auto transactionsIt = _transactions.find(symbol);
+  auto rowsIt = _rows.find(kMainPageKey);
+  auto transactionsIt = _transactions.find(kMainPageKey);
   Expects(rowsIt != _rows.end() && transactionsIt != _transactions.end());
   auto &rows = rowsIt->second;
   auto &transactions = transactionsIt->second;
@@ -1206,17 +1211,18 @@ std::unique_ptr<HistoryRow> History::makeRow(const Ton::Transaction &data) {
 }
 
 void History::refreshShowDates(const SelectedAsset &selectedAsset) {
-  const auto [symbol, targetAddress] = v::match(
-      selectedAsset, [](const SelectedToken &selectedToken) { return std::make_pair(selectedToken.symbol, QString{}); },
-      [](const SelectedDePool &selectedDePool) { return std::make_pair(Ton::Symbol::ton(), selectedDePool.address); });
+  const auto page = currentPage();
+  const auto targetAddress = v::match(
+      selectedAsset, [](const SelectedDePool &depool) { return depool.address; },
+      [](const auto &) { return QString{}; });
 
-  const auto rowsIt = _rows.find(symbol);
+  const auto rowsIt = _rows.find(page);
   if (rowsIt == _rows.end()) {
     return;
   }
   auto &rows = rowsIt->second;
 
-  const auto transactionsIt = _transactions.find(symbol);
+  const auto transactionsIt = _transactions.find(page);
   auto *transactions = transactionsIt != end(_transactions) ? &transactionsIt->second : nullptr;
 
   QSet<QString> unknownOwners;
@@ -1320,7 +1326,8 @@ void History::refreshShowDates(const SelectedAsset &selectedAsset) {
           } else {
             row->setVisible(false);
           }
-        });
+        },
+        [&](const SelectedMultisig & /*selectedMultisig*/) { row->setRegularLayout(RegularTransactionParams{}); });
   };
 
   auto previous = QDate();
@@ -1360,19 +1367,19 @@ void History::refreshShowDates(const SelectedAsset &selectedAsset) {
   resizeToWidth(_widget.width());
 
   if (!unknownOwners.empty()) {
-    _ownerResolutionRequests.fire(std::make_pair(&symbol, &unknownOwners));
+    _ownerResolutionRequests.fire(std::make_pair(&page.first, &unknownOwners));
   }
 
   _widget.update(0, _visibleTop, _widget.width(), _visibleBottom - _visibleTop);
 }
 
 void History::refreshPending() {
-  const auto symbol = currentSymbol();
-  if (!symbol.isTon()) {
+  const auto page = currentPage();
+  if (page != kMainPageKey) {
     return;
   }
 
-  const auto it = _rows.find(symbol);
+  const auto it = _rows.find(page);
   if (it == end(_rows)) {
     return;
   }
@@ -1439,15 +1446,15 @@ void History::refreshRows(const SelectedAsset &selectedAsset) {
     }
   };
 
-  for (const auto &[symbol, transactions] : _transactions) {
-    auto rowsIt = _rows.find(symbol);
+  for (const auto &[page, transactions] : _transactions) {
+    auto rowsIt = _rows.find(page);
     if (rowsIt == end(_rows)) {
       rowsIt = _rows
-                   .emplace(std::piecewise_construct, std::forward_as_tuple(symbol),
+                   .emplace(std::piecewise_construct, std::forward_as_tuple(page),
                             std::forward_as_tuple(RowsState{.regular = std::vector<std::unique_ptr<HistoryRow>>{}}))
                    .first;
     }
-    if (symbol.isTon()) {
+    if (page == kMainPageKey) {
       mergeTransactions(rowsIt->second.regular, transactions.list, [&](const Ton::Transaction &transaction) {
         v::match(
             transaction.additional,  //
@@ -1495,19 +1502,21 @@ void History::checkPreload() const {
   const auto visibleHeight = (_visibleBottom - _visibleTop);
   const auto preloadHeight = kPreloadScreens * visibleHeight;
 
-  const auto symbol = currentSymbol();
+  const auto page = currentPage();
 
-  const auto it = _transactions.find(symbol);
+  const auto it = _transactions.find(page);
   if (it != _transactions.end() && _visibleBottom + preloadHeight >= _widget.height() &&
       it->second.previousId.lt != 0) {
-    _preloadRequests.fire_copy(std::make_pair(symbol, it->second.previousId));
+    _preloadRequests.fire_copy(std::make_pair(page, it->second.previousId));
   }
 }
 
-Ton::Symbol History::currentSymbol() const {
+HistoryPageKey History::currentPage() const {
   return v::match(
-      _selectedAsset.current(), [&](const SelectedToken &selectedToken) { return selectedToken.symbol; },
-      [&](const SelectedDePool &) { return Ton::Symbol::ton(); });
+      _selectedAsset.current(),                                                             //
+      [&](const SelectedToken &token) { return std::make_pair(token.symbol, QString{}); },  //
+      [&](const SelectedDePool &depool) { return kMainPageKey; },                           //
+      [&](const SelectedMultisig &multisig) { return accountPageKey(multisig.address); });
 }
 
 rpl::producer<HistoryState> MakeHistoryState(rpl::producer<Ton::WalletViewerState> state) {
@@ -1518,10 +1527,16 @@ rpl::producer<HistoryState> MakeHistoryState(rpl::producer<Ton::WalletViewerStat
                knownContracts.insert(item.first);
              }
 
-             std::map<Ton::Symbol, Ton::TransactionsSlice> lastTransactions{
-                 {Ton::Symbol::ton(), state.wallet.lastTransactions}};
+             std::map<HistoryPageKey, Ton::TransactionsSlice> lastTransactions{
+                 {kMainPageKey, state.wallet.lastTransactions}};
+
+             for (auto &&[address, multisig] : state.wallet.multisigStates) {
+               lastTransactions.emplace(std::piecewise_construct, std::forward_as_tuple(accountPageKey(address)),
+                                        std::forward_as_tuple(std::move(multisig.lastTransactions)));
+             }
+
              for (auto &&[symbol, token] : state.wallet.tokenStates) {
-               lastTransactions.emplace(symbol, token.lastTransactions);
+               lastTransactions.emplace(std::make_pair(symbol, QString{}), token.lastTransactions);
                knownContracts.insert(token.walletContractAddress);
                knownContracts.insert(token.rootOwnerAddress);
                knownContracts.insert(symbol.rootContractAddress());

@@ -342,9 +342,18 @@ int64 CalculateValue(const Ton::Transaction &data) {
 }
 
 QString ExtractAddress(const Ton::Transaction &data) {
-  return !data.outgoing.empty()            ? data.outgoing.front().destination
-         : !data.incoming.source.isEmpty() ? data.incoming.source
-                                           : data.incoming.destination;
+  if (!data.outgoing.empty()) {
+    for (auto &outgoing : data.outgoing) {
+      if (!outgoing.destination.isEmpty()) {
+        return outgoing.destination;
+      }
+    }
+    return QString{};  // event
+  } else if (!data.incoming.source.isEmpty()) {
+    return data.incoming.source;
+  } else {
+    return data.incoming.destination;
+  }
 }
 
 bool IsEncryptedMessage(const Ton::Transaction &data) {
@@ -495,6 +504,10 @@ auto operator==(const SelectedAsset &a, const SelectedAsset &b) -> bool {
       },
       [&](const SelectedDePool &left) {
         const auto &right = v::get<SelectedDePool>(b);
+        return left.address == right.address;
+      },
+      [&](const SelectedMultisig &left) {
+        const auto &right = v::get<SelectedMultisig>(b);
         return left.address == right.address;
       });
 }

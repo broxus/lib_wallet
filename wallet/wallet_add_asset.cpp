@@ -57,6 +57,11 @@ void AddAssetBox(not_null<Ui::GenericBox *> box, const Fn<void(CustomAsset, Fn<v
   Ui::CreateChild<Ui::Radiobutton>(assetTypeDePool, assetTypeSelector, CustomAssetType::DePool,
                                    ph::lng_wallet_add_asset_depool(ph::now));
 
+  const auto assetTypeMultisig = box->addRow(  //
+      object_ptr<Ui::FixedHeightWidget>(box, radioButtonHeight), radioButtonMargin);
+  Ui::CreateChild<Ui::Radiobutton>(assetTypeMultisig, assetTypeSelector, CustomAssetType::Multisig,
+                                   ph::lng_wallet_add_asset_multisig(ph::now));
+
   AddBoxSubtitle(box, ph::lng_wallet_add_asset_address());
   const auto address = box->addRow(  //
       object_ptr<Ui::InputField>(box, st::walletSendInput, Ui::InputField::Mode::NoNewlines,
@@ -64,10 +69,19 @@ void AddAssetBox(not_null<Ui::GenericBox *> box, const Fn<void(CustomAsset, Fn<v
   address->rawTextEdit()->setWordWrapMode(QTextOption::WrapAnywhere);
 
   assetTypeSelector->setChangedCallback([=](int value) {
-    address->setPlaceholder(          //
-        value == CustomAssetType::Token  //
-            ? ph::lng_wallet_add_asset_token_address()
-            : ph::lng_wallet_add_asset_depool_address());
+    address->setPlaceholder(  //
+        [&]() {
+          switch (value) {
+            case CustomAssetType::Token:
+              return ph::lng_wallet_add_asset_token_address();
+            case CustomAssetType::DePool:
+              return ph::lng_wallet_add_asset_depool_address();
+            case CustomAssetType::Multisig:
+              return ph::lng_wallet_add_asset_multisig_address();
+            default:
+              Unexpected("Unknown custom asset type");
+          }
+        }());
     *assetType = static_cast<CustomAssetType>(value);
   });
 

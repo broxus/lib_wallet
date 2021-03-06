@@ -17,7 +17,7 @@
 namespace Wallet {
 
 EmptyHistory::EmptyHistory(not_null<Ui::RpWidget *> parent, rpl::producer<EmptyHistoryState> state,
-                           Fn<void(QImage, QString)> share)
+                           const Fn<void(QImage, QString)> &share)
     : _widget(parent), _share(share) {
   setupControls(std::move(state));
 }
@@ -67,6 +67,8 @@ void EmptyHistory::setupControls(rpl::producer<EmptyHistoryState> &&state) {
               return ph::lng_wallet_empty_history_depool_address();
             case AddressLabelType::TokenAddress:
               return ph::lng_wallet_empty_history_token_address();
+            case AddressLabelType::MultisigAddress:
+              return ph::lng_wallet_empty_history_multisig_address();
             default:
               Unexpected("Unreachable");
           }
@@ -120,6 +122,9 @@ rpl::producer<EmptyHistoryState> MakeEmptyHistoryState(rpl::producer<Ton::Wallet
                      },
                      [&](const SelectedDePool &selectedDePool) {
                        return std::make_pair(selectedDePool.address, AddressLabelType::DePoolAddress);
+                     },
+                     [&](const SelectedMultisig &selectedMultisig) {
+                       return std::make_pair(selectedMultisig.address, AddressLabelType::MultisigAddress);
                      });
 
                  return EmptyHistoryState{address, labelType, justCreated};

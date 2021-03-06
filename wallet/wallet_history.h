@@ -19,8 +19,10 @@ class Painter;
 
 namespace Wallet {
 
+using HistoryPageKey = std::pair<Ton::Symbol, QString>;
+
 struct HistoryState {
-  std::map<Ton::Symbol, Ton::TransactionsSlice> lastTransactions;
+  std::map<HistoryPageKey, Ton::TransactionsSlice> lastTransactions;
   std::vector<Ton::PendingTransaction> pendingTransactions;
   QSet<QString> knownContracts;
 };
@@ -30,7 +32,7 @@ class HistoryRow;
 class History final {
  public:
   History(not_null<Ui::RpWidget *> parent, rpl::producer<HistoryState> state,
-          rpl::producer<std::pair<Ton::Symbol, Ton::LoadedSlice>> loaded,
+          rpl::producer<std::pair<HistoryPageKey, Ton::LoadedSlice>> loaded,
           rpl::producer<not_null<std::vector<Ton::Transaction> *>> collectEncrypted,
           rpl::producer<not_null<const std::vector<Ton::Transaction> *>> updateDecrypted,
           rpl::producer<not_null<std::map<QString, QString> *>> updateWalletOwners,
@@ -43,7 +45,7 @@ class History final {
   void setVisible(bool visible);
   void setVisibleTopBottom(int top, int bottom);
 
-  [[nodiscard]] rpl::producer<std::pair<Ton::Symbol, Ton::TransactionId>> preloadRequests() const;
+  [[nodiscard]] rpl::producer<std::pair<HistoryPageKey, Ton::TransactionId>> preloadRequests() const;
   [[nodiscard]] rpl::producer<Ton::Transaction> viewRequests() const;
   [[nodiscard]] rpl::producer<Ton::Transaction> decryptRequests() const;
   [[nodiscard]] rpl::producer<std::pair<const Ton::Symbol *, const QSet<QString> *>> ownerResolutionRequests() const;
@@ -63,13 +65,13 @@ class History final {
   };
 
   void setupContent(rpl::producer<HistoryState> &&state,
-                    rpl::producer<std::pair<Ton::Symbol, Ton::LoadedSlice>> &&loaded,
+                    rpl::producer<std::pair<HistoryPageKey, Ton::LoadedSlice>> &&loaded,
                     rpl::producer<std::optional<SelectedAsset>> &&selectedAsset);
   void resizeToWidth(int width);
   void mergeState(HistoryState &&state);
   void mergePending(std::vector<Ton::PendingTransaction> &&list);
   void mergeNotifications(NotificationsHistoryUpdate &&update);
-  bool mergeListChanged(std::map<Ton::Symbol, Ton::TransactionsSlice> &&data);
+  bool mergeListChanged(std::map<HistoryPageKey, Ton::TransactionsSlice> &&data);
   void refreshRows(const SelectedAsset &selectedAsset);
   void refreshPending();
   void paint(Painter &p, QRect clip);
@@ -87,7 +89,7 @@ class History final {
   void setRowShowDate(not_null<HistoryRow *> row, bool show = true);
   bool takeDecrypted(int index, const std::vector<Ton::Transaction> &decrypted);
   [[nodiscard]] std::unique_ptr<HistoryRow> makeRow(const Ton::Transaction &data);
-  [[nodiscard]] Ton::Symbol currentSymbol() const;
+  [[nodiscard]] HistoryPageKey currentPage() const;
 
   struct TransactionsState {
     std::vector<Ton::Transaction> list;
@@ -105,10 +107,10 @@ class History final {
 
   bool _pendingDataChanged{};
   std::vector<Ton::PendingTransaction> _pendingData;
-  std::map<Ton::Symbol, TransactionsState> _transactions;
+  std::map<HistoryPageKey, TransactionsState> _transactions;
 
   rpl::variable<SelectedAsset> _selectedAsset;
-  std::map<Ton::Symbol, RowsState> _rows;
+  std::map<HistoryPageKey, RowsState> _rows;
   std::map<QString, QString> _tokenOwners;
 
   QSet<QString> _knownContracts;
@@ -121,7 +123,7 @@ class History final {
   std::pair<bool, int> _selected = std::make_pair(false, -1);
   std::pair<bool, int> _pressed = std::make_pair(false, -1);
 
-  rpl::event_stream<std::pair<Ton::Symbol, Ton::TransactionId>> _preloadRequests;
+  rpl::event_stream<std::pair<HistoryPageKey, Ton::TransactionId>> _preloadRequests;
   rpl::event_stream<Ton::Transaction> _viewRequests;
   rpl::event_stream<Ton::Transaction> _decryptRequests;
   rpl::event_stream<std::pair<const Ton::Symbol *, const QSet<QString> *>> _ownerResolutionRequests;

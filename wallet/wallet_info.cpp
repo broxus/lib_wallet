@@ -37,7 +37,8 @@ auto mapAssetItem(const AssetItem &item) -> SelectedAsset {
             .symbol = item.token,
         }};
       },
-      [](const DePoolItem &item) { return SelectedAsset{SelectedDePool{.address = item.address}}; });
+      [](const DePoolItem &item) { return SelectedAsset{SelectedDePool{.address = item.address}}; },
+      [](const MultisigItem &item) { return SelectedAsset{SelectedMultisig{.address = item.address}}; });
 }
 
 }  // namespace
@@ -73,7 +74,7 @@ rpl::producer<std::pair<int, int>> Info::assetsReorderRequests() const {
   return _assetsReorderRequests.events();
 }
 
-rpl::producer<std::pair<Ton::Symbol, Ton::TransactionId>> Info::preloadRequests() const {
+rpl::producer<std::pair<HistoryPageKey, Ton::TransactionId>> Info::preloadRequests() const {
   return _preloadRequests.events();
 }
 
@@ -116,8 +117,8 @@ void Info::setupControls(Data &&data) {
   auto loaded =
       std::move(data.loaded)  //
       | rpl::filter(
-            [](const Ton::Result<std::pair<Ton::Symbol, Ton::LoadedSlice>> &value) { return value.has_value(); })  //
-      | rpl::map([](Ton::Result<std::pair<Ton::Symbol, Ton::LoadedSlice>> &&value) { return std::move(*value); });
+            [](const Ton::Result<std::pair<HistoryPageKey, Ton::LoadedSlice>> &value) { return value.has_value(); })  //
+      | rpl::map([](Ton::Result<std::pair<HistoryPageKey, Ton::LoadedSlice>> &&value) { return std::move(*value); });
 
   std::move(data.transitionEvents)  //
       | rpl::start_with_next(
@@ -221,11 +222,12 @@ void Info::setupControls(Data &&data) {
             if (asset.has_value()) {
               const auto [contentHeight, historyVisible, dePoolInfoVisible] = v::match(
                   *asset,
-                  [&](const SelectedToken &selectedToken) {
-                    return std::make_tuple(historyHeight, historyHeight == 0, false);
-                  },
                   [&](const SelectedDePool &selectedDePool) {
                     //return std::make_tuple(dePoolInfoHeight, false, true);
+                    return std::make_tuple(historyHeight, historyHeight == 0, false);
+                  },
+                  [&](const auto &selected) {
+                    static_assert(is_any_of<std::decay_t<decltype(selected)>, SelectedToken, SelectedMultisig>);
                     return std::make_tuple(historyHeight, historyHeight == 0, false);
                   });
 

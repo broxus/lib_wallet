@@ -106,6 +106,7 @@ extern phrase lng_wallet_empty_history_welcome;
 extern phrase lng_wallet_empty_history_address;
 extern phrase lng_wallet_empty_history_depool_address;
 extern phrase lng_wallet_empty_history_token_address;
+extern phrase lng_wallet_empty_history_multisig_address;
 
 extern phrase lng_wallet_history_receive_tokens;
 extern phrase lng_wallet_history_execute_callback;
@@ -262,6 +263,10 @@ extern phrase lng_wallet_add_token_succeeded;
 extern phrase lng_wallet_add_token_failed_title;
 extern phrase lng_wallet_add_token_failed_text;
 
+extern phrase lng_wallet_add_multisig_succeeded;
+extern phrase lng_wallet_add_multisig_failed_title;
+extern phrase lng_wallet_add_multisig_failed_text;
+
 extern phrase lng_wallet_send_tokens_recipient_not_found;
 extern phrase lng_wallet_send_tokens_recipient_changed;
 
@@ -302,9 +307,11 @@ extern phrase lng_wallet_sent_close_view;
 extern phrase lng_wallet_add_asset_title;
 extern phrase lng_wallet_add_asset_token;
 extern phrase lng_wallet_add_asset_depool;
+extern phrase lng_wallet_add_asset_multisig;
 extern phrase lng_wallet_add_asset_address;
 extern phrase lng_wallet_add_asset_token_address;
 extern phrase lng_wallet_add_asset_depool_address;
+extern phrase lng_wallet_add_asset_multisig_address;
 extern phrase lng_wallet_add_asset_confirm;
 
 extern phrase lng_wallet_settings_title;

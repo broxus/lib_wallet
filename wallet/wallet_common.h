@@ -49,7 +49,11 @@ struct SelectedDePool {
   QString address;
 };
 
-using SelectedAsset = std::variant<SelectedToken, SelectedDePool>;
+struct SelectedMultisig {
+  QString address;
+};
+
+using SelectedAsset = std::variant<SelectedToken, SelectedDePool, SelectedMultisig>;
 
 auto operator==(const SelectedAsset &a, const SelectedAsset &b) -> bool;
 
@@ -67,7 +71,7 @@ struct RefreshNotifications {};
 
 using NotificationsHistoryUpdate = std::variant<AddNotification, RemoveNotification, RefreshNotifications>;
 
-enum CustomAssetType { Token = 0, DePool = 1 };
+enum CustomAssetType { Token = 0, DePool = 1, Multisig = 2 };
 
 struct CustomAsset {
   CustomAssetType type;

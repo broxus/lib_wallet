@@ -406,10 +406,11 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
 
   setupRefreshEach();
 
-  _viewer->loaded()                                                                                             //
-      | rpl::filter([](const Ton::Result<std::pair<Ton::Symbol, Ton::LoadedSlice>> &value) { return !value; })  //
-      | rpl::map(
-            [](Ton::Result<std::pair<Ton::Symbol, Ton::LoadedSlice>> &&value) { return std::move(value.error()); })  //
+  _viewer->loaded()                                                                                                //
+      | rpl::filter([](const Ton::Result<std::pair<HistoryPageKey, Ton::LoadedSlice>> &value) { return !value; })  //
+      | rpl::map([](Ton::Result<std::pair<HistoryPageKey, Ton::LoadedSlice>> &&value) {
+          return std::move(value.error());
+        })  //
       | rpl::start_with_next([=](const Ton::Error &error) { showGenericError(error); }, _info->lifetime());
 
   setupUpdateWithInfo();
@@ -439,6 +440,9 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
                             .stake = 0,
                             .dePool = selectedDePool.address,
                         });
+                      },
+                      [&](const SelectedMultisig &selectedMultisig) {
+                        // TODO: implement send
                       });
                   return;
                 case Action::Receive:
@@ -454,6 +458,9 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
                         } else {
                           dePoolWithdraw(WithdrawalInvoice{.amount = 0, .dePool = selectedDePool.address});
                         }
+                      },
+                      [&](const SelectedMultisig &selectedMultisig) {
+                        // TODO: implement receive
                       });
                   return;
                 case Action::ChangePassword:
@@ -494,6 +501,8 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
                   return _wallet->removeDePool(_wallet->publicKeys().front(), asset.address);
                 case CustomAssetType::Token:
                   return _wallet->removeToken(_wallet->publicKeys().front(), asset.symbol);
+                case CustomAssetType::Multisig:
+                  return _wallet->removeMultisig(_wallet->publicKeys().front(), asset.address);
                 default:
                   return;
               }
@@ -509,14 +518,18 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
 
   _info->preloadRequests()  //
       | rpl::start_with_next(
-            [=](const std::pair<Ton::Symbol, Ton::TransactionId> &id) {
-              if (id.first.isTon()) {
+            [=](const std::pair<HistoryPageKey, Ton::TransactionId> &id) {
+              const auto [symbol, account] = id.first;
+
+              if (symbol.isTon() && account.isEmpty()) {
                 _viewer->preloadSlice(id.second);
+              } else if (symbol.isTon()) {
+                _viewer->preloadAccountSlice(account, id.second);
               } else {
                 const auto state = _state.current();
-                const auto it = state.tokenStates.find(id.first);
+                const auto it = state.tokenStates.find(symbol);
                 if (it != end(state.tokenStates)) {
-                  _viewer->preloadTokenSlice(id.first, it->second.walletContractAddress, id.second);
+                  _viewer->preloadTokenSlice(symbol, it->second.walletContractAddress, id.second);
                 }
               }
             },
@@ -672,6 +685,20 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
                 },
                 [&](const SelectedDePool &selectedDePool) {
                   _layers->showBox(Box(ViewDePoolTransactionBox, std::move(data), shareAddressCallback()));
+                },
+                [&](const SelectedMultisig &selectedMultisig) {
+                  _layers->showBox(Box(
+                      ViewTransactionBox, std::move(data), Ton::Symbol::ton(), _collectEncryptedRequests.events(),
+                      _decrypted.events(), shareAddressCallback(),
+                      [=](const QString &transactionHash) { openInExplorer(transactionHash); },
+                      [=] { decryptEverything(publicKey); },
+                      /*resolveOwner*/ [](const QString &, const Fn<void(QString &&)> &) {},
+                      [=](const QString &address) {
+                        sendMoney(TonTransferInvoice{
+                            .address = address,
+                        });
+                      },
+                      /*collect*/ [](const QString &) {}, /*execute*/ [](const QString &) {}));
                 });
           },
           _info->lifetime());
@@ -1510,6 +1537,16 @@ void Window::addAsset() {
     }
   };
 
+  const auto onNewMultisig = [this](const Ton::Result<> &result) {
+    if (result.has_value()) {
+      refreshNow();
+      showToast(ph::lng_wallet_add_multisig_succeeded(ph::now));
+    } else {
+      showSimpleError(ph::lng_wallet_add_multisig_failed_title(), ph::lng_wallet_add_multisig_failed_text(),
+                      ph::lng_wallet_continue());
+    }
+  };
+
   const auto checking = std::make_shared<bool>();
   const auto send = [=](const CustomAsset &newAsset, const Fn<void(AddAssetField)> &showError) {
     if (*checking) {
@@ -1526,6 +1563,10 @@ void Window::addAsset() {
       }
       case CustomAssetType::Token: {
         _wallet->addToken(_wallet->publicKeys().front(), newAsset.address, crl::guard(this, onNewToken));
+        break;
+      }
+      case CustomAssetType::Multisig: {
+        _wallet->addMultisig(_wallet->publicKeys().front(), newAsset.address, crl::guard(this, onNewMultisig));
         break;
       }
       default:
@@ -1753,7 +1794,7 @@ void Window::showSettingsWithLogoutWarning(const Ton::Settings &settings, rpl::p
 void Window::askExportPassword() {
   const auto exporting = std::make_shared<bool>();
   const auto weakBox = std::make_shared<QPointer<Ui::GenericBox>>();
-  const auto ready = [=](const QByteArray &passcode, Fn<void(QString)> showError) {
+  const auto ready = [=](const QByteArray &passcode, const Fn<void(QString)> &showError) {
     if (*exporting) {
       return;
     }
