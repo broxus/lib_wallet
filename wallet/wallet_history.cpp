@@ -1046,9 +1046,7 @@ void History::decryptById(const Ton::TransactionId &id) {
 }
 
 void History::paint(Painter &p, QRect clip) {
-  const auto symbol = currentPage();
-
-  auto rowsIt = _rows.find(symbol);
+  auto rowsIt = _rows.find(currentPage());
   if (rowsIt == _rows.end()) {
     return;
   }
@@ -1147,11 +1145,11 @@ void History::mergeNotifications(NotificationsHistoryUpdate &&update) {
 
 bool History::mergeListChanged(std::map<HistoryPageKey, Ton::TransactionsSlice> &&data) {
   auto changed = false;
-  for (auto &&[page, newTransactions] : data) {
+  for (auto &[page, newTransactions] : data) {
     auto transactionsIt = _transactions.find(page);
     if (transactionsIt == end(_transactions)) {
       transactionsIt = _transactions
-                           .emplace(std::piecewise_construct, std::forward_as_tuple(page),
+                           .emplace(std::piecewise_construct, std::forward_as_tuple(std::move(page)),
                                     std::forward_as_tuple(TransactionsState{}))
                            .first;
     }
@@ -1211,10 +1209,11 @@ std::unique_ptr<HistoryRow> History::makeRow(const Ton::Transaction &data) {
 }
 
 void History::refreshShowDates(const SelectedAsset &selectedAsset) {
-  const auto page = currentPage();
-  const auto targetAddress = v::match(
-      selectedAsset, [](const SelectedDePool &depool) { return depool.address; },
-      [](const auto &) { return QString{}; });
+  const auto [page, targetAddress] = v::match(
+      selectedAsset,
+      [](const SelectedToken &token) { return std::make_pair(std::make_pair(token.symbol, QString{}), QString{}); },
+      [](const SelectedDePool &depool) { return std::make_pair(kMainPageKey, depool.address); },
+      [](const SelectedMultisig &multisig) { return std::make_pair(accountPageKey(multisig.address), QString{}); });
 
   const auto rowsIt = _rows.find(page);
   if (rowsIt == _rows.end()) {

@@ -513,11 +513,8 @@ auto operator==(const SelectedAsset &a, const SelectedAsset &b) -> bool {
 }
 
 auto TonTransferInvoice::asTransaction() const -> Ton::TransactionToSend {
-  return Ton::TransactionToSend{.amount = amount,
-                                .recipient = address,
-                                .comment = comment,
-                                .allowSendToUninited = true,
-                                .sendUnencryptedText = sendUnencryptedText};
+  return Ton::TransactionToSend{
+      .amount = amount, .recipient = address, .comment = comment, .allowSendToUninited = true};
 }
 
 auto TokenTransferInvoice::asTransaction() const -> Ton::TokenTransactionToSend {

@@ -1162,21 +1162,7 @@ void Window::confirmTransaction(PreparedInvoice invoice, const Fn<void(InvoiceFi
       if (const auto field = ErrorInvoiceField(result.error())) {
         return showInvoiceError(*field);
       }
-
-      v::match(
-          invoice,
-          [&](const TonTransferInvoice &tonTransferInvoice) {
-            if (!tonTransferInvoice.sendUnencryptedText && result.error().details.startsWith("MESSAGE_ENCRYPTION")) {
-              auto copy = tonTransferInvoice;
-              copy.sendUnencryptedText = true;
-              confirmTransaction(copy, showInvoiceError, guard);
-            } else {
-              showGenericError(result.error());
-            }
-          },
-          [&](auto &&) { showGenericError(result.error()); });
-
-      return;
+      return showGenericError(result.error());
     }
 
     showSendConfirmation(invoice, *result, showInvoiceError);

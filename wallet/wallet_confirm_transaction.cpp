@@ -166,12 +166,6 @@ void ConfirmTransactionBox(not_null<Ui::GenericBox *> box, const T &invoice, int
             [=](int innerWidth, int outerWidth) { feeLabel->moveToLeft((outerWidth - innerWidth) / 2, 0, outerWidth); },
             feeLabel->lifetime());
 
-  if constexpr (isTonTransfer) {
-    if (invoice.sendUnencryptedText && !invoice.comment.isEmpty()) {
-      box->addRow(object_ptr<Ui::FlatLabel>(box, PrepareEncryptionWarning(invoice), st::walletLabel));
-    }
-  }
-
   box->events()  //
       | rpl::start_with_next(
             [=](not_null<QEvent *> e) {
