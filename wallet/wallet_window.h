@@ -79,8 +79,8 @@ class Window final : public base::has_weak_ptr {
   void createShowTooFastWords();
   void createShowIncorrectImport();
   void createShowImportFail();
-  void createSavePasscode(const QByteArray &passcode, std::shared_ptr<bool> guard);
-  void createSaveKey(const QByteArray &passcode, const QString &address, std::shared_ptr<bool> guard);
+  void createSavePasscode(const QByteArray &passcode, const std::shared_ptr<bool>& guard);
+  void createSaveKey(const QByteArray &passcode, const QString &address, const std::shared_ptr<bool>& guard);
 
   void decryptEverything(const QByteArray &publicKey);
   void askDecryptPassword(const Ton::DecryptPasswordNeeded &data);
