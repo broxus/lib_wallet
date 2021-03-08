@@ -98,6 +98,8 @@ PRIVATE
     wallet/wallet_info.h
     wallet/wallet_invoice_qr.cpp
     wallet/wallet_invoice_qr.h
+    wallet/wallet_keystore.cpp
+    wallet/wallet_keystore.h
     wallet/wallet_log.cpp
     wallet/wallet_log.h
     wallet/wallet_phrases.cpp

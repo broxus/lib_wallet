@@ -201,6 +201,7 @@ phrase lng_wallet_invoice_qr_share = "Share QR Code";
 phrase lng_wallet_invoice_copied = "Invoice link copied to clipboard.";
 
 phrase lng_wallet_menu_settings = "Settings";
+phrase lng_wallet_menu_keystore = "Key storage";
 phrase lng_wallet_menu_change_passcode = "Change password";
 phrase lng_wallet_menu_export = "Back up wallet";
 phrase lng_wallet_menu_delete = "Log Out";
@@ -355,6 +356,10 @@ phrase lng_wallet_settings_config_from_file = "Load from file";
 phrase lng_wallet_settings_mainnet = "Main Network";
 phrase lng_wallet_settings_testnet = "Test Network";
 phrase lng_wallet_settings_blockchain_name = "Blockchain ID";
+
+phrase lng_wallet_keystore_title = "Key Storage";
+phrase lng_wallet_keystore_create = "Create";
+phrase lng_wallet_keystore_pubkey_copied = "Public key copied to clipboard.";
 
 phrase lng_wallet_event_status_unknown = "unknown";
 phrase lng_wallet_event_status_in_process = "in progress";

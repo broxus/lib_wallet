@@ -69,19 +69,20 @@ void View::initControls(const std::vector<QString> &words, Layout layout) {
   const auto wordsTop = (layout == Layout::Export) ? st::walletExportWordsTop : st::walletWordsTop;
   const auto rowsBottom = wordsTop + rows * st::walletWordHeight;
 
-  inner()->sizeValue() | rpl::start_with_next(
-                             [=](QSize size) {
-                               const auto half = size.width() / 2;
-                               const auto left = half - st::walletWordSkipLeft;
-                               const auto right = half + st::walletWordSkipRight;
-                               auto top = contentTop() + wordsTop;
-                               for (const auto &pair : *labels) {
-                                 pair.first.move(left, top);
-                                 pair.second.move(right, top);
-                                 top += st::walletWordHeight;
-                               }
-                             },
-                             inner()->lifetime());
+  inner()->sizeValue()  //
+      | rpl::start_with_next(
+            [=](QSize size) {
+              const auto half = size.width() / 2;
+              const auto left = half - st::walletWordSkipLeft;
+              const auto right = half + st::walletWordSkipRight;
+              auto top = contentTop() + wordsTop;
+              for (const auto &pair : *labels) {
+                pair.first.move(left, top);
+                pair.second.move(right, top);
+                top += st::walletWordHeight;
+              }
+            },
+            inner()->lifetime());
 
   if (layout != Layout::Export) {
     showNextButton(ph::lng_wallet_continue());

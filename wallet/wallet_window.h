@@ -123,9 +123,13 @@ class Window final : public base::has_weak_ptr {
   void showSwitchTestNetworkWarning(const Ton::Settings &settings);
   void showBlockchainNameWarning(const Ton::Settings &settings);
   void showSettingsWithLogoutWarning(const Ton::Settings &settings, rpl::producer<QString> text);
+  void showKeystore();
+  void createFtabiKey();
   [[nodiscard]] Fn<void(QImage, QString)> shareCallback(const QString &linkCopied, const QString &textCopied,
                                                         const QString &qr);
   [[nodiscard]] Fn<void(QImage, QString)> shareAddressCallback();
+  [[nodiscard]] Fn<void(QString)> sharePubKeyCallback();
+
   void logoutWithConfirmation();
   void logout();
   void back();
@@ -164,6 +168,7 @@ class Window final : public base::has_weak_ptr {
   QPointer<Ui::GenericBox> _simpleErrorBox;
   QPointer<Ui::GenericBox> _settingsBox;
   QPointer<Ui::GenericBox> _saveConfirmBox;
+  QPointer<Ui::GenericBox> _keystoreBox;
 };
 
 }  // namespace Wallet

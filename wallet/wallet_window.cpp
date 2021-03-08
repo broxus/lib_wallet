@@ -15,6 +15,7 @@
 #include "wallet/wallet_receive_tokens.h"
 #include "wallet/wallet_create_invoice.h"
 #include "wallet/wallet_invoice_qr.h"
+#include "wallet/wallet_keystore.h"
 #include "wallet/wallet_send_grams.h"
 #include "wallet/wallet_send_stake.h"
 #include "wallet/wallet_depool_withdraw.h"
@@ -313,7 +314,7 @@ void Window::showSendingError(const Ton::Error &error) {
   }
 }
 
-void Window::createSavePasscode(const QByteArray &passcode, const std::shared_ptr<bool>& guard) {
+void Window::createSavePasscode(const QByteArray &passcode, const std::shared_ptr<bool> &guard) {
   if (std::exchange(*guard, true)) {
     return;
   }
@@ -467,6 +468,8 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
                   return changePassword();
                 case Action::ShowSettings:
                   return showSettings();
+                case Action::ShowKeystore:
+                  return showKeystore();
                 case Action::AddAsset:
                   return addAsset();
                 case Action::DeployTokenWallet:
@@ -1610,6 +1613,13 @@ Fn<void(QImage, QString)> Window::shareAddressCallback() {
                        ph::lng_wallet_receive_copied_qr(ph::now));
 }
 
+Fn<void(QString)> Window::sharePubKeyCallback() {
+  return [=](const QString &text) {
+    QGuiApplication::clipboard()->setText(text);
+    showToast(ph::lng_wallet_keystore_pubkey_copied(ph::now));
+  };
+}
+
 void Window::showToast(const QString &text) {
   Ui::Toast::Show(_window.get(), text);
 }
@@ -1775,6 +1785,16 @@ void Window::showSettingsWithLogoutWarning(const Ton::Settings &settings, rpl::p
   });
   _saveConfirmBox = box.data();
   _layers->showBox(std::move(box));
+}
+
+void Window::showKeystore() {
+  auto box = Box(KeystoreBox, _wallet->publicKeys().front(), _wallet->ftabiKeys(), sharePubKeyCallback(),
+                 [=] { createFtabiKey(); });
+  _keystoreBox = box.data();
+  _layers->showBox(std::move(box));
+}
+
+void Window::createFtabiKey() {
 }
 
 void Window::askExportPassword() {

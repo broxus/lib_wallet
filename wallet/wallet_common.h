@@ -159,6 +159,7 @@ enum class Action {
   Receive,
   ChangePassword,
   ShowSettings,
+  ShowKeystore,
   AddAsset,
   DeployTokenWallet,
   LogOut,

@@ -189,6 +189,7 @@ extern phrase lng_wallet_invoice_qr_share;
 extern phrase lng_wallet_invoice_copied;
 
 extern phrase lng_wallet_menu_settings;
+extern phrase lng_wallet_menu_keystore;
 extern phrase lng_wallet_menu_change_passcode;
 extern phrase lng_wallet_menu_export;
 extern phrase lng_wallet_menu_delete;
@@ -332,6 +333,10 @@ extern phrase lng_wallet_settings_config_from_file;
 extern phrase lng_wallet_settings_mainnet;
 extern phrase lng_wallet_settings_testnet;
 extern phrase lng_wallet_settings_blockchain_name;
+
+extern phrase lng_wallet_keystore_title;
+extern phrase lng_wallet_keystore_create;
+extern phrase lng_wallet_keystore_pubkey_copied;
 
 extern phrase lng_wallet_event_status_unknown;
 extern phrase lng_wallet_event_status_in_process;
