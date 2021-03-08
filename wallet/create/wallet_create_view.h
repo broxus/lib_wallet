@@ -11,21 +11,20 @@
 namespace Wallet::Create {
 
 class View final : public Step {
-public:
-	enum class Layout {
-		Create,
-		Export,
-	};
-	View(const std::vector<QString> &words, Layout layout = Layout::Create);
+ public:
+  enum class Layout {
+    Create,
+    Export,
+  };
+  View(const std::vector<QString> &words, Layout layout = Layout::Create);
 
-	int desiredHeight() const override;
+  int desiredHeight() const override;
 
-private:
-	void initControls(const std::vector<QString> &words, Layout layout);
-	void showFinishedHook() override;
+ private:
+  void initControls(const std::vector<QString> &words, Layout layout);
+  void showFinishedHook() override;
 
-	int _desiredHeight = 0;
-
+  int _desiredHeight = 0;
 };
 
-} // namespace Wallet::Create
+}  // namespace Wallet::Create

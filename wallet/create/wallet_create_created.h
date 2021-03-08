@@ -11,13 +11,12 @@
 namespace Wallet::Create {
 
 class Created final : public Step {
-public:
-	Created();
+ public:
+  Created();
 
-private:
-	void initControls();
-	void showFinishedHook() override;
-
+ private:
+  void initControls();
+  void showFinishedHook() override;
 };
 
-} // namespace Wallet::Create
+}  // namespace Wallet::Create

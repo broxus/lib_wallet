@@ -11,33 +11,32 @@
 namespace Wallet::Create {
 
 class Import final : public Step {
-public:
-	Import(Fn<std::vector<QString>(QString)> wordsByPrefix);
+ public:
+  Import(Fn<std::vector<QString>(QString)> wordsByPrefix);
 
-	enum class Action {
-		Submit,
-		NoWords,
-	};
+  enum class Action {
+    Submit,
+    NoWords,
+  };
 
-	int desiredHeight() const override;
-	bool allowEscapeBack() const override;
+  int desiredHeight() const override;
+  bool allowEscapeBack() const override;
 
-	[[nodiscard]] std::vector<QString> words() const;
-	[[nodiscard]] rpl::producer<Action> actionRequests() const;
+  [[nodiscard]] std::vector<QString> words() const;
+  [[nodiscard]] rpl::producer<Action> actionRequests() const;
 
-	void setFocus() override;
-	bool checkAll();
+  void setFocus() override;
+  bool checkAll();
 
-private:
-	void initControls(Fn<std::vector<QString>(QString)> wordsByPrefix);
+ private:
+  void initControls(Fn<std::vector<QString>(QString)> wordsByPrefix);
 
-	int _desiredHeight = 0;
-	Fn<std::vector<QString>()> _words;
-	Fn<void()> _setFocus;
-	Fn<bool()> _checkAll;
+  int _desiredHeight = 0;
+  Fn<std::vector<QString>()> _words;
+  Fn<void()> _setFocus;
+  Fn<bool()> _checkAll;
 
-	rpl::event_stream<Action> _actionRequests;
-
+  rpl::event_stream<Action> _actionRequests;
 };
 
-} // namespace Wallet::Create
+}  // namespace Wallet::Create

@@ -15,28 +15,24 @@
 namespace Wallet::Create {
 
 Ready::Ready() : Step(Type::Default) {
-	setTitle(ph::lng_wallet_ready_title(Ui::Text::RichLangValue));
-	setDescription(
-		ph::lng_wallet_ready_description(Ui::Text::RichLangValue));
-	initControls();
+  setTitle(ph::lng_wallet_ready_title(Ui::Text::RichLangValue));
+  setDescription(ph::lng_wallet_ready_description(Ui::Text::RichLangValue));
+  initControls();
 }
 
 int Ready::desiredHeight() const {
-	return st::walletChecksHeight;
+  return st::walletChecksHeight;
 }
 
 void Ready::initControls() {
-	showLottie(
-		"done",
-		st::walletStepReadyLottiePosition,
-		st::walletStepReadyLottieSize);
-	stopLottieOnLoop();
+  showLottie("done", st::walletStepReadyLottiePosition, st::walletStepReadyLottieSize);
+  stopLottieOnLoop();
 
-	showNextButton(ph::lng_wallet_ready_show_account());
+  showNextButton(ph::lng_wallet_ready_show_account());
 }
 
 void Ready::showFinishedHook() {
-	startLottie();
+  startLottie();
 }
 
-} // namespace Wallet::Create
+}  // namespace Wallet::Create

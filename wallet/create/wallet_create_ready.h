@@ -11,15 +11,14 @@
 namespace Wallet::Create {
 
 class Ready final : public Step {
-public:
-	Ready();
+ public:
+  Ready();
 
-	int desiredHeight() const override;
+  int desiredHeight() const override;
 
-private:
-	void initControls();
-	void showFinishedHook() override;
-
+ private:
+  void initControls();
+  void showFinishedHook() override;
 };
 
-} // namespace Wallet::Create
+}  // namespace Wallet::Create

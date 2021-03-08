@@ -17,44 +17,36 @@
 #include "styles/style_wallet.h"
 
 void wallet_InitResource() {
-	Q_INIT_RESOURCE(wallet);
+  Q_INIT_RESOURCE(wallet);
 }
 
 namespace Wallet::Create {
 
 Intro::Intro() : Step(Type::Default) {
-	setTitle(ph::lng_wallet_intro_title(Ui::Text::RichLangValue));
-	setDescription(
-		ph::lng_wallet_intro_description(Ui::Text::RichLangValue));
-	initControls();
+  setTitle(ph::lng_wallet_intro_title(Ui::Text::RichLangValue));
+  setDescription(ph::lng_wallet_intro_description(Ui::Text::RichLangValue));
+  initControls();
 }
 
 rpl::producer<> Intro::importClicks() const {
-	return rpl::duplicate(_importClicks);
+  return rpl::duplicate(_importClicks);
 }
 
 void Intro::initControls() {
-	wallet_InitResource();
+  wallet_InitResource();
 
-	showLottie(
-		"intro",
-		st::walletStepIntroLottiePosition,
-		st::walletStepIntroLottieSize);
-	showNextButton(ph::lng_wallet_intro_create());
-	auto importButton = object_ptr<Ui::PaddingWrap<Ui::LinkButton>>(
-		inner().get(),
-		object_ptr<Ui::LinkButton>(
-			inner().get(),
-			ph::lng_wallet_intro_import(ph::now),
-			st::walletStepIntroImportLink),
-		QMargins{ 0, st::walletStepIntroImportSkip, 0, 0 });
-	_importClicks = importButton->entity()->clicks(
-	) | rpl::map([] { return rpl::empty_value(); });
-	showBelowNextButton(std::move(importButton));
+  showLottie("intro", st::walletStepIntroLottiePosition, st::walletStepIntroLottieSize);
+  showNextButton(ph::lng_wallet_intro_create());
+  auto importButton = object_ptr<Ui::PaddingWrap<Ui::LinkButton>>(
+      inner().get(),
+      object_ptr<Ui::LinkButton>(inner().get(), ph::lng_wallet_intro_import(ph::now), st::walletStepIntroImportLink),
+      QMargins{0, st::walletStepIntroImportSkip, 0, 0});
+  _importClicks = importButton->entity()->clicks() | rpl::map([] { return rpl::empty_value(); });
+  showBelowNextButton(std::move(importButton));
 }
 
 void Intro::showFinishedHook() {
-	startLottie();
+  startLottie();
 }
 
-} // namespace Wallet::Create
+}  // namespace Wallet::Create

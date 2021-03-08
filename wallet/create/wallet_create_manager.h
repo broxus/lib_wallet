@@ -18,87 +18,82 @@ class LinkButton;
 class IconButton;
 template <typename Widget>
 class FadeWrap;
-} // namespace Ui
+}  // namespace Ui
 
 namespace Wallet {
 class UpdateInfo;
-} // namespace Wallet
+}  // namespace Wallet
 
 namespace Wallet::Create {
 
 class Manager final {
-public:
-	Manager(not_null<QWidget*> parent, UpdateInfo *updateInfo);
-	Manager(const Manager &other) = delete;
-	Manager &operator=(const Manager &other) = delete;
-	~Manager();
+ public:
+  Manager(not_null<QWidget *> parent, UpdateInfo *updateInfo);
+  Manager(const Manager &other) = delete;
+  Manager &operator=(const Manager &other) = delete;
+  ~Manager();
 
-	[[nodiscard]] not_null<Ui::RpWidget*> content() const;
+  [[nodiscard]] not_null<Ui::RpWidget *> content() const;
 
-	void setGeometry(QRect geometry);
+  void setGeometry(QRect geometry);
 
-	enum class Action {
-		NewKey,
-		CreateKey,
-		ShowAccount,
-		ShowCheckTooSoon,
-		ShowCheckIncorrect,
-		ShowImportFail,
-	};
+  enum class Action {
+    NewKey,
+    CreateKey,
+    ShowAccount,
+    ShowCheckTooSoon,
+    ShowCheckIncorrect,
+    ShowImportFail,
+  };
 
-	[[nodiscard]] rpl::producer<Action> actionRequests() const;
-	[[nodiscard]] rpl::producer<std::vector<QString>> importRequests() const;
-	[[nodiscard]] rpl::producer<QByteArray> passcodeChosen() const;
-	[[nodiscard]] QByteArray publicKey() const;
+  [[nodiscard]] rpl::producer<Action> actionRequests() const;
+  [[nodiscard]] rpl::producer<std::vector<QString>> importRequests() const;
+  [[nodiscard]] rpl::producer<QByteArray> passcodeChosen() const;
+  [[nodiscard]] QByteArray publicKey() const;
 
-	void next();
-	void back();
-	void backByEscape();
-	void setFocus();
+  void next();
+  void back();
+  void backByEscape();
+  void setFocus();
 
-	void showIntro(Direction direction = Direction::Forward);
-	void showImport();
-	void showCreated(std::vector<QString> &&words);
-	void showWords(Direction direction);
-	void showCheck();
-	void showPasscode(rpl::producer<QString> syncing);
-	void showReady(const QByteArray &publicKey);
+  void showIntro(Direction direction = Direction::Forward);
+  void showImport();
+  void showCreated(std::vector<QString> &&words);
+  void showWords(Direction direction);
+  void showCheck();
+  void showPasscode(rpl::producer<QString> syncing);
+  void showReady(const QByteArray &publicKey);
 
-	[[nodiscard]] rpl::lifetime &lifetime();
+  [[nodiscard]] rpl::lifetime &lifetime();
 
-private:
-	void showStep(
-		std::unique_ptr<Step> step,
-		Direction direction,
-		FnMut<void()> next = nullptr,
-		FnMut<void()> back = nullptr);
-	[[nodiscard]] std::vector<QString> wordsByPrefix(
-		const QString &word) const;
-	void initButtons(UpdateInfo *updateInfo);
-	void showImportFail();
-	void acceptWordsDelayByModifiers(Qt::KeyboardModifiers modifiers);
-	void setupUpdateButton(not_null<UpdateInfo*> info);
+ private:
+  void showStep(std::unique_ptr<Step> step, Direction direction, FnMut<void()> next = nullptr,
+                FnMut<void()> back = nullptr);
+  [[nodiscard]] std::vector<QString> wordsByPrefix(const QString &word) const;
+  void initButtons(UpdateInfo *updateInfo);
+  void showImportFail();
+  void acceptWordsDelayByModifiers(Qt::KeyboardModifiers modifiers);
+  void setupUpdateButton(not_null<UpdateInfo *> info);
 
-	const std::unique_ptr<Ui::RpWidget> _content;
-	const base::unique_qptr<Ui::FadeWrap<Ui::IconButton>> _backButton;
-	const base::flat_set<QString> _validWords;
-	const Fn<std::vector<QString>(QString)> _wordsByPrefix;
+  const std::unique_ptr<Ui::RpWidget> _content;
+  const base::unique_qptr<Ui::FadeWrap<Ui::IconButton>> _backButton;
+  const base::flat_set<QString> _validWords;
+  const Fn<std::vector<QString>(QString)> _wordsByPrefix;
 
-	base::unique_qptr<Ui::RoundButton> _updateButton;
+  base::unique_qptr<Ui::RoundButton> _updateButton;
 
-	std::unique_ptr<Step> _step;
-	std::vector<QString> _words;
-	base::Timer _waitForWords;
-	bool _wordsShouldBeReady = false;
-	QByteArray _publicKey;
+  std::unique_ptr<Step> _step;
+  std::vector<QString> _words;
+  base::Timer _waitForWords;
+  bool _wordsShouldBeReady = false;
+  QByteArray _publicKey;
 
-	FnMut<void()> _next;
-	FnMut<void()> _back;
+  FnMut<void()> _next;
+  FnMut<void()> _back;
 
-	rpl::event_stream<Action> _actionRequests;
-	rpl::event_stream<std::vector<QString>> _importRequests;
-	rpl::event_stream<QByteArray> _passcodeChosen;
-
+  rpl::event_stream<Action> _actionRequests;
+  rpl::event_stream<std::vector<QString>> _importRequests;
+  rpl::event_stream<QByteArray> _passcodeChosen;
 };
 
-} // namespace Wallet::Create
+}  // namespace Wallet::Create

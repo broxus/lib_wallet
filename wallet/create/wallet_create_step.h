@@ -22,119 +22,109 @@ class ScrollArea;
 class RoundButton;
 template <typename Widget>
 class FadeWrap;
-} // namespace Ui
+}  // namespace Ui
 
 namespace Wallet::Create {
 
 enum class Direction {
-	Forward,
-	Backward,
+  Forward,
+  Backward,
 };
 
 class Step {
-public:
-	enum class Type {
-		Scroll,
-		Default
-	};
+ public:
+  enum class Type { Scroll, Default };
 
-	Step(Type type);
-	Step(const Step &other) = delete;
-	Step &operator=(const Step &other) = delete;
-	virtual ~Step() = 0;
+  Step(Type type);
+  Step(const Step &other) = delete;
+  Step &operator=(const Step &other) = delete;
+  virtual ~Step() = 0;
 
-	[[nodiscard]] virtual int desiredHeight() const;
-	[[nodiscard]] virtual bool allowEscapeBack() const;
-	[[nodiscard]] not_null<Ui::RpWidget*> widget() const;
-	[[nodiscard]] rpl::producer<Qt::KeyboardModifiers> nextClicks() const;
-	[[nodiscard]] virtual rpl::producer<> importClicks() const;
+  [[nodiscard]] virtual int desiredHeight() const;
+  [[nodiscard]] virtual bool allowEscapeBack() const;
+  [[nodiscard]] not_null<Ui::RpWidget *> widget() const;
+  [[nodiscard]] rpl::producer<Qt::KeyboardModifiers> nextClicks() const;
+  [[nodiscard]] virtual rpl::producer<> importClicks() const;
 
-	void showAnimated(not_null<Step*> previous, Direction direction);
-	void showFast();
-	virtual void setFocus();
+  void showAnimated(not_null<Step *> previous, Direction direction);
+  void showFast();
+  virtual void setFocus();
 
-	[[nodiscard]] rpl::lifetime &lifetime();
+  [[nodiscard]] rpl::lifetime &lifetime();
 
-protected:
-	[[nodiscard]] not_null<Ui::RpWidget*> inner() const;
-	[[nodiscard]] int contentTop() const;
+ protected:
+  [[nodiscard]] not_null<Ui::RpWidget *> inner() const;
+  [[nodiscard]] int contentTop() const;
 
-	void setTitle(rpl::producer<TextWithEntities> text, int top = 0);
-	void setDescription(rpl::producer<TextWithEntities> text, int top = 0);
-	void ensureVisible(int top, int height);
+  void setTitle(rpl::producer<TextWithEntities> text, int top = 0);
+  void setDescription(rpl::producer<TextWithEntities> text, int top = 0);
+  void ensureVisible(int top, int height);
 
-	void showLottie(const QString &name, QPoint position, int size);
-	void startLottie();
-	void stopLottieOnLoop(int loop = 1);
+  void showLottie(const QString &name, QPoint position, int size);
+  void startLottie();
+  void stopLottieOnLoop(int loop = 1);
 
-	void showNextButton(rpl::producer<QString> text);
-	void showBelowNextButton(object_ptr<Ui::RpWidget> widget);
+  void showNextButton(rpl::producer<QString> text);
+  void showBelowNextButton(object_ptr<Ui::RpWidget> widget);
 
-	[[nodiscard]] virtual QImage grabForAnimation(QRect rect) const;
-	virtual void showFinishedHook();
+  [[nodiscard]] virtual QImage grabForAnimation(QRect rect) const;
+  virtual void showFinishedHook();
 
-private:
-	struct SlideAnimationData;
-	struct SlideAnimation {
-		SlideAnimation() = default;
-		SlideAnimation(SlideAnimation&&) = default;
-		SlideAnimation &operator=(SlideAnimation&&) = default;
-		~SlideAnimation();
+ private:
+  struct SlideAnimationData;
+  struct SlideAnimation {
+    SlideAnimation() = default;
+    SlideAnimation(SlideAnimation &&) = default;
+    SlideAnimation &operator=(SlideAnimation &&) = default;
+    ~SlideAnimation();
 
-		std::unique_ptr<Ui::LottieAnimation> lottieWas;
-		std::unique_ptr<Ui::LottieAnimation> lottieNow;
+    std::unique_ptr<Ui::LottieAnimation> lottieWas;
+    std::unique_ptr<Ui::LottieAnimation> lottieNow;
 
-		std::unique_ptr<Ui::SlideAnimation> slide;
-		Direction direction = Direction();
-		int slideTop = 0;
-		int slideWidth = 0;
-		QPoint lottieWasPosition;
-		int lottieWasSize = 0;
-		QPoint lottieNowPosition;
-		int lottieNowSize = 0;
-	};
+    std::unique_ptr<Ui::SlideAnimation> slide;
+    Direction direction = Direction();
+    int slideTop = 0;
+    int slideWidth = 0;
+    QPoint lottieWasPosition;
+    int lottieWasSize = 0;
+    QPoint lottieNowPosition;
+    int lottieNowSize = 0;
+  };
 
-	[[nodiscard]] Ui::ScrollArea *resolveScrollArea();
-	[[nodiscard]] not_null<Ui::RpWidget*> resolveInner();
-	[[nodiscard]] auto resolveNextButton()
-		->std::unique_ptr<Ui::FadeWrap<Ui::RoundButton>>;
-	void initGeometry();
+  [[nodiscard]] Ui::ScrollArea *resolveScrollArea();
+  [[nodiscard]] not_null<Ui::RpWidget *> resolveInner();
+  [[nodiscard]] auto resolveNextButton() -> std::unique_ptr<Ui::FadeWrap<Ui::RoundButton>>;
+  void initGeometry();
 
-	void showAnimatedSlide(not_null<Step*> previous, Direction direction);
-	void paintContent(QRect clip);
-	void showFinished();
+  void showAnimatedSlide(not_null<Step *> previous, Direction direction);
+  void paintContent(QRect clip);
+  void showFinished();
 
-	[[nodiscard]] int slideAnimationContentTop() const;
-	[[nodiscard]] int animationContentBottom() const;
+  [[nodiscard]] int slideAnimationContentTop() const;
+  [[nodiscard]] int animationContentBottom() const;
 
-	[[nodiscard]] SlideAnimationData prepareSlideAnimationData();
-	[[nodiscard]] QImage prepareSlideAnimationContent() const;
-	void adjustSlideSnapshots(
-		SlideAnimationData &was,
-		SlideAnimationData &now);
-	void slideAnimationCallback();
-	void paintSlideAnimation(QPainter &p, QRect clip);
+  [[nodiscard]] SlideAnimationData prepareSlideAnimationData();
+  [[nodiscard]] QImage prepareSlideAnimationContent() const;
+  void adjustSlideSnapshots(SlideAnimationData &was, SlideAnimationData &now);
+  void slideAnimationCallback();
+  void paintSlideAnimation(QPainter &p, QRect clip);
 
-	[[nodiscard]] QRect lottieGeometry(
-		QPoint position,
-		int top,
-		int size) const;
+  [[nodiscard]] QRect lottieGeometry(QPoint position, int top, int size) const;
 
-	const Type _type = Type();
-	const std::unique_ptr<Ui::RpWidget> _widget;
-	Ui::ScrollArea * const _scroll = nullptr;
-	const not_null<Ui::RpWidget*> _inner;
+  const Type _type = Type();
+  const std::unique_ptr<Ui::RpWidget> _widget;
+  Ui::ScrollArea *const _scroll = nullptr;
+  const not_null<Ui::RpWidget *> _inner;
 
-	std::unique_ptr<Ui::LottieAnimation> _lottie;
-	QPoint _lottiePosition;
-	int _lottieSize = 0;
-	base::unique_qptr<Ui::FlatLabel> _title;
-	base::unique_qptr<Ui::FlatLabel> _description;
-	base::unique_qptr<Ui::RoundButton> _nextButton;
-	base::unique_qptr<Ui::RpWidget> _belowNextButton;
+  std::unique_ptr<Ui::LottieAnimation> _lottie;
+  QPoint _lottiePosition;
+  int _lottieSize = 0;
+  base::unique_qptr<Ui::FlatLabel> _title;
+  base::unique_qptr<Ui::FlatLabel> _description;
+  base::unique_qptr<Ui::RoundButton> _nextButton;
+  base::unique_qptr<Ui::RpWidget> _belowNextButton;
 
-	SlideAnimation _slideAnimation;
-
+  SlideAnimation _slideAnimation;
 };
 
-} // namespace Wallet::Create
+}  // namespace Wallet::Create

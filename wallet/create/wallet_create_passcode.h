@@ -11,21 +11,20 @@
 namespace Wallet::Create {
 
 class Passcode final : public Step {
-public:
-	explicit Passcode(rpl::producer<QString> syncing);
+ public:
+  explicit Passcode(rpl::producer<QString> syncing);
 
-	[[nodiscard]] QByteArray passcode() const;
-	int desiredHeight() const override;
+  [[nodiscard]] QByteArray passcode() const;
+  int desiredHeight() const override;
 
-	void setFocus() override;
+  void setFocus() override;
 
-private:
-	void initControls(rpl::producer<QString> syncing);
-	void showFinishedHook() override;
+ private:
+  void initControls(rpl::producer<QString> syncing);
+  void showFinishedHook() override;
 
-	Fn<QByteArray()> _passcode;
-	Fn<void()> _setFocus;
-
+  Fn<QByteArray()> _passcode;
+  Fn<void()> _setFocus;
 };
 
-} // namespace Wallet::Create
+}  // namespace Wallet::Create

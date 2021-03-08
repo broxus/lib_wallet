@@ -11,17 +11,16 @@
 namespace Wallet::Create {
 
 class Intro final : public Step {
-public:
-	Intro();
+ public:
+  Intro();
 
-	rpl::producer<> importClicks() const override;
+  rpl::producer<> importClicks() const override;
 
-private:
-	void initControls();
-	void showFinishedHook() override;
+ private:
+  void initControls();
+  void showFinishedHook() override;
 
-	rpl::producer<> _importClicks;
-
+  rpl::producer<> _importClicks;
 };
 
-} // namespace Wallet::Create
+}  // namespace Wallet::Create

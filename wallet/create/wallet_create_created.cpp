@@ -15,23 +15,19 @@
 namespace Wallet::Create {
 
 Created::Created() : Step(Type::Default) {
-	setTitle(ph::lng_wallet_created_title(Ui::Text::RichLangValue));
-	setDescription(
-		ph::lng_wallet_created_description(Ui::Text::RichLangValue));
-	initControls();
+  setTitle(ph::lng_wallet_created_title(Ui::Text::RichLangValue));
+  setDescription(ph::lng_wallet_created_description(Ui::Text::RichLangValue));
+  initControls();
 }
 
 void Created::initControls() {
-	showLottie(
-		"created",
-		st::walletStepCreatedLottiePosition,
-		st::walletStepCreatedLottieSize);
-	stopLottieOnLoop();
-	showNextButton(ph::lng_wallet_continue());
+  showLottie("created", st::walletStepCreatedLottiePosition, st::walletStepCreatedLottieSize);
+  stopLottieOnLoop();
+  showNextButton(ph::lng_wallet_continue());
 }
 
 void Created::showFinishedHook() {
-	startLottie();
+  startLottie();
 }
 
-} // namespace Wallet::Create
+}  // namespace Wallet::Create

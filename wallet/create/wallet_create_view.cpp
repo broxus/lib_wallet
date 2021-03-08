@@ -17,94 +17,82 @@ namespace Wallet::Create {
 namespace {
 
 class Word final {
-public:
-	Word(not_null<QWidget*> parent, int index, const QString &word);
+ public:
+  Word(not_null<QWidget *> parent, int index, const QString &word);
 
-	void move(int left, int top) const;
-	[[nodiscard]] int top() const;
+  void move(int left, int top) const;
+  [[nodiscard]] int top() const;
 
-private:
-	object_ptr<Ui::FlatLabel> _index;
-	object_ptr<Ui::FlatLabel> _word;
-
+ private:
+  object_ptr<Ui::FlatLabel> _index;
+  object_ptr<Ui::FlatLabel> _word;
 };
 
-Word::Word(not_null<QWidget*> parent, int index, const QString &word)
-: _index(parent, QString::number(index + 1) + '.', st::walletWordIndexLabel)
-, _word(parent, word, st::walletWordLabel) {
+Word::Word(not_null<QWidget *> parent, int index, const QString &word)
+    : _index(parent, QString::number(index + 1) + '.', st::walletWordIndexLabel)
+    , _word(parent, word, st::walletWordLabel) {
 }
 
 void Word::move(int left, int top) const {
-	_index->move(left - _index->width() - st::walletWordIndexSkip, top);
-	_word->move(left, top);
+  _index->move(left - _index->width() - st::walletWordIndexSkip, top);
+  _word->move(left, top);
 }
 
 int Word::top() const {
-	return _index->y();
+  return _index->y();
 }
 
-} // namespace
+}  // namespace
 
-View::View(const std::vector<QString> &words, Layout layout)
-: Step(Type::Scroll) {
-	setTitle(
-		ph::lng_wallet_words_title(Ui::Text::RichLangValue),
-		(layout == Layout::Export) ? st::walletExportTitleTop : 0);
-	setDescription(
-		ph::lng_wallet_words_description(Ui::Text::RichLangValue));
-	initControls(words, layout);
+View::View(const std::vector<QString> &words, Layout layout) : Step(Type::Scroll) {
+  setTitle(ph::lng_wallet_words_title(Ui::Text::RichLangValue),
+           (layout == Layout::Export) ? st::walletExportTitleTop : 0);
+  setDescription(ph::lng_wallet_words_description(Ui::Text::RichLangValue));
+  initControls(words, layout);
 }
 
 int View::desiredHeight() const {
-	return _desiredHeight;
+  return _desiredHeight;
 }
 
 void View::initControls(const std::vector<QString> &words, Layout layout) {
-	Expects(words.size() % 2 == 0);
+  Expects(words.size() % 2 == 0);
 
-	showLottie(
-		"paper",
-		st::walletStepViewLottiePosition,
-		st::walletStepViewLottieSize);
-	stopLottieOnLoop();
+  showLottie("paper", st::walletStepViewLottiePosition, st::walletStepViewLottieSize);
+  stopLottieOnLoop();
 
-	auto labels = std::make_shared<std::vector<std::pair<Word, Word>>>();
-	const auto rows = words.size() / 2;
-	for (auto i = 0; i != rows; ++i) {
-		labels->emplace_back(
-			Word(inner(), i, words[i]),
-			Word(inner(), i + rows, words[i + rows]));
-	}
-	const auto wordsTop = (layout == Layout::Export)
-		? st::walletExportWordsTop
-		: st::walletWordsTop;
-	const auto rowsBottom = wordsTop + rows * st::walletWordHeight;
+  auto labels = std::make_shared<std::vector<std::pair<Word, Word>>>();
+  const auto rows = words.size() / 2;
+  for (auto i = 0; i != rows; ++i) {
+    labels->emplace_back(Word(inner(), i, words[i]), Word(inner(), i + rows, words[i + rows]));
+  }
+  const auto wordsTop = (layout == Layout::Export) ? st::walletExportWordsTop : st::walletWordsTop;
+  const auto rowsBottom = wordsTop + rows * st::walletWordHeight;
 
-	inner()->sizeValue(
-	) | rpl::start_with_next([=](QSize size) {
-		const auto half = size.width() / 2;
-		const auto left = half - st::walletWordSkipLeft;
-		const auto right = half + st::walletWordSkipRight;
-		auto top = contentTop() + wordsTop;
-		for (const auto &pair : *labels) {
-			pair.first.move(left, top);
-			pair.second.move(right, top);
-			top += st::walletWordHeight;
-		}
-	}, inner()->lifetime());
+  inner()->sizeValue() | rpl::start_with_next(
+                             [=](QSize size) {
+                               const auto half = size.width() / 2;
+                               const auto left = half - st::walletWordSkipLeft;
+                               const auto right = half + st::walletWordSkipRight;
+                               auto top = contentTop() + wordsTop;
+                               for (const auto &pair : *labels) {
+                                 pair.first.move(left, top);
+                                 pair.second.move(right, top);
+                                 top += st::walletWordHeight;
+                               }
+                             },
+                             inner()->lifetime());
 
-	if (layout != Layout::Export) {
-		showNextButton(ph::lng_wallet_continue());
-		_desiredHeight = rowsBottom
-			+ st::walletWordsNextSkip
-			+ st::walletWordsNextBottomSkip;
-	} else {
-		_desiredHeight = rowsBottom + st::walletExportBottomSkip;
-	}
+  if (layout != Layout::Export) {
+    showNextButton(ph::lng_wallet_continue());
+    _desiredHeight = rowsBottom + st::walletWordsNextSkip + st::walletWordsNextBottomSkip;
+  } else {
+    _desiredHeight = rowsBottom + st::walletExportBottomSkip;
+  }
 }
 
 void View::showFinishedHook() {
-	startLottie();
+  startLottie();
 }
 
-} // namespace Wallet::Create
+}  // namespace Wallet::Create

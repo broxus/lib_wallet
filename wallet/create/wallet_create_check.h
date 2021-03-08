@@ -11,32 +11,27 @@
 namespace Wallet::Create {
 
 class Check final : public Step {
-public:
-	Check(
-		Fn<std::vector<QString>(QString)> wordsByPrefix,
-		const std::vector<int> &indices);
+ public:
+  Check(Fn<std::vector<QString>(QString)> wordsByPrefix, const std::vector<int> &indices);
 
-	bool allowEscapeBack() const override;
-	int desiredHeight() const override;
+  bool allowEscapeBack() const override;
+  int desiredHeight() const override;
 
-	[[nodiscard]] std::vector<QString> words() const;
-	[[nodiscard]] rpl::producer<> submitRequests() const;
+  [[nodiscard]] std::vector<QString> words() const;
+  [[nodiscard]] rpl::producer<> submitRequests() const;
 
-	void setFocus() override;
-	bool checkAll();
+  void setFocus() override;
+  bool checkAll();
 
-private:
-	void initControls(
-		Fn<std::vector<QString>(QString)> wordsByPrefix,
-		const std::vector<int> &indices);
-	void showFinishedHook() override;
+ private:
+  void initControls(Fn<std::vector<QString>(QString)> wordsByPrefix, const std::vector<int> &indices);
+  void showFinishedHook() override;
 
-	Fn<std::vector<QString>()> _words;
-	Fn<void()> _setFocus;
-	Fn<bool()> _checkAll;
+  Fn<std::vector<QString>()> _words;
+  Fn<void()> _setFocus;
+  Fn<bool()> _checkAll;
 
-	rpl::event_stream<> _submitRequests;
-
+  rpl::event_stream<> _submitRequests;
 };
 
-} // namespace Wallet::Create
+}  // namespace Wallet::Create

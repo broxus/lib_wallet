@@ -18,176 +18,142 @@ namespace {
 
 using TonWordInput = Ui::TonWordInput;
 
-} // namespace
+}  // namespace
 
-Check::Check(
-	Fn<std::vector<QString>(QString)> wordsByPrefix,
-	const std::vector<int> &indices)
-: Step(Type::Default) {
-	Expects(indices.size() == 3);
+Check::Check(Fn<std::vector<QString>(QString)> wordsByPrefix, const std::vector<int> &indices) : Step(Type::Default) {
+  Expects(indices.size() == 3);
 
-	setTitle(
-		ph::lng_wallet_check_title(Ui::Text::RichLangValue),
-		st::walletStepCheckTitleTop);
-	setDescription(ph::lng_wallet_check_description(
-	) | rpl::map([=](QString text) {
-		return text.replace(
-			"{index1}",
-			QString::number(indices[0] + 1)
-		).replace(
-			"{index2}",
-			QString::number(indices[1] + 1)
-		).replace(
-			"{index3}",
-			QString::number(indices[2] + 1));
-	}) | Ui::Text::ToRichLangValue());
-	initControls(std::move(wordsByPrefix), indices);
+  setTitle(ph::lng_wallet_check_title(Ui::Text::RichLangValue), st::walletStepCheckTitleTop);
+  setDescription(ph::lng_wallet_check_description() | rpl::map([=](QString text) {
+                   return text.replace("{index1}", QString::number(indices[0] + 1))
+                       .replace("{index2}", QString::number(indices[1] + 1))
+                       .replace("{index3}", QString::number(indices[2] + 1));
+                 }) |
+                 Ui::Text::ToRichLangValue());
+  initControls(std::move(wordsByPrefix), indices);
 }
 
 std::vector<QString> Check::words() const {
-	return _words();
+  return _words();
 }
 
 rpl::producer<> Check::submitRequests() const {
-	return _submitRequests.events();
+  return _submitRequests.events();
 }
 
 void Check::setFocus() {
-	_setFocus();
+  _setFocus();
 }
 
 bool Check::checkAll() {
-	return _checkAll();
+  return _checkAll();
 }
 
 bool Check::allowEscapeBack() const {
-	return false;
+  return false;
 }
 
 int Check::desiredHeight() const {
-	return st::walletChecksHeight;
+  return st::walletChecksHeight;
 }
 
-void Check::initControls(
-		Fn<std::vector<QString>(QString)> wordsByPrefix,
-		const std::vector<int> &indices) {
-	showLottie(
-		"test",
-		st::walletStepCheckLottiePosition,
-		st::walletStepCheckLottieSize);
-	stopLottieOnLoop();
+void Check::initControls(Fn<std::vector<QString>(QString)> wordsByPrefix, const std::vector<int> &indices) {
+  showLottie("test", st::walletStepCheckLottiePosition, st::walletStepCheckLottieSize);
+  stopLottieOnLoop();
 
-	const auto count = indices.size();
-	auto inputs = std::make_shared<std::vector<
-		std::unique_ptr<TonWordInput>>>();
-	const auto wordsTop = st::walletChecksTop;
-	const auto rowsBottom = wordsTop + count * st::walletCheckHeight;
-	const auto isValid = [=](int index) {
-		Expects(index < count);
+  const auto count = indices.size();
+  auto inputs = std::make_shared<std::vector<std::unique_ptr<TonWordInput>>>();
+  const auto wordsTop = st::walletChecksTop;
+  const auto rowsBottom = wordsTop + count * st::walletCheckHeight;
+  const auto isValid = [=](int index) {
+    Expects(index < count);
 
-		const auto word = (*inputs)[index]->word();
-		const auto words = wordsByPrefix(word);
-		return !words.empty() && (words.front() == word);
-	};
-	const auto showError = [=](int index) {
-		Expects(index < count);
+    const auto word = (*inputs)[index]->word();
+    const auto words = wordsByPrefix(word);
+    return !words.empty() && (words.front() == word);
+  };
+  const auto showError = [=](int index) {
+    Expects(index < count);
 
-		if (isValid(index)) {
-			return false;
-		}
-		(*inputs)[index]->showError();
-		return true;
-	};
-	const auto init = [&](const TonWordInput &word, int index) {
-		const auto next = [=] {
-			return (index + 1 < count)
-				? (*inputs)[index + 1].get()
-				: nullptr;
-		};
-		const auto previous = [=] {
-			return (index > 0)
-				? (*inputs)[index - 1].get()
-				: nullptr;
-		};
+    if (isValid(index)) {
+      return false;
+    }
+    (*inputs)[index]->showError();
+    return true;
+  };
+  const auto init = [&](const TonWordInput &word, int index) {
+    const auto next = [=] { return (index + 1 < count) ? (*inputs)[index + 1].get() : nullptr; };
+    const auto previous = [=] { return (index > 0) ? (*inputs)[index - 1].get() : nullptr; };
 
-		word.blurred(
-		) | rpl::filter([=] {
-			return !(*inputs)[index]->word().trimmed().isEmpty()
-				&& !isValid(index);
-		}) | rpl::start_with_next([=] {
-			(*inputs)[index]->showErrorNoFocus();
-		}, lifetime());
+    word.blurred() | rpl::filter([=] { return !(*inputs)[index]->word().trimmed().isEmpty() && !isValid(index); }) |
+        rpl::start_with_next([=] { (*inputs)[index]->showErrorNoFocus(); }, lifetime());
 
-		word.tabbed(
-		) | rpl::start_with_next([=](TonWordInput::TabDirection direction) {
-			if (direction == TonWordInput::TabDirection::Forward) {
-				if (const auto word = next()) {
-					word->setFocus();
-				}
-			} else {
-				if (const auto word = previous()) {
-					word->setFocus();
-				}
-			}
-		}, lifetime());
+    word.tabbed() | rpl::start_with_next(
+                        [=](TonWordInput::TabDirection direction) {
+                          if (direction == TonWordInput::TabDirection::Forward) {
+                            if (const auto word = next()) {
+                              word->setFocus();
+                            }
+                          } else {
+                            if (const auto word = previous()) {
+                              word->setFocus();
+                            }
+                          }
+                        },
+                        lifetime());
 
-		word.submitted(
-		) | rpl::start_with_next([=] {
-			if ((*inputs)[index]->word() == TonWordInput::kSkipPassword) {
-				_submitRequests.fire({});
-			} else if (!showError(index)) {
-				if (const auto word = next()) {
-					word->setFocus();
-				} else {
-					_submitRequests.fire({});
-				}
-			}
-		}, lifetime());
-	};
-	for (auto i = 0; i != count; ++i) {
-		inputs->push_back(std::make_unique<TonWordInput>(
-			inner(),
-			st::walletCheckInputField,
-			indices[i],
-			wordsByPrefix));
-		init(*inputs->back(), i);
-	}
+    word.submitted() | rpl::start_with_next(
+                           [=] {
+                             if ((*inputs)[index]->word() == TonWordInput::kSkipPassword) {
+                               _submitRequests.fire({});
+                             } else if (!showError(index)) {
+                               if (const auto word = next()) {
+                                 word->setFocus();
+                               } else {
+                                 _submitRequests.fire({});
+                               }
+                             }
+                           },
+                           lifetime());
+  };
+  for (auto i = 0; i != count; ++i) {
+    inputs->push_back(std::make_unique<TonWordInput>(inner(), st::walletCheckInputField, indices[i], wordsByPrefix));
+    init(*inputs->back(), i);
+  }
 
-	inner()->sizeValue(
-	) | rpl::start_with_next([=](QSize size) {
-		const auto half = size.width() / 2;
-		const auto x = (size.width() - st::walletCheckInputField.width) / 2;
-		auto y = contentTop() + wordsTop;
-		for (const auto &input : *inputs) {
-			input->move(x, y);
-			y += st::walletCheckHeight;
-		}
-	}, inner()->lifetime());
+  inner()->sizeValue() | rpl::start_with_next(
+                             [=](QSize size) {
+                               const auto half = size.width() / 2;
+                               const auto x = (size.width() - st::walletCheckInputField.width) / 2;
+                               auto y = contentTop() + wordsTop;
+                               for (const auto &input : *inputs) {
+                                 input->move(x, y);
+                                 y += st::walletCheckHeight;
+                               }
+                             },
+                             inner()->lifetime());
 
-	showNextButton(ph::lng_wallet_continue());
+  showNextButton(ph::lng_wallet_continue());
 
-	_words = [=] {
-		return (*inputs) | ranges::views::transform(
-			[](const std::unique_ptr<TonWordInput> &p) { return p->word(); }
-		) | ranges::to_vector;
-	};
-	_setFocus = [=] {
-		inputs->front()->setFocus();
-	};
-	_checkAll = [=] {
-		if ((*inputs)[0]->word() == TonWordInput::kSkipPassword) {
-			return true;
-		}
-		auto result = true;
-		for (auto i = count; i != 0;) {
-			result = !showError(--i) && result;
-		}
-		return result;
-	};
+  _words = [=] {
+    return (*inputs) | ranges::views::transform([](const std::unique_ptr<TonWordInput> &p) { return p->word(); }) |
+           ranges::to_vector;
+  };
+  _setFocus = [=] { inputs->front()->setFocus(); };
+  _checkAll = [=] {
+    if ((*inputs)[0]->word() == TonWordInput::kSkipPassword) {
+      return true;
+    }
+    auto result = true;
+    for (auto i = count; i != 0;) {
+      result = !showError(--i) && result;
+    }
+    return result;
+  };
 }
 
 void Check::showFinishedHook() {
-	startLottie();
+  startLottie();
 }
 
-} // namespace Wallet::Create
+}  // namespace Wallet::Create
