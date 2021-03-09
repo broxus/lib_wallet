@@ -1627,27 +1627,28 @@ void Window::showToast(const QString &text) {
 void Window::changePassword() {
   const auto saving = std::make_shared<bool>();
   const auto weakBox = std::make_shared<QPointer<Ui::GenericBox>>();
-  auto box = Box(ChangePasscodeBox, [=](const QByteArray &old, const QByteArray &now, Fn<void(QString)> showError) {
-    if (std::exchange(*saving, true)) {
-      return;
-    }
-    const auto done = [=](Ton::Result<> result) {
-      if (!result) {
-        *saving = false;
-        if (IsIncorrectPasswordError(result.error())) {
-          showError(ph::lng_wallet_passcode_incorrect(ph::now));
-        } else {
-          showGenericError(result.error());
+  auto box =
+      Box(ChangePasscodeBox, [=](const QByteArray &old, const QByteArray &now, const Fn<void(QString)> &showError) {
+        if (std::exchange(*saving, true)) {
+          return;
         }
-        return;
-      }
-      if (*weakBox) {
-        (*weakBox)->closeBox();
-      }
-      showToast(ph::lng_wallet_change_passcode_done(ph::now));
-    };
-    _wallet->changePassword(old, now, crl::guard(this, done));
-  });
+        const auto done = [=](Ton::Result<> result) {
+          if (!result) {
+            *saving = false;
+            if (IsIncorrectPasswordError(result.error())) {
+              showError(ph::lng_wallet_passcode_incorrect(ph::now));
+            } else {
+              showGenericError(result.error());
+            }
+            return;
+          }
+          if (*weakBox) {
+            (*weakBox)->closeBox();
+          }
+          showToast(ph::lng_wallet_change_passcode_done(ph::now));
+        };
+        _wallet->changePassword(old, now, crl::guard(this, done));
+      });
   *weakBox = box.data();
   _layers->showBox(std::move(box));
 }
@@ -1788,6 +1789,10 @@ void Window::showSettingsWithLogoutWarning(const Ton::Settings &settings, rpl::p
 }
 
 void Window::showKeystore() {
+  if (_keystoreBox) {
+    _keyCreationBox->closeBox();
+  }
+
   auto handleAction = [=](Ton::KeyType keyType, const QByteArray &publicKey, KeystoreAction action) {
     switch (action) {
       case KeystoreAction::Export: {
@@ -1809,23 +1814,82 @@ void Window::showKeystore() {
     }
   };
 
+  auto guard = std::make_shared<bool>(false);
+  auto onCreate = [=] {
+    if (*guard) {
+      return;
+    }
+    *guard = true;
+
+    createFtabiKey([=](QByteArray) { showKeystore(); });
+  };
+
   auto box = Box(KeystoreBox, _wallet->publicKeys().front(), _wallet->ftabiKeys(), sharePubKeyCallback(), handleAction,
-                 [=] { createFtabiKey(); });
+                 onCreate);
   _keystoreBox = box.data();
   _layers->showBox(std::move(box));
 }
 
-void Window::createFtabiKey() {
+void Window::createFtabiKey(const OnFtabiKeyCreated &done) {
   if (_keyCreationBox) {
     _keyCreationBox->closeBox();
   }
 
-  const auto done = [=](NewFtabiKey newKey) {
-    // TODO
+  auto guard = std::make_shared<bool>(false);
+  const auto submit = [=](const NewFtabiKey &newKey) {
+    if (*guard) {
+      return;
+    }
+    *guard = true;
+
+    if (newKey.generate) {
+      _wallet->createFtabiKey(newKey.name, Ton::kFtabiKeyDerivationPath, [=](Ton::Result<std::vector<QString>> result) {
+        if (!result) {
+          return showToast(result.error().details);
+        }
+
+        showExported(result.value());
+      });
+    } else {
+      // TODO
+    }
   };
 
-  auto box = Box(NewFtabiKeyBox, done);
+  auto box = Box(NewFtabiKeyBox, submit);
   _keyCreationBox = box.data();
+  _layers->showBox(std::move(box));
+}
+
+void Window::showCreatedFtabiKey(const std::vector<QString> &words, const OnFtabiKeyCreated &done) {
+  _layers->showBox(Box(GeneratedFtabiKeyBox, words, [=] { askNewFtabiKeyPassword(done); }));
+}
+
+void Window::askNewFtabiKeyPassword(const OnFtabiKeyCreated &done) {
+  const auto saving = std::make_shared<bool>();
+  const auto weakBox = std::make_shared<QPointer<Ui::GenericBox>>();
+  auto box = Box(NewFtabiKeyPasswordBox, [=](const QByteArray &localPassword, const Fn<void(QString)> &showError) {
+    if (std::exchange(*saving, true)) {
+      return;
+    }
+    const auto onSave = [=](Ton::Result<QByteArray> result) {
+      if (!result) {
+        *saving = false;
+        if (IsIncorrectPasswordError(result.error())) {
+          showError(ph::lng_wallet_passcode_incorrect(ph::now));
+        } else {
+          showGenericError(result.error());
+        }
+        return;
+      }
+      if (*weakBox) {
+        (*weakBox)->closeBox();
+      }
+      showToast(ph::lng_wallet_change_passcode_done(ph::now));
+      done(result.value());
+    };
+    _wallet->saveFtabiKey(localPassword, crl::guard(this, onSave));
+  });
+  *weakBox = box.data();
   _layers->showBox(std::move(box));
 }
 

@@ -6,6 +6,8 @@
 //
 #pragma once
 
+#include <mutex>
+
 #include "ton/ton_state.h"
 #include "base/weak_ptr.h"
 #include "base/object_ptr.h"
@@ -79,8 +81,8 @@ class Window final : public base::has_weak_ptr {
   void createShowTooFastWords();
   void createShowIncorrectImport();
   void createShowImportFail();
-  void createSavePasscode(const QByteArray &passcode, const std::shared_ptr<bool>& guard);
-  void createSaveKey(const QByteArray &passcode, const QString &address, const std::shared_ptr<bool>& guard);
+  void createSavePasscode(const QByteArray &passcode, const std::shared_ptr<bool> &guard);
+  void createSaveKey(const QByteArray &passcode, const QString &address, const std::shared_ptr<bool> &guard);
 
   void decryptEverything(const QByteArray &publicKey);
   void askDecryptPassword(const Ton::DecryptPasswordNeeded &data);
@@ -119,12 +121,19 @@ class Window final : public base::has_weak_ptr {
   void checkConfigFromContent(QByteArray bytes, Fn<void(QByteArray)> good);
   void saveSettings(const Ton::Settings &settings);
   void saveSettingsWithLoaded(const Ton::Settings &settings);
-  void saveSettingsSure(const Ton::Settings &settings, const Fn<void()>& done);
+  void saveSettingsSure(const Ton::Settings &settings, const Fn<void()> &done);
   void showSwitchTestNetworkWarning(const Ton::Settings &settings);
   void showBlockchainNameWarning(const Ton::Settings &settings);
   void showSettingsWithLogoutWarning(const Ton::Settings &settings, rpl::producer<QString> text);
+
   void showKeystore();
-  void createFtabiKey();
+
+  using OnFtabiKeyCreated = Fn<void(QByteArray)>;
+
+  void createFtabiKey(const OnFtabiKeyCreated &done);
+  void showCreatedFtabiKey(const std::vector<QString> &words, const OnFtabiKeyCreated &done);
+  void askNewFtabiKeyPassword(const OnFtabiKeyCreated &done);
+
   [[nodiscard]] Fn<void(QImage, QString)> shareCallback(const QString &linkCopied, const QString &textCopied,
                                                         const QString &qr);
   [[nodiscard]] Fn<void(QImage, QString)> shareAddressCallback();
@@ -168,6 +177,7 @@ class Window final : public base::has_weak_ptr {
   QPointer<Ui::GenericBox> _simpleErrorBox;
   QPointer<Ui::GenericBox> _settingsBox;
   QPointer<Ui::GenericBox> _saveConfirmBox;
+
   QPointer<Ui::GenericBox> _keystoreBox;
   QPointer<Ui::GenericBox> _keyCreationBox;
 };

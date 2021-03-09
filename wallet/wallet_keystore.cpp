@@ -1,16 +1,19 @@
-#include <ui/widgets/input_fields.h>
 #include "wallet_keystore.h"
 
-#include "wallet/wallet_phrases.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/widgets/checkbox.h"
-#include "ui/address_label.h"
+#include "ui/widgets/input_fields.h"
+#include "ui/wrap/fade_wrap.h"
+#include "ui/lottie_widget.h"
 #include "styles/style_layers.h"
 #include "styles/style_wallet.h"
-#include "wallet_common.h"
+#include "wallet/wallet_common.h"
+#include "wallet/wallet_phrases.h"
+#include "wallet/create/wallet_create_view.h"
+#include "base/platform/base_platform_layout_switch.h"
 
 namespace Wallet {
 
@@ -275,6 +278,15 @@ void NewFtabiKeyBox(not_null<Ui::GenericBox *> box, const Fn<void(NewFtabiKey)> 
   });
 
   const auto submit = [=] {
+    const auto nameValue = name->getLastText();
+    if (nameValue.isEmpty()) {
+      return name->showError();
+    }
+
+    if (generate->current()) {
+      done(NewFtabiKey{.name = nameValue, .generate = true});
+    }
+
     //
   };
 
@@ -289,6 +301,89 @@ void NewFtabiKeyBox(not_null<Ui::GenericBox *> box, const Fn<void(NewFtabiKey)> 
                     | rpl::flatten_latest();
   box->addButton(buttonText, submit, st::walletBottomButton)
       ->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+}
+
+void GeneratedFtabiKeyBox(not_null<Ui::GenericBox *> box, const std::vector<QString> &words, const Fn<void()> &done) {
+  box->setWidth(st::boxWideWidth);
+  box->setStyle(st::walletBox);
+  box->setNoContentMargin(true);
+
+  const auto view = box->lifetime().make_state<Create::View>(words, Create::View::Layout::Export);
+  view->widget()->resize(st::boxWideWidth, view->desiredHeight());
+  box->addRow(object_ptr<Ui::RpWidget>::fromRaw(view->widget()), QMargins());
+  view->showFast();
+
+  box->addButton(ph::lng_wallet_done(), done, st::walletWideBottomButton)
+      ->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+}
+
+void NewFtabiKeyPasswordBox(not_null<Ui::GenericBox *> box,
+                            const Fn<void(const QByteArray &, const Fn<void(QString)> &)> &done) {
+  box->setTitle(ph::lng_wallet_change_passcode_title());
+
+  const auto inner = box->addRow(object_ptr<Ui::FixedHeightWidget>(box, st::walletChangePasscodeHeight));
+
+  const auto lottie = inner->lifetime().make_state<Ui::LottieAnimation>(inner, Ui::LottieFromResource("lock"));
+  lottie->start();
+  lottie->stopOnLoop(1);
+
+  const auto error = Ui::CreateChild<Ui::FadeWrap<Ui::FlatLabel>>(
+      inner, object_ptr<Ui::FlatLabel>(inner, QString(), st::walletPasscodeError));
+
+  const auto now =
+      Ui::CreateChild<Ui::PasswordInput>(inner, st::walletPasscodeInput, ph::lng_wallet_change_passcode_new());
+
+  const auto repeat =
+      Ui::CreateChild<Ui::PasswordInput>(inner, st::walletPasscodeInput, ph::lng_wallet_change_passcode_repeat());
+
+  inner->widthValue() |
+      rpl::start_with_next(
+          [=](int width) {
+            lottie->setGeometry(QRect((width - st::walletPasscodeLottieSize) / 2, st::walletPasscodeLottieTop,
+                                      st::walletPasscodeLottieSize, st::walletPasscodeLottieSize));
+
+            error->resizeToWidth(width);
+            error->moveToLeft(0, st::walletChangePasscodeErrorTop, width);
+
+            now->move((width - now->width()) / 2, st::walletChangePasscodeNowTop);
+            repeat->move((width - repeat->width()) / 2, st::walletChangePasscodeRepeatTop);
+          },
+          inner->lifetime());
+
+  error->hide(anim::type::instant);
+
+  const auto save = [=] {
+    auto password = now->getLastText().toUtf8();
+    if (password.isEmpty()) {
+      now->showError();
+      return;
+    } else if (repeat->getLastText().toUtf8() != password) {
+      repeat->showError();
+      return;
+    }
+
+    done(password, crl::guard(box, [=](const QString &text) {
+           error->entity()->setText(text);
+           error->show(anim::type::normal);
+         }));
+  };
+
+  Ui::Connect(now, &Ui::PasswordInput::submitted, [=] {
+    if (now->getLastText().isEmpty()) {
+      now->showError();
+    } else {
+      repeat->setFocus();
+    }
+  });
+  Ui::Connect(repeat, &Ui::PasswordInput::submitted, save);
+
+  box->setFocusCallback([=] {
+    base::Platform::SwitchKeyboardLayoutToEnglish();
+    now->setFocusFast();
+  });
+
+  box->addButton(ph::lng_wallet_save(), save);
+  box->addButton(ph::lng_wallet_cancel(), [=] { box->closeBox(); });
 }
 
 }  // namespace Wallet

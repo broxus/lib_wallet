@@ -29,4 +29,9 @@ void KeystoreBox(not_null<Ui::GenericBox *> box, const QByteArray &mainPublicKey
 
 void NewFtabiKeyBox(not_null<Ui::GenericBox *> box, const Fn<void(NewFtabiKey)> &done);
 
+void GeneratedFtabiKeyBox(not_null<Ui::GenericBox *> box, const std::vector<QString> &words, const Fn<void()> &done);
+
+void NewFtabiKeyPasswordBox(not_null<Ui::GenericBox *> box,
+                            const Fn<void(const QByteArray &, const Fn<void(QString)> &)> &done);
+
 }  // namespace Wallet

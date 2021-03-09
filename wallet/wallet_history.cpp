@@ -1253,10 +1253,10 @@ void History::refreshShowDates(const SelectedAsset &selectedAsset) {
                     latestEthStatuses.insert(std::make_pair(transaction.incoming.source, event.status));
                   }
 
+                  const auto &address = transaction.incoming.source;
                   row->setNotificationLayout(
                       &_widget, EventType::EthEvent, RegularTransactionParams{.brief = briefNotifications},
-                      showButton ? [=, address = transaction.incoming.source] { _collectTokenRequests.fire(&address); }
-                                 : Fn<void()>{nullptr});
+                      showButton ? [=] { _collectTokenRequests.fire(&address); } : Fn<void()>{nullptr});
                 },
                 [&](const Ton::TonEventStatusChanged &event) {
                   auto showButton = event.status == Ton::TonEventStatus::Confirmed;
@@ -1272,11 +1272,10 @@ void History::refreshShowDates(const SelectedAsset &selectedAsset) {
                     showButton = false;
                   }
 
+                  const auto &address = transaction.incoming.source;
                   row->setNotificationLayout(
                       &_widget, EventType::TonEvent, RegularTransactionParams{.brief = briefNotifications},
-                      showButton
-                          ? [=, address = transaction.incoming.source] { _executeSwapBackRequests.fire(&address); }
-                          : Fn<void()>{nullptr});
+                      showButton ? [=] { _executeSwapBackRequests.fire(&address); } : Fn<void()>{nullptr});
                 },
                 [&](auto &&) {
                   const auto asReturnedChange = !transaction.incoming.source.isEmpty() &&
