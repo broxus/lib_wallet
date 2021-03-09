@@ -1727,8 +1727,8 @@ void Window::saveSettingsWithLoaded(const Ton::Settings &settings) {
   });
 }
 
-void Window::saveSettingsSure(const Ton::Settings &settings, Fn<void()> done) {
-  const auto showError = [=](Ton::Error error) {
+void Window::saveSettingsSure(const Ton::Settings &settings, const Fn<void()> &done) {
+  const auto showError = [=](const Ton::Error &error) {
     if (_saveConfirmBox) {
       _saveConfirmBox->closeBox();
     }
@@ -1788,13 +1788,45 @@ void Window::showSettingsWithLogoutWarning(const Ton::Settings &settings, rpl::p
 }
 
 void Window::showKeystore() {
-  auto box = Box(KeystoreBox, _wallet->publicKeys().front(), _wallet->ftabiKeys(), sharePubKeyCallback(),
+  auto handleAction = [=](Ton::KeyType keyType, const QByteArray &publicKey, KeystoreAction action) {
+    switch (action) {
+      case KeystoreAction::Export: {
+        if (keyType == Ton::KeyType::Original) {
+          askExportPassword();
+        }
+        return;
+      }
+      case KeystoreAction::ChangePassword: {
+        if (keyType == Ton::KeyType::Original) {
+          changePassword();
+        }
+        return;
+      }
+      case KeystoreAction::Delete: {
+        // TODO
+        return;
+      }
+    }
+  };
+
+  auto box = Box(KeystoreBox, _wallet->publicKeys().front(), _wallet->ftabiKeys(), sharePubKeyCallback(), handleAction,
                  [=] { createFtabiKey(); });
   _keystoreBox = box.data();
   _layers->showBox(std::move(box));
 }
 
 void Window::createFtabiKey() {
+  if (_keyCreationBox) {
+    _keyCreationBox->closeBox();
+  }
+
+  const auto done = [=](NewFtabiKey newKey) {
+    // TODO
+  };
+
+  auto box = Box(NewFtabiKeyBox, done);
+  _keyCreationBox = box.data();
+  _layers->showBox(std::move(box));
 }
 
 void Window::askExportPassword() {
@@ -1823,7 +1855,7 @@ void Window::askExportPassword() {
     _wallet->exportKey(_wallet->publicKeys().front(), passcode, crl::guard(this, ready));
   };
   auto box = Box(EnterPasscodeBox,
-                 [=](const QByteArray &passcode, Fn<void(QString)> showError) { ready(passcode, showError); });
+                 [=](const QByteArray &passcode, const Fn<void(QString)> &showError) { ready(passcode, showError); });
   *weakBox = box.data();
   _layers->showBox(std::move(box));
 }

@@ -335,8 +335,21 @@ extern phrase lng_wallet_settings_testnet;
 extern phrase lng_wallet_settings_blockchain_name;
 
 extern phrase lng_wallet_keystore_title;
+extern phrase lng_wallet_keystore_main_wallet_key;
 extern phrase lng_wallet_keystore_create;
+extern phrase lng_wallet_keystore_delete;
+extern phrase lng_wallet_keystore_export;
+extern phrase lng_wallet_keystore_change_password;
 extern phrase lng_wallet_keystore_pubkey_copied;
+
+extern phrase lng_wallet_new_ftabi_key_title;
+extern phrase lng_wallet_new_ftabi_key_name;
+extern phrase lng_wallet_new_ftabi_key_enter_key_name;
+extern phrase lng_wallet_new_ftabi_key_generate_new;
+extern phrase lng_wallet_new_ftabi_key_import_existing;
+extern phrase lng_wallet_new_ftabi_key_enter_mnemonic;
+extern phrase lng_wallet_new_ftabi_key_generate;
+extern phrase lng_wallet_new_ftabi_key_import;
 
 extern phrase lng_wallet_event_status_unknown;
 extern phrase lng_wallet_event_status_in_process;

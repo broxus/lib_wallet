@@ -358,8 +358,21 @@ phrase lng_wallet_settings_testnet = "Test Network";
 phrase lng_wallet_settings_blockchain_name = "Blockchain ID";
 
 phrase lng_wallet_keystore_title = "Key Storage";
+phrase lng_wallet_keystore_main_wallet_key = "Main wallet key";
 phrase lng_wallet_keystore_create = "Create";
+phrase lng_wallet_keystore_delete = "Delete";
+phrase lng_wallet_keystore_export = "Export phrase";
+phrase lng_wallet_keystore_change_password = "Change password";
 phrase lng_wallet_keystore_pubkey_copied = "Public key copied to clipboard.";
+
+phrase lng_wallet_new_ftabi_key_title = "Create new key";
+phrase lng_wallet_new_ftabi_key_name = "Name";
+phrase lng_wallet_new_ftabi_key_enter_key_name = "Enter the name of the key";
+phrase lng_wallet_new_ftabi_key_generate_new = "Generate new";
+phrase lng_wallet_new_ftabi_key_import_existing = "Import existing";
+phrase lng_wallet_new_ftabi_key_enter_mnemonic = "Enter a 12-word mnemonic";
+phrase lng_wallet_new_ftabi_key_generate = "Generate";
+phrase lng_wallet_new_ftabi_key_import = "Import";
 
 phrase lng_wallet_event_status_unknown = "unknown";
 phrase lng_wallet_event_status_in_process = "in progress";

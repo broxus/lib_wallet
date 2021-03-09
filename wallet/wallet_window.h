@@ -119,7 +119,7 @@ class Window final : public base::has_weak_ptr {
   void checkConfigFromContent(QByteArray bytes, Fn<void(QByteArray)> good);
   void saveSettings(const Ton::Settings &settings);
   void saveSettingsWithLoaded(const Ton::Settings &settings);
-  void saveSettingsSure(const Ton::Settings &settings, Fn<void()> done);
+  void saveSettingsSure(const Ton::Settings &settings, const Fn<void()>& done);
   void showSwitchTestNetworkWarning(const Ton::Settings &settings);
   void showBlockchainNameWarning(const Ton::Settings &settings);
   void showSettingsWithLogoutWarning(const Ton::Settings &settings, rpl::producer<QString> text);
@@ -169,6 +169,7 @@ class Window final : public base::has_weak_ptr {
   QPointer<Ui::GenericBox> _settingsBox;
   QPointer<Ui::GenericBox> _saveConfirmBox;
   QPointer<Ui::GenericBox> _keystoreBox;
+  QPointer<Ui::GenericBox> _keyCreationBox;
 };
 
 }  // namespace Wallet

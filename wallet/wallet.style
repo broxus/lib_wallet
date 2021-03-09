@@ -152,6 +152,8 @@ walletMenuPosition: point(2px, 40px);
 walletDiamondSize: 22px;
 walletDiamondAscent: 16px;
 
+walletKeystoreMenuPosition: point(2px, 2px);
+
 walletTokenInfoIconSize: 40px;
 walletTokenIconSize: 22px;
 walletTokenIconAscent: 16px;
