@@ -1794,13 +1794,15 @@ void Window::showKeystore() {
         if (keyType == Ton::KeyType::Original) {
           askExportPassword();
         } else {
-          askFtabiKeyExportPassword(publicKey);
+          exportFtabiKey(publicKey);
         }
         return;
       }
       case KeystoreAction::ChangePassword: {
         if (keyType == Ton::KeyType::Original) {
           changePassword();
+        } else {
+          askFtabiKeyChangePassword(publicKey);
         }
         return;
       }
@@ -1831,7 +1833,7 @@ void Window::showKeystore() {
     }
     *creationGuard = true;
 
-    createFtabiKey([=](const QByteArray &) { showKeystore(); });
+    addFtabiKey([=] { *creationGuard = false; }, [=](const QByteArray &) { showKeystore(); });
   };
 
   auto box = Box(KeystoreBox, _wallet->publicKeys().front(), _wallet->ftabiKeys(), sharePubKeyCallback(), handleAction,
@@ -1840,7 +1842,7 @@ void Window::showKeystore() {
   _layers->showBox(std::move(box));
 }
 
-void Window::askFtabiKeyExportPassword(const QByteArray &publicKey) {
+void Window::exportFtabiKey(const QByteArray &publicKey) {
   const auto exporting = std::make_shared<bool>();
   const auto weakBox = std::make_shared<QPointer<Ui::GenericBox>>();
   const auto ready = [=](const QByteArray &passcode, const Fn<void(QString)> &showError) {
@@ -1875,9 +1877,10 @@ void Window::showExportedFtabiKey(const std::vector<QString> &words) {
   _layers->showBox(Box(ExportedFtabiKeyBox, words));
 }
 
-void Window::createFtabiKey(const OnFtabiKeyCreated &done) {
+void Window::addFtabiKey(const Fn<void()> &cancel, const OnFtabiKeyCreated &done) {
   auto guard = std::make_shared<bool>(false);
   const auto weakBox = std::make_shared<QPointer<Ui::GenericBox>>();
+
   const auto submit = [=](const NewFtabiKey &newKey) {
     if (*guard) {
       return;
@@ -1890,10 +1893,10 @@ void Window::createFtabiKey(const OnFtabiKeyCreated &done) {
           return showToast(result.error().details);
         }
 
-        showCreatedFtabiKey(result.value(), done);
+        showNewFtabiKey(result.value(), done);
       });
     } else {
-      // TODO
+      importFtabiKey(newKey.name, cancel, done);
     }
 
     if (*weakBox) {
@@ -1901,12 +1904,46 @@ void Window::createFtabiKey(const OnFtabiKeyCreated &done) {
     }
   };
 
-  auto box = Box(NewFtabiKeyBox, submit);
+  auto box = Box(NewFtabiKeyBox, cancel, submit);
   *weakBox = box.data();
   _layers->showBox(std::move(box));
 }
 
-void Window::showCreatedFtabiKey(const std::vector<QString> &words, const OnFtabiKeyCreated &done) {
+void Window::importFtabiKey(const QString &name, const Fn<void()> &cancel, const OnFtabiKeyCreated &done) {
+  auto guard = std::make_shared<bool>(false);
+  const auto weakBox = std::make_shared<QPointer<Ui::GenericBox>>();
+  const auto submit = [=](const WordsList &words) {
+    if (*guard) {
+      return;
+    }
+    *guard = true;
+
+    _wallet->importFtabiKey(                        //
+        name, Ton::kFtabiKeyDerivationPath, words,  //
+        crl::guard(this, [=](Ton::Result<> result) {
+          if (result) {
+            askNewFtabiKeyPassword([=](const QByteArray &publicKey) {
+              if (*weakBox) {
+                (*weakBox)->closeBox();
+              }
+              done(publicKey);
+            });
+          } else if (IsIncorrectMnemonicError(result.error())) {
+            *guard = false;
+            createShowIncorrectImport();
+          } else {
+            *guard = false;
+            showGenericError(result.error());
+          }
+        }));
+  };
+
+  auto box = Box(ImportFtabiKeyBox, cancel, submit);
+  *weakBox = box.data();
+  _layers->showBox(std::move(box));
+}
+
+void Window::showNewFtabiKey(const std::vector<QString> &words, const OnFtabiKeyCreated &done) {
   const auto weakBox = std::make_shared<QPointer<Ui::GenericBox>>();
   auto box = Box(GeneratedFtabiKeyBox, words, [=] {
     askNewFtabiKeyPassword([=](const QByteArray &publicKey) {
@@ -1940,11 +1977,41 @@ void Window::askNewFtabiKeyPassword(const OnFtabiKeyCreated &done) {
       if (*weakBox) {
         (*weakBox)->closeBox();
       }
-      showToast(ph::lng_wallet_change_passcode_done(ph::now));
+      showToast(ph::lng_wallet_new_ftabi_key_done(ph::now));
       done(result.value());
     };
     _wallet->saveFtabiKey(localPassword, crl::guard(this, onSave));
   });
+  *weakBox = box.data();
+  _layers->showBox(std::move(box));
+}
+
+void Window::askFtabiKeyChangePassword(const QByteArray &publicKey) {
+  const auto saving = std::make_shared<bool>();
+  const auto weakBox = std::make_shared<QPointer<Ui::GenericBox>>();
+  auto box =
+      Box(ChangePasscodeBox, [=](const QByteArray &old, const QByteArray &now, const Fn<void(QString)> &showError) {
+        if (std::exchange(*saving, true)) {
+          return;
+        }
+        const auto done = [=](Ton::Result<> result) {
+          if (!result) {
+            std::cout << result.error().details.toStdString() << std::endl;
+            *saving = false;
+            if (IsIncorrectPasswordError(result.error())) {
+              showError(ph::lng_wallet_passcode_incorrect(ph::now));
+            } else {
+              showGenericError(result.error());
+            }
+            return;
+          }
+          if (*weakBox) {
+            (*weakBox)->closeBox();
+          }
+          showToast(ph::lng_wallet_change_passcode_done(ph::now));
+        };
+        _wallet->changeFtabiPassword(publicKey, old, now, crl::guard(this, done));
+      });
   *weakBox = box.data();
   _layers->showBox(std::move(box));
 }

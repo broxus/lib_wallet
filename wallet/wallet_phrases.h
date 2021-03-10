@@ -26,6 +26,7 @@ extern phrase lng_wallet_save;
 extern phrase lng_wallet_warning;
 extern phrase lng_wallet_error;
 extern phrase lng_wallet_ok;
+extern phrase lng_wallet_next;
 
 extern phrase lng_wallet_copy_address;
 
@@ -65,6 +66,7 @@ extern phrase lng_wallet_set_passcode_title;
 extern phrase lng_wallet_set_passcode_description;
 extern phrase lng_wallet_set_passcode_enter;
 extern phrase lng_wallet_set_passcode_repeat;
+extern phrase lng_wallet_set_passcode_done;
 
 extern phrase lng_wallet_change_passcode_title;
 extern phrase lng_wallet_change_passcode_old;
@@ -350,6 +352,12 @@ extern phrase lng_wallet_new_ftabi_key_import_existing;
 extern phrase lng_wallet_new_ftabi_key_enter_mnemonic;
 extern phrase lng_wallet_new_ftabi_key_generate;
 extern phrase lng_wallet_new_ftabi_key_import;
+extern phrase lng_wallet_new_ftabi_key_done;
+
+extern phrase lng_wallet_import_ftabi_key_title;
+extern phrase lng_wallet_import_ftabi_key_incorrect_title;
+extern phrase lng_wallet_import_ftabi_key_incorrect_text;
+extern phrase lng_wallet_import_ftabi_key_incorrect_retry;
 
 extern phrase lng_wallet_event_status_unknown;
 extern phrase lng_wallet_event_status_in_process;

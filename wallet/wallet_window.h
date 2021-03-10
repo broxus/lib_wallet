@@ -127,11 +127,13 @@ class Window final : public base::has_weak_ptr {
 
   using OnFtabiKeyCreated = Fn<void(QByteArray)>;
   void showKeystore();
-  void askFtabiKeyExportPassword(const QByteArray &publicKey);
+  void exportFtabiKey(const QByteArray &publicKey);
   void showExportedFtabiKey(const std::vector<QString> &words);
-  void createFtabiKey(const OnFtabiKeyCreated &done);
-  void showCreatedFtabiKey(const std::vector<QString> &words, const OnFtabiKeyCreated &done);
+  void addFtabiKey(const Fn<void()> &cancel, const OnFtabiKeyCreated &done);
+  void importFtabiKey(const QString &name, const Fn<void()> &cancel, const OnFtabiKeyCreated &done);
+  void showNewFtabiKey(const std::vector<QString> &words, const OnFtabiKeyCreated &done);
   void askNewFtabiKeyPassword(const OnFtabiKeyCreated &done);
+  void askFtabiKeyChangePassword(const QByteArray &publicKey);
 
   [[nodiscard]] Fn<void(QImage, QString)> shareCallback(const QString &linkCopied, const QString &textCopied,
                                                         const QString &qr);

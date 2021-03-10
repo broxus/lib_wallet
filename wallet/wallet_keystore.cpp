@@ -8,16 +8,25 @@
 #include "ui/widgets/input_fields.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/lottie_widget.h"
+#include "ui/ton_word_input.h"
 #include "styles/style_layers.h"
 #include "styles/style_wallet.h"
 #include "wallet/wallet_common.h"
 #include "wallet/wallet_phrases.h"
 #include "wallet/create/wallet_create_view.h"
 #include "base/platform/base_platform_layout_switch.h"
+#include "ton/ton_wallet.h"
 
 namespace Wallet {
 
 namespace {
+
+using TonWordInput = Ui::TonWordInput;
+
+const base::flat_set<QString> &ValidWords() {
+  static auto words = Ton::Wallet::GetValidWords();
+  return words;
+}
 
 style::TextStyle ComputePubKeyStyle(const style::TextStyle &parent) {
   auto result = parent;
@@ -80,14 +89,45 @@ not_null<Ui::RpWidget *> CreatePubKeyLabel(not_null<Ui::RpWidget *> parent, rpl:
   return result;
 }
 
+std::vector<QString> WordsByPrefix(const QString &word) {
+  const auto &validWords = ValidWords();
+
+  const auto adjusted = word.trimmed().toLower();
+  if (adjusted.isEmpty()) {
+    return {};
+  } else if (validWords.empty()) {
+    return {word};
+  }
+  auto prefix = QString();
+  auto count = 0;
+  auto maxCount = 0;
+  for (const auto &validWord : validWords) {
+    if (validWord.midRef(0, 3) != prefix) {
+      prefix = validWord.mid(0, 3);
+      count = 1;
+    } else {
+      ++count;
+    }
+    if (maxCount < count) {
+      maxCount = count;
+    }
+  }
+  auto result = std::vector<QString>();
+  const auto from = ranges::lower_bound(validWords, adjusted);
+  const auto end = validWords.end();
+  for (auto i = from; i != end && i->startsWith(adjusted); ++i) {
+    result.push_back(*i);
+  }
+  return result;
+}
+
 }  // namespace
 
 class KeystoreItem {
  public:
-  KeystoreItem(not_null<Ui::GenericBox *> box, not_null<Ui::VerticalLayout *> widget, Ton::KeyType keyType,
-               QByteArray publicKey, QString name, const Fn<void(QString)> &share, const OnKeystoreAction &handler)
-      : _box(box)
-      , _widget(widget)
+  KeystoreItem(not_null<Ui::VerticalLayout *> widget, Ton::KeyType keyType, QByteArray publicKey, QString name,
+               const Fn<void(QString)> &share, const OnKeystoreAction &handler)
+      : _widget(widget)
       , _keyType(keyType)
       , _publicKey(std::move(publicKey))
       , _name(std::move(name))
@@ -157,7 +197,6 @@ class KeystoreItem {
     menu->popup(_widget->mapToGlobal(pos));
   }
 
-  const not_null<Ui::GenericBox *> _box;
   not_null<Ui::VerticalLayout *> _widget;
   Ton::KeyType _keyType;
   QByteArray _publicKey;
@@ -200,7 +239,7 @@ void KeystoreBox(not_null<Ui::GenericBox *> box, const QByteArray &mainPublicKey
     auto item = inner->add(object_ptr<Ui::VerticalLayout>(box), QMargins{});
     items.emplace_back(item);
 
-    auto *content = box->lifetime().make_state<KeystoreItem>(box, item, keyType, pubkey, name, share, onAction);
+    auto *content = box->lifetime().make_state<KeystoreItem>(item, keyType, pubkey, name, share, onAction);
     desiredHeight += content->desiredHeight();
   };
 
@@ -235,11 +274,14 @@ void KeystoreBox(not_null<Ui::GenericBox *> box, const QByteArray &mainPublicKey
       ->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 }
 
-void NewFtabiKeyBox(not_null<Ui::GenericBox *> box, const Fn<void(NewFtabiKey)> &done) {
+void NewFtabiKeyBox(not_null<Ui::GenericBox *> box, const Fn<void()> &cancel, const Fn<void(NewFtabiKey)> &done) {
   box->setTitle(ph::lng_wallet_new_ftabi_key_title());
   box->setStyle(st::walletBox);
 
-  box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
+  box->addTopButton(st::boxTitleClose, [=] {
+    box->closeBox();
+    cancel();
+  });
 
   AddBoxSubtitle(box, ph::lng_wallet_new_ftabi_key_name());
   const auto name = box->addRow(object_ptr<Ui::InputField>(box, st::walletSendInput, Ui::InputField::Mode::NoNewlines,
@@ -263,19 +305,7 @@ void NewFtabiKeyBox(not_null<Ui::GenericBox *> box, const Fn<void(NewFtabiKey)> 
   Ui::CreateChild<Ui::Radiobutton>(checkboxImport, creationMethodSelector, /*generate*/ false,
                                    ph::lng_wallet_new_ftabi_key_import_existing(ph::now));
 
-  const auto mnemonicWrapper = box->addRow(object_ptr<Ui::VerticalLayout>(box), QMargins{});
-
-  const auto mnemonic = mnemonicWrapper->add(  //
-      object_ptr<Ui::InputField>(box, st::walletSendInput, Ui::InputField::Mode::MultiLine,
-                                 ph::lng_wallet_new_ftabi_key_enter_mnemonic()),
-      st::walletSendAmountPadding);
-
-  creationMethodSelector->setChangedCallback([=](bool value) {
-    *generate = value;
-    mnemonic->setEnabled(!value);
-    mnemonicWrapper->setMaximumHeight(value ? 0 : QWIDGETSIZE_MAX);
-    mnemonicWrapper->adjustSize();
-  });
+  creationMethodSelector->setChangedCallback([=](bool value) { *generate = value; });
 
   const auto submit = [=] {
     const auto nameValue = name->getLastText();
@@ -283,11 +313,7 @@ void NewFtabiKeyBox(not_null<Ui::GenericBox *> box, const Fn<void(NewFtabiKey)> 
       return name->showError();
     }
 
-    if (generate->current()) {
-      done(NewFtabiKey{.name = nameValue, .generate = true});
-    }
-
-    //
+    done(NewFtabiKey{.name = nameValue, .generate = generate->current()});
   };
 
   auto buttonText =      //
@@ -304,7 +330,143 @@ void NewFtabiKeyBox(not_null<Ui::GenericBox *> box, const Fn<void(NewFtabiKey)> 
       ->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 }
 
-void GeneratedFtabiKeyBox(not_null<Ui::GenericBox *> box, const std::vector<QString> &words, const Fn<void()> &done) {
+void ImportFtabiKeyBox(not_null<Ui::GenericBox *> box, const Fn<void()> &cancel, const Fn<void(WordsList)> &done) {
+  box->setTitle(ph::lng_wallet_import_ftabi_key_title());
+  box->setStyle(st::walletNoButtonsBox);
+
+  box->addTopButton(st::boxTitleClose, [=] {
+    box->closeBox();
+    cancel();
+  });
+
+  auto widget = box->lifetime().make_state<Ui::RpWidget>();
+  auto scroll = Ui::CreateChild<Ui::ScrollArea>(widget, st::walletScrollArea);
+  auto inner = scroll->setOwnedWidget(object_ptr<Ui::VerticalLayout>(scroll)).data();
+
+  constexpr auto rows = 6;
+  constexpr auto count = rows * 2;
+
+  auto inputs = std::make_shared<std::vector<std::unique_ptr<TonWordInput>>>();
+  const auto rowsTop = st::walletWordHeight;
+  const auto rowsBottom = rowsTop + rows * st::walletWordHeight;
+
+  const auto currentWords = [=] {
+    return (*inputs)                                                                                     //
+           | ranges::views::transform([](const std::unique_ptr<TonWordInput> &p) { return p->word(); })  //
+           | ranges::to_vector;
+  };
+
+  const auto isValid = [=](int index) {
+    Expects(index < count);
+
+    const auto word = (*inputs)[index]->word();
+    const auto words = WordsByPrefix(word);
+    return !words.empty() && (words.front() == word);
+  };
+
+  const auto showError = [=](int index) {
+    Expects(index < count);
+
+    if (isValid(index)) {
+      return false;
+    }
+    (*inputs)[index]->showError();
+    return true;
+  };
+
+  const auto checkAll = [=] {
+    auto result = true;
+    for (auto i = count; i != 0;) {
+      result = !showError(--i) && result;
+    }
+    return result;
+  };
+
+  const auto init = [&](const TonWordInput &word, int index) {
+    const auto next = [=] { return (index + 1 < count) ? (*inputs)[index + 1].get() : nullptr; };
+    const auto previous = [=] { return (index > 0) ? (*inputs)[index - 1].get() : nullptr; };
+
+    word.pasted()  //
+        | rpl::start_with_next(
+              [=](QString text) {
+                text = text.simplified();
+                int cnt = 0;
+                for (const auto &w : text.split(' ')) {
+                  if (index + cnt < count) {
+                    (*inputs)[index + cnt]->setText(w);
+                    (*inputs)[index + cnt]->setFocus();
+                    cnt++;
+                  } else {
+                    break;
+                  }
+                }
+              },
+              box->lifetime());
+
+    word.blurred()                                                                                       //
+        | rpl::filter([=] { return !(*inputs)[index]->word().trimmed().isEmpty() && !isValid(index); })  //
+        | rpl::start_with_next([=] { (*inputs)[index]->showErrorNoFocus(); }, box->lifetime());
+
+    word.tabbed()  //
+        | rpl::start_with_next(
+              [=](TonWordInput::TabDirection direction) {
+                if (direction == TonWordInput::TabDirection::Forward) {
+                  if (const auto word = next()) {
+                    word->setFocus();
+                  }
+                } else {
+                  if (const auto word = previous()) {
+                    word->setFocus();
+                  }
+                }
+              },
+              box->lifetime());
+
+    word.submitted()  //
+        | rpl::start_with_next(
+              [=] {
+                if (const auto word = next()) {
+                  word->setFocus();
+                } else if (checkAll()) {
+                  done(currentWords());
+                }
+              },
+              box->lifetime());
+  };
+
+  for (auto i = 0; i != count; ++i) {
+    inputs->push_back(std::make_unique<TonWordInput>(widget, st::walletImportInputField, i, WordsByPrefix));
+    init(*inputs->back(), i);
+  }
+
+  inputs->front()->setFocus();
+
+  widget->sizeValue()  //
+      | rpl::start_with_next(
+            [=](QSize size) {
+              const auto half = size.width() / 2;
+              const auto left = half - st::walletImportSkipLeft;
+              const auto right = half + st::walletImportSkipRight;
+              auto x = left;
+              auto y = rowsTop;
+              auto index = 0;
+              for (const auto &input : *inputs) {
+                input->move(x, y);
+                y += st::walletWordHeight;
+                if (++index == rows) {
+                  x = right;
+                  y = rowsTop;
+                }
+              }
+            },
+            box->lifetime());
+
+  widget->resize(st::boxWideWidth, rowsBottom);
+
+  box->addRow(object_ptr<Ui::RpWidget>::fromRaw(widget), QMargins());
+}
+
+void GeneratedFtabiKeyBox(not_null<Ui::GenericBox *> box, const WordsList &words, const Fn<void()> &done) {
   box->setWidth(st::boxWideWidth);
   box->setStyle(st::walletBox);
   box->setNoContentMargin(true);
@@ -314,11 +476,11 @@ void GeneratedFtabiKeyBox(not_null<Ui::GenericBox *> box, const std::vector<QStr
   box->addRow(object_ptr<Ui::RpWidget>::fromRaw(view->widget()), QMargins());
   view->showFast();
 
-  box->addButton(ph::lng_wallet_done(), done, st::walletWideBottomButton)
+  box->addButton(ph::lng_wallet_next(), done, st::walletWideBottomButton)
       ->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 }
 
-void ExportedFtabiKeyBox(not_null<Ui::GenericBox *> box, const std::vector<QString> &words) {
+void ExportedFtabiKeyBox(not_null<Ui::GenericBox *> box, const WordsList &words) {
   box->setWidth(st::boxWideWidth);
   box->setStyle(st::walletBox);
   box->setNoContentMargin(true);

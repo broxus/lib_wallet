@@ -57,6 +57,7 @@ void Import::initControls(Fn<std::vector<QString>(QString)> wordsByPrefix) {
   auto inputs = std::make_shared<std::vector<std::unique_ptr<TonWordInput>>>();
   const auto wordsTop = st::walletImportWordsTop;
   const auto rowsBottom = wordsTop + rows * st::walletWordHeight;
+
   const auto isValid = [=](int index) {
     Expects(index < count);
 
@@ -64,6 +65,7 @@ void Import::initControls(Fn<std::vector<QString>(QString)> wordsByPrefix) {
     const auto words = wordsByPrefix(word);
     return !words.empty() && (words.front() == word);
   };
+
   const auto showError = [=](int index) {
     Expects(index < count);
 
@@ -73,64 +75,70 @@ void Import::initControls(Fn<std::vector<QString>(QString)> wordsByPrefix) {
     (*inputs)[index]->showError();
     return true;
   };
+
   const auto init = [&](const TonWordInput &word, int index) {
     const auto next = [=] { return (index + 1 < count) ? (*inputs)[index + 1].get() : nullptr; };
     const auto previous = [=] { return (index > 0) ? (*inputs)[index - 1].get() : nullptr; };
 
-    word.pasted() | rpl::start_with_next(
-                        [=](QString text) {
-                          text = text.simplified();
-                          int cnt = 0;
-                          for (const auto &w : text.split(' ')) {
-                            if (index + cnt < count) {
-                              (*inputs)[index + cnt]->setText(w);
-                              (*inputs)[index + cnt]->setFocus();
-                              cnt++;
-                            } else {
-                              break;
-                            }
-                          }
-                        },
-                        lifetime());
+    word.pasted()  //
+        | rpl::start_with_next(
+              [=](QString text) {
+                text = text.simplified();
+                int cnt = 0;
+                for (const auto &w : text.split(' ')) {
+                  if (index + cnt < count) {
+                    (*inputs)[index + cnt]->setText(w);
+                    (*inputs)[index + cnt]->setFocus();
+                    cnt++;
+                  } else {
+                    break;
+                  }
+                }
+              },
+              lifetime());
 
-    word.focused() | rpl::start_with_next(
-                         [=] {
-                           const auto row = index % rows;
-                           ensureVisible(wordsTop + (row - 1) * st::walletWordHeight,
-                                         2 * st::walletWordHeight + st::walletSuggestionsHeightMax);
-                         },
-                         lifetime());
+    word.focused()  //
+        | rpl::start_with_next(
+              [=] {
+                const auto row = index % rows;
+                ensureVisible(wordsTop + (row - 1) * st::walletWordHeight,
+                              2 * st::walletWordHeight + st::walletSuggestionsHeightMax);
+              },
+              lifetime());
 
-    word.blurred() | rpl::filter([=] { return !(*inputs)[index]->word().trimmed().isEmpty() && !isValid(index); }) |
+    word.blurred()  //
+        | rpl::filter([=] { return !(*inputs)[index]->word().trimmed().isEmpty() && !isValid(index); }) |
         rpl::start_with_next([=] { (*inputs)[index]->showErrorNoFocus(); }, lifetime());
 
-    word.tabbed() | rpl::start_with_next(
-                        [=](TonWordInput::TabDirection direction) {
-                          if (direction == TonWordInput::TabDirection::Forward) {
-                            if (const auto word = next()) {
-                              word->setFocus();
-                            }
-                          } else {
-                            if (const auto word = previous()) {
-                              word->setFocus();
-                            }
-                          }
-                        },
-                        lifetime());
+    word.tabbed()  //
+        | rpl::start_with_next(
+              [=](TonWordInput::TabDirection direction) {
+                if (direction == TonWordInput::TabDirection::Forward) {
+                  if (const auto word = next()) {
+                    word->setFocus();
+                  }
+                } else {
+                  if (const auto word = previous()) {
+                    word->setFocus();
+                  }
+                }
+              },
+              lifetime());
 
-    word.submitted() | rpl::start_with_next(
-                           [=] {
-                             if ((*inputs)[index]->word() == TonWordInput::kSkipPassword) {
-                               _actionRequests.fire(Action::Submit);
-                             } else if (!showError(index)) {
-                               if (const auto word = next()) {
-                                 word->setFocus();
-                               } else {
-                                 _actionRequests.fire(Action::Submit);
-                               }
-                             }
-                           },
-                           lifetime());
+    word.submitted()  //
+        | rpl::start_with_next(
+              [=] {
+                if ((*inputs)[index]->word() == TonWordInput::kSkipPassword) {
+                  _actionRequests.fire(Action::Submit);
+                } else if (!showError(index)) {
+                  if (const auto word = next()) {
+                    word->setFocus();
+                  } else {
+                    _actionRequests.fire(Action::Submit);
+                  }
+                }
+              },
+              lifetime());
   };
   for (auto i = 0; i != count; ++i) {
     inputs->push_back(std::make_unique<TonWordInput>(inner(), st::walletImportInputField, i, wordsByPrefix));

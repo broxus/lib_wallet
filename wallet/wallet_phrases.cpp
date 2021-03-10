@@ -22,6 +22,7 @@ phrase lng_wallet_save = "Save";
 phrase lng_wallet_warning = "Warning";
 phrase lng_wallet_error = "Error";
 phrase lng_wallet_ok = "OK";
+phrase lng_wallet_next = "Next";
 
 phrase lng_wallet_copy_address = "Copy Wallet Address";
 
@@ -370,6 +371,13 @@ phrase lng_wallet_new_ftabi_key_import_existing = "Import existing";
 phrase lng_wallet_new_ftabi_key_enter_mnemonic = "Enter a 12-word mnemonic";
 phrase lng_wallet_new_ftabi_key_generate = "Generate";
 phrase lng_wallet_new_ftabi_key_import = "Import";
+phrase lng_wallet_new_ftabi_key_done = "Key added successfully.";
+
+extern phrase lng_wallet_import_ftabi_key_title = "Import new key";
+extern phrase lng_wallet_import_ftabi_key_incorrect_title = "Incorrect words";
+extern phrase lng_wallet_import_ftabi_key_incorrect_text =
+    "Sorry, you have entered incorrect secret words. Please double check and try again.";
+extern phrase lng_wallet_import_ftabi_key_incorrect_retry = "Try again";
 
 phrase lng_wallet_event_status_unknown = "unknown";
 phrase lng_wallet_event_status_in_process = "in progress";
