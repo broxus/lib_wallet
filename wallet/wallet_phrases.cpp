@@ -53,9 +53,6 @@ phrase lng_wallet_words_title = "24 secret words";
 phrase lng_wallet_words_description =
     "Write down these 24 words in the correct\norder and store them in a secret place.\n\nUse these secret words to "
     "restore access to\nyour wallet if you lose your password or\naccess to this device.";
-phrase lng_wallet_words_sure_title = "Sure done?";
-phrase lng_wallet_words_sure_text = "You didn't have enough time to write these words down.";
-phrase lng_wallet_words_sure_ok = "OK, Sorry";
 
 phrase lng_wallet_check_title = "Test Time!";
 phrase lng_wallet_check_description =

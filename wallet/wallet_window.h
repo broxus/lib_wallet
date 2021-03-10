@@ -78,7 +78,6 @@ class Window final : public base::has_weak_ptr {
   void createImportKey(const std::vector<QString> &words);
   void createKey(std::shared_ptr<bool> guard);
   void createShowIncorrectWords();
-  void createShowTooFastWords();
   void createShowIncorrectImport();
   void createShowImportFail();
   void createSavePasscode(const QByteArray &passcode, const std::shared_ptr<bool> &guard);
@@ -126,10 +125,10 @@ class Window final : public base::has_weak_ptr {
   void showBlockchainNameWarning(const Ton::Settings &settings);
   void showSettingsWithLogoutWarning(const Ton::Settings &settings, rpl::producer<QString> text);
 
-  void showKeystore();
-
   using OnFtabiKeyCreated = Fn<void(QByteArray)>;
-
+  void showKeystore();
+  void askFtabiKeyExportPassword(const QByteArray &publicKey);
+  void showExportedFtabiKey(const std::vector<QString> &words);
   void createFtabiKey(const OnFtabiKeyCreated &done);
   void showCreatedFtabiKey(const std::vector<QString> &words, const OnFtabiKeyCreated &done);
   void askNewFtabiKeyPassword(const OnFtabiKeyCreated &done);
@@ -179,7 +178,6 @@ class Window final : public base::has_weak_ptr {
   QPointer<Ui::GenericBox> _saveConfirmBox;
 
   QPointer<Ui::GenericBox> _keystoreBox;
-  QPointer<Ui::GenericBox> _keyCreationBox;
 };
 
 }  // namespace Wallet

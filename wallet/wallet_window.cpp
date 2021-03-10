@@ -150,11 +150,12 @@ void Window::showCreate() {
   _createManager = std::make_unique<Create::Manager>(_window->body(), _updateInfo);
   _layers->raise();
 
-  _window->body()->sizeValue() | rpl::start_with_next(
-                                     [=](QSize size) {
-                                       _createManager->setGeometry({QPoint(), size});
-                                     },
-                                     _createManager->lifetime());
+  _window->body()->sizeValue()  //
+      | rpl::start_with_next(
+            [=](QSize size) {
+              _createManager->setGeometry({QPoint(), size});
+            },
+            _createManager->lifetime());
 
   const auto creating = std::make_shared<bool>();
   _createManager->actionRequests()  //
@@ -171,9 +172,6 @@ void Window::showCreate() {
                   return;
                 case Create::Manager::Action::ShowCheckIncorrect:
                   createShowIncorrectWords();
-                  return;
-                case Create::Manager::Action::ShowCheckTooSoon:
-                  createShowTooFastWords();
                   return;
                 case Create::Manager::Action::ShowImportFail:
                   createShowImportFail();
@@ -240,10 +238,6 @@ void Window::createShowIncorrectWords() {
       _createManager->showWords(Create::Direction::Backward);
     });
   }));
-}
-
-void Window::createShowTooFastWords() {
-  showSimpleError(ph::lng_wallet_words_sure_title(), ph::lng_wallet_words_sure_text(), ph::lng_wallet_words_sure_ok());
 }
 
 void Window::createShowIncorrectImport() {
@@ -1790,14 +1784,17 @@ void Window::showSettingsWithLogoutWarning(const Ton::Settings &settings, rpl::p
 
 void Window::showKeystore() {
   if (_keystoreBox) {
-    _keyCreationBox->closeBox();
+    _keystoreBox->closeBox();
   }
 
+  auto deletionGuard = std::make_shared<bool>(false);
   auto handleAction = [=](Ton::KeyType keyType, const QByteArray &publicKey, KeystoreAction action) {
     switch (action) {
       case KeystoreAction::Export: {
         if (keyType == Ton::KeyType::Original) {
           askExportPassword();
+        } else {
+          askFtabiKeyExportPassword(publicKey);
         }
         return;
       }
@@ -1808,20 +1805,33 @@ void Window::showKeystore() {
         return;
       }
       case KeystoreAction::Delete: {
-        // TODO
+        if (*deletionGuard) {
+          return;
+        }
+        *deletionGuard = true;
+
+        if (keyType != Ton::KeyType::Original) {
+          _wallet->deleteFtabiKey(publicKey, [=](const Ton::Result<> &result) {
+            if (!result) {
+              *deletionGuard = false;
+              return;
+            }
+            showKeystore();
+          });
+        }
         return;
       }
     }
   };
 
-  auto guard = std::make_shared<bool>(false);
+  auto creationGuard = std::make_shared<bool>(false);
   auto onCreate = [=] {
-    if (*guard) {
+    if (*creationGuard) {
       return;
     }
-    *guard = true;
+    *creationGuard = true;
 
-    createFtabiKey([=](QByteArray) { showKeystore(); });
+    createFtabiKey([=](const QByteArray &) { showKeystore(); });
   };
 
   auto box = Box(KeystoreBox, _wallet->publicKeys().front(), _wallet->ftabiKeys(), sharePubKeyCallback(), handleAction,
@@ -1830,12 +1840,44 @@ void Window::showKeystore() {
   _layers->showBox(std::move(box));
 }
 
-void Window::createFtabiKey(const OnFtabiKeyCreated &done) {
-  if (_keyCreationBox) {
-    _keyCreationBox->closeBox();
-  }
+void Window::askFtabiKeyExportPassword(const QByteArray &publicKey) {
+  const auto exporting = std::make_shared<bool>();
+  const auto weakBox = std::make_shared<QPointer<Ui::GenericBox>>();
+  const auto ready = [=](const QByteArray &passcode, const Fn<void(QString)> &showError) {
+    if (*exporting) {
+      return;
+    }
+    *exporting = true;
+    const auto ready = [=](Ton::Result<std::pair<QString, std::vector<QString>>> result) {
+      *exporting = false;
+      if (!result) {
+        if (IsIncorrectPasswordError(result.error())) {
+          showError(ph::lng_wallet_passcode_incorrect(ph::now));
+        } else {
+          showGenericError(result.error());
+        }
+        return;
+      }
+      if (*weakBox) {
+        (*weakBox)->closeBox();
+      }
+      showExportedFtabiKey(result.value().second);
+    };
+    _wallet->exportFtabiKey(publicKey, passcode, crl::guard(this, ready));
+  };
+  auto box = Box(EnterPasscodeBox,
+                 [=](const QByteArray &passcode, const Fn<void(QString)> &showError) { ready(passcode, showError); });
+  *weakBox = box.data();
+  _layers->showBox(std::move(box));
+}
 
+void Window::showExportedFtabiKey(const std::vector<QString> &words) {
+  _layers->showBox(Box(ExportedFtabiKeyBox, words));
+}
+
+void Window::createFtabiKey(const OnFtabiKeyCreated &done) {
   auto guard = std::make_shared<bool>(false);
+  const auto weakBox = std::make_shared<QPointer<Ui::GenericBox>>();
   const auto submit = [=](const NewFtabiKey &newKey) {
     if (*guard) {
       return;
@@ -1848,20 +1890,34 @@ void Window::createFtabiKey(const OnFtabiKeyCreated &done) {
           return showToast(result.error().details);
         }
 
-        showExported(result.value());
+        showCreatedFtabiKey(result.value(), done);
       });
     } else {
       // TODO
     }
+
+    if (*weakBox) {
+      (*weakBox)->closeBox();
+    }
   };
 
   auto box = Box(NewFtabiKeyBox, submit);
-  _keyCreationBox = box.data();
+  *weakBox = box.data();
   _layers->showBox(std::move(box));
 }
 
 void Window::showCreatedFtabiKey(const std::vector<QString> &words, const OnFtabiKeyCreated &done) {
-  _layers->showBox(Box(GeneratedFtabiKeyBox, words, [=] { askNewFtabiKeyPassword(done); }));
+  const auto weakBox = std::make_shared<QPointer<Ui::GenericBox>>();
+  auto box = Box(GeneratedFtabiKeyBox, words, [=] {
+    askNewFtabiKeyPassword([=](const QByteArray &publicKey) {
+      if (*weakBox) {
+        (*weakBox)->closeBox();
+      }
+      done(publicKey);
+    });
+  });
+  *weakBox = box.data();
+  _layers->showBox(std::move(box));
 }
 
 void Window::askNewFtabiKeyPassword(const OnFtabiKeyCreated &done) {

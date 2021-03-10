@@ -558,6 +558,11 @@ walletChangePasscodeErrorTop: 160px;
 walletChangePasscodeNowTop: 188px;
 walletChangePasscodeRepeatTop: 236px;
 
+walletFtabiKeyPasscodeHeight: 248px;
+walletFtabiKeyPasscodeErrorTop: 112px;
+walletFtabiKeyPasscodeNowTop: 140px;
+walletFtabiKeyPasscodeRepeatTop: 198px;
+
 walletSendingLottieSize: 120px;
 walletSendingLottieTop: 32px;
 walletSendingTitle: walletEmptyHistoryTitle;

@@ -31,6 +31,8 @@ void NewFtabiKeyBox(not_null<Ui::GenericBox *> box, const Fn<void(NewFtabiKey)> 
 
 void GeneratedFtabiKeyBox(not_null<Ui::GenericBox *> box, const std::vector<QString> &words, const Fn<void()> &done);
 
+void ExportedFtabiKeyBox(not_null<Ui::GenericBox *> box, const std::vector<QString> &words);
+
 void NewFtabiKeyPasswordBox(not_null<Ui::GenericBox *> box,
                             const Fn<void(const QByteArray &, const Fn<void(QString)> &)> &done);
 

@@ -207,9 +207,9 @@ void KeystoreBox(not_null<Ui::GenericBox *> box, const QByteArray &mainPublicKey
   addDivider();
   addItem(Ton::KeyType::Original, mainPublicKey, ph::lng_wallet_keystore_main_wallet_key(ph::now));
 
-  for (int i = 0; i < 10; ++i) {
+  for (const auto &key : ftabiKeys) {
     addDivider();
-    addItem(Ton::KeyType::Ftabi, mainPublicKey, ph::lng_wallet_keystore_main_wallet_key(ph::now));
+    addItem(Ton::KeyType::Ftabi, key.publicKey, key.name);
   }
   addDivider();
 
@@ -290,15 +290,16 @@ void NewFtabiKeyBox(not_null<Ui::GenericBox *> box, const Fn<void(NewFtabiKey)> 
     //
   };
 
-  auto buttonText = generate->value()  //
-                    | rpl::map([=](bool generate) {
-                        if (generate) {
-                          return ph::lng_wallet_new_ftabi_key_generate();
-                        } else {
-                          return ph::lng_wallet_new_ftabi_key_import();
-                        }
-                      })  //
-                    | rpl::flatten_latest();
+  auto buttonText =      //
+      generate->value()  //
+      | rpl::map([=](bool generate) {
+          if (generate) {
+            return ph::lng_wallet_new_ftabi_key_generate();
+          } else {
+            return ph::lng_wallet_new_ftabi_key_import();
+          }
+        })  //
+      | rpl::flatten_latest();
   box->addButton(buttonText, submit, st::walletBottomButton)
       ->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 }
@@ -317,11 +318,26 @@ void GeneratedFtabiKeyBox(not_null<Ui::GenericBox *> box, const std::vector<QStr
       ->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 }
 
+void ExportedFtabiKeyBox(not_null<Ui::GenericBox *> box, const std::vector<QString> &words) {
+  box->setWidth(st::boxWideWidth);
+  box->setStyle(st::walletBox);
+  box->setNoContentMargin(true);
+
+  const auto view = box->lifetime().make_state<Create::View>(words, Create::View::Layout::Export);
+  view->widget()->resize(st::boxWideWidth, view->desiredHeight());
+  box->addRow(object_ptr<Ui::RpWidget>::fromRaw(view->widget()), QMargins());
+  view->showFast();
+
+  box->addButton(
+         ph::lng_wallet_done(), [=] { box->closeBox(); }, st::walletWideBottomButton)
+      ->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+}
+
 void NewFtabiKeyPasswordBox(not_null<Ui::GenericBox *> box,
                             const Fn<void(const QByteArray &, const Fn<void(QString)> &)> &done) {
-  box->setTitle(ph::lng_wallet_change_passcode_title());
+  box->setTitle(ph::lng_wallet_set_passcode_title());
 
-  const auto inner = box->addRow(object_ptr<Ui::FixedHeightWidget>(box, st::walletChangePasscodeHeight));
+  const auto inner = box->addRow(object_ptr<Ui::FixedHeightWidget>(box, st::walletFtabiKeyPasscodeHeight));
 
   const auto lottie = inner->lifetime().make_state<Ui::LottieAnimation>(inner, Ui::LottieFromResource("lock"));
   lottie->start();
@@ -330,11 +346,10 @@ void NewFtabiKeyPasswordBox(not_null<Ui::GenericBox *> box,
   const auto error = Ui::CreateChild<Ui::FadeWrap<Ui::FlatLabel>>(
       inner, object_ptr<Ui::FlatLabel>(inner, QString(), st::walletPasscodeError));
 
-  const auto now =
-      Ui::CreateChild<Ui::PasswordInput>(inner, st::walletPasscodeInput, ph::lng_wallet_change_passcode_new());
-
+  const auto enter =
+      Ui::CreateChild<Ui::PasswordInput>(inner, st::walletPasscodeInput, ph::lng_wallet_set_passcode_enter());
   const auto repeat =
-      Ui::CreateChild<Ui::PasswordInput>(inner, st::walletPasscodeInput, ph::lng_wallet_change_passcode_repeat());
+      Ui::CreateChild<Ui::PasswordInput>(inner, st::walletPasscodeInput, ph::lng_wallet_set_passcode_repeat());
 
   inner->widthValue() |
       rpl::start_with_next(
@@ -343,19 +358,19 @@ void NewFtabiKeyPasswordBox(not_null<Ui::GenericBox *> box,
                                       st::walletPasscodeLottieSize, st::walletPasscodeLottieSize));
 
             error->resizeToWidth(width);
-            error->moveToLeft(0, st::walletChangePasscodeErrorTop, width);
+            error->moveToLeft(0, st::walletFtabiKeyPasscodeErrorTop, width);
 
-            now->move((width - now->width()) / 2, st::walletChangePasscodeNowTop);
-            repeat->move((width - repeat->width()) / 2, st::walletChangePasscodeRepeatTop);
+            enter->move((width - enter->width()) / 2, st::walletFtabiKeyPasscodeNowTop);
+            repeat->move((width - repeat->width()) / 2, st::walletFtabiKeyPasscodeRepeatTop);
           },
           inner->lifetime());
 
   error->hide(anim::type::instant);
 
   const auto save = [=] {
-    auto password = now->getLastText().toUtf8();
+    auto password = enter->getLastText().toUtf8();
     if (password.isEmpty()) {
-      now->showError();
+      enter->showError();
       return;
     } else if (repeat->getLastText().toUtf8() != password) {
       repeat->showError();
@@ -368,9 +383,9 @@ void NewFtabiKeyPasswordBox(not_null<Ui::GenericBox *> box,
          }));
   };
 
-  Ui::Connect(now, &Ui::PasswordInput::submitted, [=] {
-    if (now->getLastText().isEmpty()) {
-      now->showError();
+  Ui::Connect(enter, &Ui::PasswordInput::submitted, [=] {
+    if (enter->getLastText().isEmpty()) {
+      enter->showError();
     } else {
       repeat->setFocus();
     }
@@ -379,7 +394,7 @@ void NewFtabiKeyPasswordBox(not_null<Ui::GenericBox *> box,
 
   box->setFocusCallback([=] {
     base::Platform::SwitchKeyboardLayoutToEnglish();
-    now->setFocusFast();
+    enter->setFocusFast();
   });
 
   box->addButton(ph::lng_wallet_save(), save);

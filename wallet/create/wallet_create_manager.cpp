@@ -85,8 +85,7 @@ constexpr auto kWaitForWordsDelay = 30 * crl::time(1000);
 Manager::Manager(not_null<QWidget *> parent, UpdateInfo *updateInfo)
     : _content(std::make_unique<Ui::RpWidget>(parent))
     , _backButton(std::in_place, _content.get(), object_ptr<Ui::IconButton>(_content.get(), st::walletStepBackButton))
-    , _validWords(Ton::Wallet::GetValidWords())
-    , _waitForWords([=] { _wordsShouldBeReady = true; }) {
+    , _validWords(Ton::Wallet::GetValidWords()) {
   _content->show();
   initButtons(updateInfo);
   showIntro();
@@ -144,16 +143,7 @@ void Manager::showCreated(std::vector<QString> &&words) {
 }
 
 void Manager::showWords(Direction direction) {
-  if (!_waitForWords.isActive() && !_wordsShouldBeReady) {
-    _waitForWords.callOnce(kWaitForWordsDelay);
-  }
-  showStep(std::make_unique<View>(_words), direction, [=] {
-    if (!_wordsShouldBeReady) {
-      _actionRequests.fire(Action::ShowCheckTooSoon);
-    } else {
-      showCheck();
-    }
-  });
+  showStep(std::make_unique<View>(_words), direction, [=] { showCheck(); });
 }
 
 void Manager::showCheck() {
@@ -218,12 +208,7 @@ void Manager::showStep(std::unique_ptr<Step> step, Direction direction, FnMut<vo
     _updateButton->raise();
   }
 
-  _step->nextClicks() | rpl::start_with_next(
-                            [=](Qt::KeyboardModifiers modifiers) {
-                              acceptWordsDelayByModifiers(modifiers);
-                              this->next();
-                            },
-                            _step->lifetime());
+  _step->nextClicks() | rpl::start_with_next([=](Qt::KeyboardModifiers modifiers) { this->next(); }, _step->lifetime());
 
   _step->importClicks() | rpl::start_with_next([=] { showImport(); }, _step->lifetime());
 
@@ -251,19 +236,20 @@ void Manager::showImport() {
 
   const auto raw = step.get();
 
-  raw->actionRequests() | rpl::start_with_next(
-                              [=](Import::Action action) {
-                                switch (action) {
-                                  case Import::Action::Submit:
-                                    next();
-                                    return;
-                                  case Import::Action::NoWords:
-                                    showImportFail();
-                                    return;
-                                }
-                                Unexpected("Action in Manager::showImport.");
-                              },
-                              raw->lifetime());
+  raw->actionRequests()  //
+      | rpl::start_with_next(
+            [=](Import::Action action) {
+              switch (action) {
+                case Import::Action::Submit:
+                  next();
+                  return;
+                case Import::Action::NoWords:
+                  showImportFail();
+                  return;
+              }
+              Unexpected("Action in Manager::showImport.");
+            },
+            raw->lifetime());
 
   showStep(
       std::move(step), Direction::Forward,
@@ -277,16 +263,6 @@ void Manager::showImport() {
 
 void Manager::showImportFail() {
   _actionRequests.fire(Action::ShowImportFail);
-}
-
-void Manager::acceptWordsDelayByModifiers(Qt::KeyboardModifiers modifiers) {
-  const auto kRequired = Qt::ControlModifier | Qt::AltModifier;
-  if (!_waitForWords.isActive()) {
-    return;
-  } else if ((modifiers & kRequired) != kRequired) {
-    return;
-  }
-  _wordsShouldBeReady = true;
 }
 
 void Manager::setupUpdateButton(not_null<UpdateInfo *> info) {
@@ -353,9 +329,9 @@ std::vector<QString> Manager::wordsByPrefix(const QString &word) const {
   auto prefix = QString();
   auto count = 0;
   auto maxCount = 0;
-  for (const auto &word : _validWords) {
-    if (word.midRef(0, 3) != prefix) {
-      prefix = word.mid(0, 3);
+  for (const auto &validWord : _validWords) {
+    if (validWord.midRef(0, 3) != prefix) {
+      prefix = validWord.mid(0, 3);
       count = 1;
     } else {
       ++count;

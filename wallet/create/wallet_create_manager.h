@@ -41,7 +41,6 @@ class Manager final {
     NewKey,
     CreateKey,
     ShowAccount,
-    ShowCheckTooSoon,
     ShowCheckIncorrect,
     ShowImportFail,
   };
@@ -72,7 +71,6 @@ class Manager final {
   [[nodiscard]] std::vector<QString> wordsByPrefix(const QString &word) const;
   void initButtons(UpdateInfo *updateInfo);
   void showImportFail();
-  void acceptWordsDelayByModifiers(Qt::KeyboardModifiers modifiers);
   void setupUpdateButton(not_null<UpdateInfo *> info);
 
   const std::unique_ptr<Ui::RpWidget> _content;
@@ -84,8 +82,6 @@ class Manager final {
 
   std::unique_ptr<Step> _step;
   std::vector<QString> _words;
-  base::Timer _waitForWords;
-  bool _wordsShouldBeReady = false;
   QByteArray _publicKey;
 
   FnMut<void()> _next;
