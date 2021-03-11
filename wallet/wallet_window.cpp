@@ -1520,25 +1520,13 @@ void Window::addAsset() {
     }
   };
 
-  const auto onNewMultisig = [this](const Ton::Result<> &result) {
-    if (result.has_value()) {
-      refreshNow();
-      showToast(ph::lng_wallet_add_multisig_succeeded(ph::now));
-    } else {
-      showSimpleError(ph::lng_wallet_add_multisig_failed_title(), ph::lng_wallet_add_multisig_failed_text(),
-                      ph::lng_wallet_continue());
-    }
-  };
-
   const auto checking = std::make_shared<bool>();
-  const auto send = [=](const CustomAsset &newAsset, const Fn<void(AddAssetField)> &showError) {
+  const auto send = [=](const NewAsset &newAsset) {
     if (*checking) {
       return;
     }
+    *checking = true;
 
-    if (!Ton::Wallet::CheckAddress(newAsset.address)) {
-      return showError(AddAssetField::Address);
-    }
     switch (newAsset.type) {
       case CustomAssetType::DePool: {
         _wallet->addDePool(_wallet->publicKeys().front(), newAsset.address, crl::guard(this, onNewDepool));
@@ -1549,7 +1537,11 @@ void Window::addAsset() {
         break;
       }
       case CustomAssetType::Multisig: {
-        _wallet->addMultisig(_wallet->publicKeys().front(), newAsset.address, crl::guard(this, onNewMultisig));
+        if (!newAsset.address.isEmpty()) {
+          importMultisig(newAsset.address);
+        } else {
+          addNewMultisig();
+        }
         break;
       }
       default:
@@ -2014,6 +2006,106 @@ void Window::askFtabiKeyChangePassword(const QByteArray &publicKey) {
       });
   *weakBox = box.data();
   _layers->showBox(std::move(box));
+}
+
+void Window::importMultisig(const QString &address) {
+  _wallet->requestMultisigInfo(  //
+      address, crl::guard(this, [=](const Ton::Result<Ton::MultisigInfo> &result) {
+        if (!result.has_value()) {
+          return showMultisigError();
+        }
+        selectMultisigKey(result.value(), 0);
+      }));
+}
+
+void Window::showMultisigError() {
+  showSimpleError(ph::lng_wallet_add_multisig_failed_title(), ph::lng_wallet_add_multisig_failed_text(),
+                  ph::lng_wallet_continue());
+}
+
+void Window::selectMultisigKey(const Ton::MultisigInfo &info, int defaultIndex) {
+  auto showImportKeyError = [=] {
+    showSimpleError(ph::lng_wallet_add_multisig_failed_title(), ph::lng_wallet_add_multisig_is_not_a_custodian(),
+                    ph::lng_wallet_continue());
+  };
+
+  const auto weakBox = std::make_shared<QPointer<Ui::GenericBox>>();
+  const auto closeBox = [=] {
+    if (*weakBox) {
+      (*weakBox)->closeBox();
+    }
+  };
+
+  const auto onNewMultisig = [=](const Ton::Result<> &result) {
+    if (result.has_value()) {
+      closeBox();
+      showToast(ph::lng_wallet_add_multisig_succeeded(ph::now));
+    } else {
+      showMultisigError();
+    }
+  };
+
+  const auto mainPublicKey = _wallet->publicKeys().front();
+
+  base::flat_map<QByteArray, Ton::AvailableKey> existingKeys;
+  existingKeys.emplace(mainPublicKey, Ton::AvailableKey{
+                                          .type = Ton::KeyType::Original,
+                                          .publicKey = mainPublicKey,
+                                          .name = ph::lng_wallet_keystore_main_wallet_key(ph::now),
+                                      });
+  for (const auto &key : _wallet->ftabiKeys()) {
+    existingKeys.emplace(key.publicKey, Ton::AvailableKey{
+                                            .type = Ton::KeyType::Ftabi,
+                                            .publicKey = key.publicKey,
+                                            .name = key.name,
+                                        });
+  }
+
+  std::vector<Ton::AvailableKey> availableKeys;
+  availableKeys.reserve(info.custodians.size());
+  for (const auto &custodian : info.custodians) {
+    const auto it = existingKeys.find(custodian);
+    if (it != existingKeys.end()) {
+      availableKeys.emplace_back(it->second);
+    }
+  }
+
+  auto guard = std::make_shared<bool>(false);
+  auto addMultisig = crl::guard(this, [=](const QByteArray &publicKey) {
+    if (std::exchange(*guard, true)) {
+      return;
+    }
+    _wallet->addMultisig(_wallet->publicKeys().back(), info, publicKey, crl::guard(this, onNewMultisig));
+  });
+
+  const auto addNewKey = crl::guard(this, [=] {
+    if (std::exchange(*guard, true)) {
+      return;
+    }
+    addFtabiKey(closeBox, [=](const QByteArray &publicKey) {
+      const auto it = std::find_if(info.custodians.begin(), info.custodians.end(),
+                                   [&](const auto &item) { return item == publicKey; });
+      if (it != info.custodians.end()) {
+        addMultisig(publicKey);
+      } else {
+        *guard = false;
+        showImportKeyError();
+      }
+    });
+  });
+
+  if (availableKeys.empty()) {
+    addNewKey();
+  } else if (info.custodians.size() == 1) {
+    addMultisig(info.custodians.front());
+  } else {
+    auto box = Box(SelectMultisigKeyBox, info, availableKeys, defaultIndex, addNewKey, addMultisig);
+    *weakBox = box.data();
+    _layers->showBox(std::move(box));
+  }
+}
+
+void Window::addNewMultisig() {
 }
 
 void Window::askExportPassword() {

@@ -79,6 +79,11 @@ struct CustomAsset {
   Ton::Symbol symbol;
 };
 
+struct NewAsset {
+  CustomAssetType type;
+  QString address;
+};
+
 struct FormattedAmount {
   Ton::Symbol token;
   QString gramsString;

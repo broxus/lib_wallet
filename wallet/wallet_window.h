@@ -135,6 +135,11 @@ class Window final : public base::has_weak_ptr {
   void askNewFtabiKeyPassword(const OnFtabiKeyCreated &done);
   void askFtabiKeyChangePassword(const QByteArray &publicKey);
 
+  void importMultisig(const QString &address);
+  void showMultisigError();
+  void selectMultisigKey(const Ton::MultisigInfo &info, int defaultIndex);
+  void addNewMultisig();
+
   [[nodiscard]] Fn<void(QImage, QString)> shareCallback(const QString &linkCopied, const QString &textCopied,
                                                         const QString &qr);
   [[nodiscard]] Fn<void(QImage, QString)> shareAddressCallback();

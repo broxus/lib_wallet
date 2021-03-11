@@ -283,10 +283,6 @@ phrase lng_wallet_add_token_succeeded = "TIP3 Token added successfully!";
 phrase lng_wallet_add_token_failed_title = "Failed to add TIP3 Token";
 phrase lng_wallet_add_token_failed_text = "The specified account was not found, or it is not a root token contract";
 
-phrase lng_wallet_add_multisig_succeeded = "Multisig wallet added successfully!";
-phrase lng_wallet_add_multisig_failed_title = "Failed to add multisig wallet";
-phrase lng_wallet_add_multisig_failed_text = "The specified account was not found, or it is not a multisig contract";
-
 phrase lng_wallet_send_tokens_recipient_not_found = "Recipient token wallet not found";
 phrase lng_wallet_send_tokens_recipient_changed = "Sending directly to the token wallet";
 
@@ -329,12 +325,22 @@ phrase lng_wallet_sent_close_view = "View";
 phrase lng_wallet_add_asset_title = "New Asset";
 phrase lng_wallet_add_asset_token = "Add TIP3 Token";
 phrase lng_wallet_add_asset_depool = "Add DePool";
-phrase lng_wallet_add_asset_multisig = "Add multisig";
+phrase lng_wallet_add_asset_existing_multisig = "Add existing multisig";
+phrase lng_wallet_add_asset_new_multisig = "Deploy multisig";
 phrase lng_wallet_add_asset_address = "Address";
 phrase lng_wallet_add_asset_token_address = "Root token contract address";
 phrase lng_wallet_add_asset_depool_address = "DePool address";
 phrase lng_wallet_add_asset_multisig_address = "Multisig address";
 phrase lng_wallet_add_asset_confirm = "Confirm";
+
+phrase lng_wallet_add_multisig_title = "Import multisig wallet";
+phrase lng_wallet_add_multisig_select_key = "Select key";
+phrase lng_wallet_add_multisig_add_new_key = "Add new key";
+phrase lng_wallet_add_multisig_is_not_a_custodian = "Specified key is not a custodian";
+phrase lng_wallet_add_multisig_confirm = "Confirm";
+phrase lng_wallet_add_multisig_succeeded = "Multisig wallet added successfully!";
+phrase lng_wallet_add_multisig_failed_title = "Failed to add multisig wallet";
+phrase lng_wallet_add_multisig_failed_text = "The specified account was not found, or it is not a multisig contract";
 
 phrase lng_wallet_settings_title = "Settings";
 phrase lng_wallet_settings_version_title = "Version and updates";
