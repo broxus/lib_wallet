@@ -25,6 +25,7 @@ struct HistoryState {
   std::map<HistoryPageKey, Ton::TransactionsSlice> lastTransactions;
   std::vector<Ton::PendingTransaction> pendingTransactions;
   QSet<QString> knownContracts;
+  std::map<QString, int64> multisigTimeouts;
 };
 
 class HistoryRow;
@@ -117,6 +118,8 @@ class History final {
   QSet<QString> _knownContracts;
   base::flat_set<QString> _knownDePools;
   base::flat_set<QString> _knownRootTokenContracts;
+
+  std::map<QString, int64> _multisigTimeouts;
 
   int _visibleTop = 0;
   int _visibleBottom = 0;

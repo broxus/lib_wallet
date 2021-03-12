@@ -244,7 +244,8 @@ void ViewTransactionBox(not_null<Ui::GenericBox *> box, Ton::Transaction &&data,
                                : Ton::Wallet::ConvertIntoRaw(tokenTransaction->recipient));
       }
     } else {
-      return rpl::single(Ton::Wallet::ConvertIntoRaw(ExtractAddress(data)));
+      const auto address = ExtractAddress(data);
+      return rpl::single(address.isEmpty() ? address : Ton::Wallet::ConvertIntoRaw(address));
     }
   }();
 
@@ -300,7 +301,7 @@ void ViewTransactionBox(not_null<Ui::GenericBox *> box, Ton::Transaction &&data,
 
   box->addRow(CreateSummary(box, data, tokenTransaction));
 
-  if (!service && !emptyAddress) {
+  if (!service && !emptyAddress && !currentAddress->current().isEmpty()) {
     AddBoxSubtitle(box, incoming ? ph::lng_wallet_view_sender() : ph::lng_wallet_view_recipient());
     box->addRow(  //
         object_ptr<Ui::RpWidget>::fromRaw(Ui::CreateAddressLabel(box, std::move(address), st::walletTransactionAddress,
@@ -366,7 +367,7 @@ void ViewTransactionBox(not_null<Ui::GenericBox *> box, Ton::Transaction &&data,
     SetupScrollByDrag(box, comment);
   }
 
-  if (!service && !emptyAddress) {
+  if (!service && !emptyAddress && !currentAddress->current().isEmpty()) {
     box->addRow(object_ptr<Ui::FixedHeightWidget>(box, st::walletTransactionBottomSkip));
 
     auto text = [&] {
@@ -396,6 +397,8 @@ void ViewTransactionBox(not_null<Ui::GenericBox *> box, Ton::Transaction &&data,
                    return collect(notification->eventAddress);
                  case NotificationType::TonEvent:
                    return executeSwapBack(notification->eventAddress);
+                 default:
+                   Unexpected("Notification type");
                }
              } else {
                send(currentAddress->current());
@@ -403,6 +406,8 @@ void ViewTransactionBox(not_null<Ui::GenericBox *> box, Ton::Transaction &&data,
            },
            st::walletBottomButton)
         ->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+  } else {
+    box->setStyle(st::walletNoButtonsBox);
   }
 
   if (shouldWaitRecipient) {

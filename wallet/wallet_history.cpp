@@ -1204,6 +1204,7 @@ void History::paint(Painter &p, QRect clip) {
 
 void History::mergeState(HistoryState &&state) {
   _knownContracts = std::move(state.knownContracts);
+  _multisigTimeouts = std::move(state.multisigTimeouts);
   mergePending(std::move(state.pendingTransactions));
   //refreshPending();
   if (mergeListChanged(std::move(state.lastTransactions))) {
@@ -1347,6 +1348,14 @@ void History::refreshShowDates(const SelectedAsset &selectedAsset) {
 
   std::map<QString, Ton::EthEventStatus> latestEthStatuses;
   std::map<QString, Ton::TonEventStatus> latestTonStatuses;
+  base::flat_set<int64> executedTransactions;
+  int64 expirationTime = 0;
+  if (page.first.isTon() && !page.second.isEmpty()) {
+    const auto it = _multisigTimeouts.find(page.second);
+    if (it != _multisigTimeouts.end()) {
+      expirationTime = it->second;
+    }
+  }
 
   auto filterTransaction = [&, targetAddress = targetAddress, pageAddress = page.second](
                                const SelectedAsset &selectedAsset, bool briefNotifications,
@@ -1449,11 +1458,23 @@ void History::refreshShowDates(const SelectedAsset &selectedAsset) {
           v::match(
               transaction.additional,
               [&](const Ton::MultisigSubmitTransaction &submitTransaction) {
-                row->setMultisigSubmitTransactionLayout(&_widget, [=] {
+                auto showButton = !submitTransaction.executed;
+                if (showButton && (executedTransactions.contains(submitTransaction.transactionId) ||
+                                   (transaction.time + expirationTime) < base::unixtime::now())) {
+                  showButton = false;
+                }
+
+                row->setMultisigSubmitTransactionLayout(&_widget, showButton ? [=] {
                   if (submitTransaction.transactionId) {
                     _multisigConfirmRequests.fire(std::make_pair(pageAddress, submitTransaction.transactionId));
                   }
-                });
+                } : Fn<void()>{nullptr});
+              },
+              [&](const Ton::MultisigConfirmTransaction &confirmTransaction) {
+                if (confirmTransaction.executed) {
+                  executedTransactions.emplace(confirmTransaction.transactionId);
+                }
+                row->setMultisigLayout();
               },
               [&](auto &&) { row->setMultisigLayout(); });
         });
@@ -1656,12 +1677,15 @@ rpl::producer<HistoryState> MakeHistoryState(rpl::producer<Ton::WalletViewerStat
                knownContracts.insert(item.first);
              }
 
+             std::map<QString, int64> multisigTimeouts;
+
              std::map<HistoryPageKey, Ton::TransactionsSlice> lastTransactions{
                  {kMainPageKey, state.wallet.lastTransactions}};
 
              for (auto &&[address, multisig] : state.wallet.multisigStates) {
                lastTransactions.emplace(std::piecewise_construct, std::forward_as_tuple(accountPageKey(address)),
                                         std::forward_as_tuple(std::move(multisig.lastTransactions)));
+               multisigTimeouts.emplace(address, multisig.expirationTime);
              }
 
              for (auto &&[symbol, token] : state.wallet.tokenStates) {
@@ -1675,6 +1699,7 @@ rpl::producer<HistoryState> MakeHistoryState(rpl::producer<Ton::WalletViewerStat
                  .lastTransactions = std::move(lastTransactions),
                  .pendingTransactions = std::move(state.wallet.pendingTransactions),
                  .knownContracts = std::move(knownContracts),
+                 .multisigTimeouts = std::move(multisigTimeouts),
              };
            });
 }
