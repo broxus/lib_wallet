@@ -17,7 +17,8 @@
 
 namespace Wallet {
 
-void EnterPasscodeBox(not_null<Ui::GenericBox*> box, Fn<void(QByteArray password, Fn<void(QString)> error)> submit) {
+void EnterPasscodeBox(not_null<Ui::GenericBox*> box,
+                      const Fn<void(QByteArray password, Fn<void(QString)> error)>& submit) {
   box->setTitle(ph::lng_wallet_passcode_title());
 
   const auto inner = box->addRow(object_ptr<Ui::FixedHeightWidget>(box, st::walletPasscodeHeight));

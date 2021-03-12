@@ -67,8 +67,9 @@ void SendingDoneBox(not_null<Ui::GenericBox *> box, const Ton::Transaction &resu
   constexpr auto isCancelWithdrawal = std::is_same_v<T, CancelWithdrawalInvoice>;
   constexpr auto isDeployTokenWallet = std::is_same_v<T, DeployTokenWalletInvoice>;
   constexpr auto isCollectTokens = std::is_same_v<T, CollectTokensInvoice>;
+  constexpr auto isMsigTransfer = std::is_same_v<T, MultisigSubmitTransactionInvoice>;
   static_assert(isTonTransfer || isTokenTransfer || isStakeTransfer || isWithdrawal || isCancelWithdrawal ||
-                isDeployTokenWallet || isCollectTokens);
+                isDeployTokenWallet || isCollectTokens || isMsigTransfer);
 
   const auto defaultToken = Ton::Symbol::ton();
 
@@ -102,7 +103,7 @@ void SendingDoneBox(not_null<Ui::GenericBox *> box, const Ton::Transaction &resu
   const auto realAmount = FormatAmount(-CalculateValue(result), defaultToken).full;
   Ui::FlatLabel *text = nullptr;
   if constexpr (isTonTransfer || isStakeTransfer || isWithdrawal || isCancelWithdrawal || isDeployTokenWallet ||
-                isCollectTokens) {
+                isCollectTokens || isMsigTransfer) {
     text = Ui::CreateChild<Ui::FlatLabel>(inner, ph::lng_wallet_grams_count_sent(realAmount, defaultToken)(),
                                           st::walletSendingText);
   } else if constexpr (isTokenTransfer) {
@@ -162,5 +163,8 @@ template void SendingDoneBox(not_null<Ui::GenericBox *> box, const Ton::Transact
 
 template void SendingDoneBox(not_null<Ui::GenericBox *> box, const Ton::Transaction &result,
                              const CollectTokensInvoice &invoice, const Fn<void()> &onClose);
+
+template void SendingDoneBox(not_null<Ui::GenericBox *> box, const Ton::Transaction &result,
+                             const MultisigSubmitTransactionInvoice &invoice, const Fn<void()> &onClose);
 
 }  // namespace Wallet

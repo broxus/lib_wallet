@@ -115,6 +115,7 @@ phrase lng_wallet_empty_history_multisig_address = "Multisig wallet";
 
 phrase lng_wallet_history_receive_tokens = "Collect";
 phrase lng_wallet_history_execute_callback = "Execute";
+phrase lng_wallet_history_confirm = "Confirm";
 
 phrase lng_wallet_depool_info_title = "DePool Added";
 phrase lng_wallet_depool_info_stakes_title = "Stakes";
@@ -141,6 +142,8 @@ phrase lng_wallet_row_token_transfer = "token transfer from:";
 phrase lng_wallet_row_ordinary_stake_to = "ordinary stake to:";
 phrase lng_wallet_row_to = "to:";
 phrase lng_wallet_row_new_event_status = "new event status: {value}";
+phrase lng_wallet_row_requested_to = "requested withdrawal";
+phrase lng_wallet_row_confirmed = "confirmed";
 phrase lng_wallet_row_init = "Wallet initialization";
 phrase lng_wallet_row_service = "Empty transaction";
 phrase lng_wallet_row_fees = "blockchain fees: {amount}";
@@ -292,6 +295,7 @@ phrase lng_wallet_confirm_withdrawal_text = "Do you want to withdraw **{grams}**
 phrase lng_wallet_confirm_cancel_withdrawal_text = "Do you want to cancel withdrawal from:";
 phrase lng_wallet_confirm_deploy_token_wallet_text = "Do you want to deploy a token wallet for:";
 phrase lng_wallet_confirm_collect_tokens_text = "Do you want to execute proxy callback for:";
+phrase lng_wallet_confirm_multisig_confirm = "Do you want to confirm transaction **{value}** for:";
 phrase lng_wallet_confirm_fee = "Fee: ~{grams}";
 phrase lng_wallet_confirm_send = "Send {ticker}";
 phrase lng_wallet_confirm_withdrawal = "Withdraw";

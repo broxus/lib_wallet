@@ -110,7 +110,7 @@ class Window final : public base::has_weak_ptr {
 
   void addAsset();
   void refreshNow();
-  void receiveTokens(const Ton::Symbol &selectedToken);
+  void receiveTokens(RecipientWalletType type, const QString &address, const Ton::Symbol &symbol);
   void createInvoice(const Ton::Symbol &selectedToken);
   void showInvoiceQr(const QString &link);
   void changePassword();
@@ -185,6 +185,8 @@ class Window final : public base::has_weak_ptr {
   QPointer<Ui::GenericBox> _saveConfirmBox;
 
   QPointer<Ui::GenericBox> _keystoreBox;
+
+  std::shared_ptr<bool> _multisigConfirmationGuard;
 };
 
 }  // namespace Wallet

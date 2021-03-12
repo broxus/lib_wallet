@@ -437,13 +437,24 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
                         });
                       },
                       [&](const SelectedMultisig &selectedMultisig) {
-                        // TODO: implement send
+                        auto state = _state.current();
+                        const auto it = state.multisigStates.find(selectedMultisig.address);
+                        if (it == state.multisigStates.end()) {
+                          return;
+                        }
+
+                        sendMoney(MultisigSubmitTransactionInvoice{
+                            .publicKey = it->second.publicKey,
+                            .multisigAddress = it->first,
+                        });
                       });
                   return;
                 case Action::Receive:
                   v::match(
                       _selectedAsset.current().value_or(SelectedToken::defaultToken()),
-                      [&](const SelectedToken &selectedToken) { receiveTokens(selectedToken.symbol); },
+                      [&](const SelectedToken &selectedToken) {
+                        receiveTokens(RecipientWalletType::Main, _rawAddress, selectedToken.symbol);
+                      },
                       [&](const SelectedDePool &selectedDePool) {
                         auto state = _state.current();
                         const auto it = state.dePoolParticipantStates.find(selectedDePool.address);
@@ -455,7 +466,7 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
                         }
                       },
                       [&](const SelectedMultisig &selectedMultisig) {
-                        // TODO: implement receive
+                        receiveTokens(RecipientWalletType::Multisig, selectedMultisig.address, Ton::Symbol::ton());
                       });
                   return;
                 case Action::ChangePassword:
@@ -635,6 +646,33 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
       | rpl::start_with_next(
             [=](not_null<const QString *> eventContractAddress) {
               _wallet->openGateExecuteSwapBack(*eventContractAddress);
+            },
+            _info->lifetime());
+
+  _info->multisigConfirmRequests()  //
+      | rpl::start_with_next(
+            [=](const std::pair<QString, int64> &confirmation) {
+              if (_multisigConfirmationGuard && *_multisigConfirmationGuard) {
+                return;
+              }
+
+              if (!_multisigConfirmationGuard) {
+                _multisigConfirmationGuard = std::make_shared<bool>(false);
+              }
+
+              const auto state = _state.current();
+              const auto it = state.multisigStates.find(confirmation.first);
+              if (it == state.multisigStates.end()) {
+                return;
+              }
+
+              confirmTransaction(
+                  MultisigConfirmTransactionInvoice{
+                      .publicKey = it->second.publicKey,
+                      .multisigAddress = confirmation.first,
+                      .transactionId = confirmation.second,
+                  },
+                  [=](InvoiceField) {}, _multisigConfirmationGuard);
             },
             _info->lifetime());
 
@@ -966,6 +1004,25 @@ void Window::sendMoney(const PreparedInvoiceOrLink &invoice) {
 
         return Box(SendGramsBox<TokenTransferInvoice>, tokenTransferInvoice, _state.value(), send);
       },
+      [=](MultisigSubmitTransactionInvoice &invoice) {
+        const auto send = [=](const MultisigSubmitTransactionInvoice &invoice,
+                              const Fn<void(InvoiceField)> &showError) {
+          if (!Ton::Wallet::CheckAddress(invoice.address)) {
+            return showError(InvoiceField::Address);
+          }
+
+          const auto state = _state.current();
+          const auto it = state.multisigStates.find(invoice.multisigAddress);
+          if (invoice.amount <= 0 || it == state.multisigStates.end() ||
+              invoice.amount > (it->second.accountState.fullBalance - it->second.accountState.lockedBalance)) {
+            return showError(InvoiceField::Amount);
+          }
+
+          confirmTransaction(invoice, showError, checking);
+        };
+
+        return Box(SendGramsBox<MultisigSubmitTransactionInvoice>, invoice, _state.value(), send);
+      },
       [=](auto &&) -> object_ptr<Ui::GenericBox> { return nullptr; });
 
   if (box != nullptr) {
@@ -1118,9 +1175,16 @@ void Window::collectTokens(const QString &eventContractAddress) {
 
 void Window::confirmTransaction(PreparedInvoice invoice, const Fn<void(InvoiceField)> &showInvoiceError,
                                 const std::shared_ptr<bool> &guard) {
-  if (*guard || !_sendBox) {
+  if (*guard) {
     return;
   }
+
+  const auto withoutBox = v::match(
+      invoice, [](const MultisigConfirmTransactionInvoice &) { return true; }, [](auto &&) { return false; });
+  if (!withoutBox && !_sendBox) {
+    return;
+  }
+
   *guard = true;
 
   v::match(
@@ -1151,6 +1215,12 @@ void Window::confirmTransaction(PreparedInvoice invoice, const Fn<void(InvoiceFi
       },
       [&](CollectTokensInvoice &collectTokensInvoice) {
         collectTokensInvoice.realAmount = Ton::CollectTokensTransactionToSend::realAmount;
+      },
+      [&](MultisigSubmitTransactionInvoice &multisigSubmitTransactionInvoice) {
+        // stay same
+      },
+      [&](MultisigConfirmTransactionInvoice &multisigConfirmTransactionInvoice) {
+        // stay same
       });
 
   auto done = [=](Ton::Result<Ton::TransactionCheckResult> result, PreparedInvoice &&invoice) mutable {
@@ -1165,7 +1235,7 @@ void Window::confirmTransaction(PreparedInvoice invoice, const Fn<void(InvoiceFi
     showSendConfirmation(invoice, *result, showInvoiceError);
   };
 
-  auto doneUnchanged = [done, invoice = invoice](const Ton::Result<Ton::TransactionCheckResult> &result) mutable {
+  auto doneUnchanged = [=](const Ton::Result<Ton::TransactionCheckResult> &result) mutable {
     done(result, std::move(invoice));
   };
 
@@ -1227,6 +1297,12 @@ void Window::confirmTransaction(PreparedInvoice invoice, const Fn<void(InvoiceFi
       [&](const CollectTokensInvoice &collectTokensInvoice) {
         _wallet->checkCollectTokens(_wallet->publicKeys().front(), collectTokensInvoice.asTransaction(),
                                     crl::guard(_sendBox.data(), doneUnchanged));
+      },
+      [&](const MultisigSubmitTransactionInvoice &invoice) {
+        _wallet->checkSubmitTransaction(invoice.asTransaction(), crl::guard(_sendBox.data(), doneUnchanged));
+      },
+      [&](const MultisigConfirmTransactionInvoice &invoice) {
+        _wallet->checkConfirmTransaction(invoice.asTransaction(), crl::guard(this, doneUnchanged));
       });
 }
 
@@ -1257,8 +1333,15 @@ void Window::askSendPassword(const PreparedInvoice &invoice, const Fn<void(Invoi
         return;
       }
       showSendingTransaction(*result, invoice, confirmations->events());
-      _wallet->updateViewersPassword(publicKey, passcode);
-      decryptEverything(publicKey);
+
+      v::match(
+          invoice,                                           //
+          [](const MultisigSubmitTransactionInvoice &) {},   //
+          [](const MultisigConfirmTransactionInvoice &) {},  //
+          [&](auto &&) {
+            _wallet->updateViewersPassword(publicKey, passcode);
+            decryptEverything(publicKey);
+          });
     };
     const auto sent = [=](Ton::Result<> result) {
       if (!result) {
@@ -1297,6 +1380,14 @@ void Window::askSendPassword(const PreparedInvoice &invoice, const Fn<void(Invoi
         [&](const CollectTokensInvoice &collectTokensInvoice) {
           _wallet->collectTokens(publicKey, passcode, collectTokensInvoice.asTransaction(), crl::guard(this, ready),
                                  crl::guard(this, sent));
+        },
+        [&](const MultisigSubmitTransactionInvoice &invoice) {
+          _wallet->submitTransaction(publicKey, passcode, invoice.asTransaction(), crl::guard(this, ready),
+                                     crl::guard(this, sent));
+        },
+        [&](const MultisigConfirmTransactionInvoice &invoice) {
+          _wallet->confirmTransaction(publicKey, passcode, invoice.asTransaction(), crl::guard(this, ready),
+                                      crl::guard(this, sent));
         });
   };
   if (_sendConfirmBox) {
@@ -1319,11 +1410,14 @@ void Window::showSendConfirmation(const PreparedInvoice &invoice, const Ton::Tra
   //    // Special case transaction where we transfer all that is left.
   //} else
 
-  const auto checkAmount = [&](int64_t realAmount) {
-    return gramsAvailable > realAmount + checkResult.sourceFees.sum();
-  };
-
   const auto sourceFees = checkResult.sourceFees.sum();
+
+  const auto checkAmount = [&](int64_t realAmount) { return gramsAvailable > realAmount + sourceFees; };
+
+  const auto checkAmountByState = [&](int64_t realAmount, const Ton::AccountState &accountState) {
+    const auto gramsAvailable = accountState.fullBalance - accountState.lockedBalance;
+    return gramsAvailable > realAmount + sourceFees;
+  };
 
   auto box = v::match(
       invoice,
@@ -1417,6 +1511,29 @@ void Window::showSendConfirmation(const PreparedInvoice &invoice, const Ton::Tra
         return Box(ConfirmTransactionBox<CollectTokensInvoice>, collectTokensInvoice,
                    collectTokensInvoice.realAmount + sourceFees,
                    [=] { askSendPassword(collectTokensInvoice, showInvoiceError); });
+      },
+      [&](const MultisigSubmitTransactionInvoice &invoice) -> object_ptr<Ui::GenericBox> {
+        const auto it = currentState.multisigStates.find(invoice.multisigAddress);
+        if (it == currentState.multisigStates.end() || !checkAmountByState(invoice.amount, it->second.accountState)) {
+          showInvoiceError(InvoiceField::Address);
+          showSimpleError(ph::lng_wallet_send_failed_title(), ph::lng_wallet_send_failed_text(),
+                          ph::lng_wallet_continue());
+          return nullptr;
+        }
+
+        return Box(ConfirmTransactionBox<MultisigSubmitTransactionInvoice>, invoice, sourceFees,
+                   [=] { askSendPassword(invoice, showInvoiceError); });
+      },
+      [&](const MultisigConfirmTransactionInvoice &invoice) -> object_ptr<Ui::GenericBox> {
+        const auto it = currentState.multisigStates.find(invoice.multisigAddress);
+        if (it == currentState.multisigStates.end() || !checkAmountByState(0, it->second.accountState)) {
+          showSimpleError(ph::lng_wallet_send_failed_title(), ph::lng_wallet_send_failed_text(),
+                          ph::lng_wallet_continue());
+          return nullptr;
+        }
+
+        return Box(ConfirmTransactionBox<MultisigConfirmTransactionInvoice>, invoice, sourceFees,
+                   [=] { askSendPassword(invoice, showInvoiceError); });
       });
 
   if (box != nullptr) {
@@ -1435,20 +1552,50 @@ void Window::showSendingTransaction(const Ton::PendingTransaction &transaction, 
       invoice, [](const TokenTransferInvoice &tokenTransferInvoice) { return tokenTransferInvoice.token; },
       [](auto &&) { return Ton::Symbol::ton(); });
 
-  auto box = Box(SendingTransactionBox, token, std::move(confirmed));
+  auto box = Box(SendingTransactionBox, token, confirmed);
 
   _sendBox = box.data();
-  _state.value()  //
-      | rpl::filter([=](const Ton::WalletState &state) {
-          return ranges::find(state.pendingTransactions, transaction) == end(state.pendingTransactions);
-        })  //
-      | rpl::map([=](const Ton::WalletState &state) {
-          const auto i = ranges::find(state.lastTransactions.list, transaction.fake);
-          return (i != end(state.lastTransactions.list)) ? std::make_optional(*i) : std::nullopt;
-        })  //
-      | rpl::start_with_next(
-            [=](std::optional<Ton::Transaction> &&result) { showSendingDone(std::move(result), invoice); },
-            _sendBox->lifetime());
+
+  const auto handleDefaultPending = [&] {
+    _state.value()  //
+        | rpl::filter([=](const Ton::WalletState &state) {
+            return ranges::find(state.pendingTransactions, transaction) == end(state.pendingTransactions);
+          })  //
+        | rpl::map([=](const Ton::WalletState &state) {
+            const auto i = ranges::find(state.lastTransactions.list, transaction.fake);
+            return (i != end(state.lastTransactions.list)) ? std::make_optional(*i) : std::nullopt;
+          })  //
+        | rpl::start_with_next(
+              [=](std::optional<Ton::Transaction> &&result) { showSendingDone(std::move(result), invoice); },
+              _sendBox->lifetime());
+  };
+
+  const auto handleMultisigPending = [&](const QString &address) {
+    _state.value()  //
+        | rpl::map([=](const Ton::WalletState &state) -> std::optional<Ton::MultisigState> {
+            const auto it = state.multisigStates.find(address);
+            if (it == end(state.multisigStates)) {
+              return std::nullopt;
+            }
+            return ranges::find(it->second.pendingTransactions, transaction) == end(it->second.pendingTransactions)
+                       ? std::make_optional(it->second)
+                       : std::nullopt;
+          })                      //
+        | rpl::filter_optional()  //
+        | rpl::map([=](const Ton::MultisigState &state) {
+            const auto i = ranges::find(state.lastTransactions.list, transaction.fake);
+            return (i != end(state.lastTransactions.list)) ? std::make_optional(*i) : std::nullopt;
+          })  //
+        | rpl::start_with_next(
+              [=](std::optional<Ton::Transaction> &&result) { showSendingDone(std::move(result), invoice); },
+              _sendBox->lifetime());
+  };
+
+  v::match(
+      invoice, [&](const MultisigSubmitTransactionInvoice &invoice) { handleMultisigPending(invoice.multisigAddress); },
+      [&](const MultisigConfirmTransactionInvoice &invoice) { handleMultisigPending(invoice.multisigAddress); },
+      [&](auto &&) { handleDefaultPending(); });
+
   _layers->showBox(std::move(box));
 
   if (_sendConfirmBox) {
@@ -1458,34 +1605,41 @@ void Window::showSendingTransaction(const Ton::PendingTransaction &transaction, 
 
 void Window::showSendingDone(std::optional<Ton::Transaction> result, const PreparedInvoice &invoice) {
   if (result) {
+    const auto refresh = crl::guard(this, [this] { refreshNow(); });
+
     auto box = v::match(
         invoice,
         [&](const TonTransferInvoice &tonTransferInvoice) {
-          return Box(SendingDoneBox<TonTransferInvoice>, *result, tonTransferInvoice, [this] { refreshNow(); });
+          return Box(SendingDoneBox<TonTransferInvoice>, *result, tonTransferInvoice, refresh);
         },
         [&](const TokenTransferInvoice &tokenTransferInvoice) {
-          return Box(SendingDoneBox<TokenTransferInvoice>, *result, tokenTransferInvoice,
-                     [this, tokenTransferInvoice] { refreshNow(); });
+          return Box(SendingDoneBox<TokenTransferInvoice>, *result, tokenTransferInvoice, refresh);
         },
         [&](const StakeInvoice &stakeInvoice) {
-          return Box(SendingDoneBox<StakeInvoice>, *result, stakeInvoice, [this] { refreshNow(); });
+          return Box(SendingDoneBox<StakeInvoice>, *result, stakeInvoice, refresh);
         },
         [&](const WithdrawalInvoice &withdrawalInvoice) {
-          return Box(SendingDoneBox<WithdrawalInvoice>, *result, withdrawalInvoice, [this] { refreshNow(); });
+          return Box(SendingDoneBox<WithdrawalInvoice>, *result, withdrawalInvoice, refresh);
         },
         [&](const CancelWithdrawalInvoice &cancelWithdrawalInvoice) {
-          return Box(SendingDoneBox<CancelWithdrawalInvoice>, *result, cancelWithdrawalInvoice,
-                     [this] { refreshNow(); });
+          return Box(SendingDoneBox<CancelWithdrawalInvoice>, *result, cancelWithdrawalInvoice, refresh);
         },
         [&](const DeployTokenWalletInvoice &deployTokenWalletInvoice) {
-          return Box(SendingDoneBox<DeployTokenWalletInvoice>, *result, deployTokenWalletInvoice,
-                     [this] { refreshNow(); });
+          return Box(SendingDoneBox<DeployTokenWalletInvoice>, *result, deployTokenWalletInvoice, refresh);
         },
         [&](const CollectTokensInvoice &collectTokensInvoice) {
-          return Box(SendingDoneBox<CollectTokensInvoice>, *result, collectTokensInvoice, [this] { refreshNow(); });
+          return Box(SendingDoneBox<CollectTokensInvoice>, *result, collectTokensInvoice, refresh);
+        },
+        [&](const MultisigSubmitTransactionInvoice &invoice) -> object_ptr<Ui::GenericBox> {
+          return Box(SendingDoneBox<MultisigSubmitTransactionInvoice>, *result, invoice, refresh);
+        },
+        [&](const MultisigConfirmTransactionInvoice &invoice) -> object_ptr<Ui::GenericBox> {
+          return nullptr;  // TODO
         });
 
-    _layers->showBox(std::move(box));
+    if (box != nullptr) {
+      _layers->showBox(std::move(box));
+    }
   } else {
     showSimpleError(ph::lng_wallet_send_failed_title(), ph::lng_wallet_send_failed_text(), ph::lng_wallet_continue());
   }
@@ -1556,11 +1710,12 @@ void Window::addAsset() {
   _layers->showBox(std::move(box));
 }
 
-void Window::receiveTokens(const Ton::Symbol &selectedToken) {
+void Window::receiveTokens(RecipientWalletType type, const QString &address, const Ton::Symbol &symbol) {
+  const auto rawAddress = Ton::Wallet::ConvertIntoRaw(address);
+
   _layers->showBox(Box(
-      ReceiveTokensBox, _rawAddress, selectedToken,
-      [this, selectedToken = selectedToken] { createInvoice(selectedToken); }, shareAddressCallback(),
-      [this, selectedToken = selectedToken] { _wallet->openGate(_rawAddress, selectedToken); }));
+      ReceiveTokensBox, type, rawAddress, symbol, [=] { createInvoice(symbol); }, shareAddressCallback(),
+      [=] { _wallet->openGate(rawAddress, symbol); }));
 }
 
 void Window::createInvoice(const Ton::Symbol &selectedToken) {
@@ -2012,6 +2167,7 @@ void Window::importMultisig(const QString &address) {
   _wallet->requestMultisigInfo(  //
       address, crl::guard(this, [=](const Ton::Result<Ton::MultisigInfo> &result) {
         if (!result.has_value()) {
+          std::cout << result.error().details.toStdString() << std::endl;
           return showMultisigError();
         }
         selectMultisigKey(result.value(), 0);
@@ -2041,6 +2197,7 @@ void Window::selectMultisigKey(const Ton::MultisigInfo &info, int defaultIndex) 
       closeBox();
       showToast(ph::lng_wallet_add_multisig_succeeded(ph::now));
     } else {
+      std::cout << result.error().details.toStdString() << std::endl;
       showMultisigError();
     }
   };
@@ -2085,10 +2242,10 @@ void Window::selectMultisigKey(const Ton::MultisigInfo &info, int defaultIndex) 
     addFtabiKey(closeBox, [=](const QByteArray &publicKey) {
       const auto it = std::find_if(info.custodians.begin(), info.custodians.end(),
                                    [&](const auto &item) { return item == publicKey; });
+      *guard = false;
       if (it != info.custodians.end()) {
         addMultisig(publicKey);
       } else {
-        *guard = false;
         showImportKeyError();
       }
     });

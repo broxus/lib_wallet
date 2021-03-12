@@ -21,15 +21,22 @@
 
 namespace Wallet {
 
-void ReceiveTokensBox(not_null<Ui::GenericBox *> box, const QString &rawAddress, const Ton::Symbol &symbol,
-                      const Fn<void()> &createInvoice, const Fn<void(QImage, QString)> &share, const Fn<void()> &swap) {
+void ReceiveTokensBox(not_null<Ui::GenericBox *> box, RecipientWalletType type, const QString &rawAddress,
+                      const Ton::Symbol &symbol, const Fn<void()> &createInvoice,
+                      const Fn<void(QImage, QString)> &share, const Fn<void()> &swap) {
   const auto replaceTickerTag = [symbol = symbol] {
     return rpl::map([=](QString &&text) { return text.replace("{ticker}", symbol.name()); });
   };
 
   box->setTitle(rpl::combine(ph::lng_wallet_receive_title()) | replaceTickerTag());
 
-  box->setStyle(st::walletBox);
+  const auto multisigWallet = type == RecipientWalletType::Multisig;
+
+  if (multisigWallet) {
+    box->setStyle(st::walletNoButtonsBox);
+  } else {
+    box->setStyle(st::walletBox);
+  }
 
   box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
 
@@ -54,18 +61,28 @@ void ReceiveTokensBox(not_null<Ui::GenericBox *> box, const QString &rawAddress,
           container->lifetime());
 
   // Address label
+  auto addressLabelMargins = st::walletReceiveAddressPadding;
+  if (multisigWallet) {
+    addressLabelMargins.setBottom(0);
+  }
+
   box->addRow(  //
       object_ptr<Ui::RpWidget>::fromRaw(Ui::CreateAddressLabel(
           box, rpl::single(rawAddress), st::walletReceiveAddressLabel, [=] { share(QImage(), rawAddress); })),
-      st::walletReceiveAddressPadding);
+      addressLabelMargins);
+
+  if (multisigWallet) {
+    return;
+  }
 
   auto separatorMargins = st::walletSettingsDividerMargin;
   if (symbol.isToken()) {
     separatorMargins.setBottom(4);
   }
+
   box->addRow(object_ptr<Ui::BoxContentDivider>(box), separatorMargins);
 
-  if (symbol.isTon()) {
+  if (symbol.isTon() && type == RecipientWalletType::Main) {
     // Create link button
     const auto createLinkWrap = box->addRow(object_ptr<Ui::FixedHeightWidget>(box, st::boxLinkButton.font->height),
                                             st::walletReceiveLinkPadding);

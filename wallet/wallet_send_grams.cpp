@@ -54,7 +54,8 @@ void SendGramsBox(not_null<Ui::GenericBox *> box, const T &invoice, rpl::produce
                   const Fn<void(const T &, Fn<void(InvoiceField)> error)> &done) {
   constexpr auto isTonTransfer = std::is_same_v<T, TonTransferInvoice>;
   constexpr auto isTokenTransfer = std::is_same_v<T, TokenTransferInvoice>;
-  static_assert(isTonTransfer || isTokenTransfer);
+  constexpr auto isMsigTransfer = std::is_same_v<T, MultisigSubmitTransactionInvoice>;
+  static_assert(isTonTransfer || isTokenTransfer | isMsigTransfer);
 
   auto symbol = Ton::Symbol::ton();
   if constexpr (isTokenTransfer) {
@@ -75,6 +76,14 @@ void SendGramsBox(not_null<Ui::GenericBox *> box, const T &invoice, rpl::produce
               return it->second.balance;
             } else {
               return int128{};
+            }
+          } else if constexpr (isMsigTransfer) {
+            const auto it = state.multisigStates.find(invoice.multisigAddress);
+            if (it != state.multisigStates.end()) {
+              const auto &accountState = it->second.accountState;
+              return accountState.fullBalance - accountState.lockedBalance;
+            } else {
+              return int64{};
             }
           } else {
             return int64{};
@@ -158,7 +167,7 @@ void SendGramsBox(not_null<Ui::GenericBox *> box, const T &invoice, rpl::produce
   }
 
   Ui::InputField *comment = nullptr;
-  if constexpr (isTonTransfer) {
+  if constexpr (isTonTransfer || isMsigTransfer) {
     comment = box->addRow(
         object_ptr<Ui::InputField>::fromRaw(CreateCommentInput(box, ph::lng_wallet_send_comment(), prepared->comment)),
         st::walletSendCommentPadding);
@@ -265,14 +274,14 @@ void SendGramsBox(not_null<Ui::GenericBox *> box, const T &invoice, rpl::produce
   });
 
   const auto submit = [=] {
-    auto collected = T{};
+    auto collected = *prepared;
     const auto parsed = ParseAmountString(amount->getLastText(), tokenDecimals);
     if (!parsed) {
       amount->showError();
       return;
     }
     collected.address = address->getLastText();
-    if constexpr (isTonTransfer) {
+    if constexpr (isTonTransfer || isMsigTransfer) {
       collected.amount = static_cast<int64>(*parsed);
       collected.comment = comment->getLastText();
     } else if constexpr (isTokenTransfer) {
@@ -413,12 +422,16 @@ void SendGramsBox(not_null<Ui::GenericBox *> box, const T &invoice, rpl::produce
   }
 }
 
-template void SendGramsBox<TonTransferInvoice>(
-    not_null<Ui::GenericBox *> box, const TonTransferInvoice &invoice, rpl::producer<Ton::WalletState> state,
-    const Fn<void(const TonTransferInvoice &, Fn<void(InvoiceField)> error)> &done);
+template void SendGramsBox(not_null<Ui::GenericBox *> box, const TonTransferInvoice &invoice,
+                           rpl::producer<Ton::WalletState> state,
+                           const Fn<void(const TonTransferInvoice &, Fn<void(InvoiceField)>)> &done);
 
-template void SendGramsBox<TokenTransferInvoice>(
-    not_null<Ui::GenericBox *> box, const TokenTransferInvoice &invoice, rpl::producer<Ton::WalletState> state,
-    const Fn<void(const TokenTransferInvoice &, Fn<void(InvoiceField)> error)> &done);
+template void SendGramsBox(not_null<Ui::GenericBox *> box, const TokenTransferInvoice &invoice,
+                           rpl::producer<Ton::WalletState> state,
+                           const Fn<void(const TokenTransferInvoice &, Fn<void(InvoiceField)>)> &done);
+
+template void SendGramsBox(not_null<Ui::GenericBox *> box, const MultisigSubmitTransactionInvoice &invoice,
+                           rpl::producer<Ton::WalletState> state,
+                           const Fn<void(const MultisigSubmitTransactionInvoice &, Fn<void(InvoiceField)>)> &done);
 
 }  // namespace Wallet

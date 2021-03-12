@@ -81,8 +81,10 @@ void ConfirmTransactionBox(not_null<Ui::GenericBox *> box, const T &invoice, int
   constexpr auto isCancelWithdrawal = std::is_same_v<T, CancelWithdrawalInvoice>;
   constexpr auto isDeployTokenWallet = std::is_same_v<T, DeployTokenWalletInvoice>;
   constexpr auto isCollectTokens = std::is_same_v<T, CollectTokensInvoice>;
+  constexpr auto isMsigTransfer = std::is_same_v<T, MultisigSubmitTransactionInvoice>;
+  constexpr auto isMsigConfirm = std::is_same_v<T, MultisigConfirmTransactionInvoice>;
   static_assert(isTonTransfer || isTokenTransfer || isStakeTransfer || isWithdrawal || isCancelWithdrawal ||
-                isDeployTokenWallet || isCollectTokens);
+                isDeployTokenWallet || isCollectTokens || isMsigTransfer || isMsigConfirm);
 
   auto token = Ton::Symbol::ton();
   if constexpr (isTokenTransfer) {
@@ -90,7 +92,7 @@ void ConfirmTransactionBox(not_null<Ui::GenericBox *> box, const T &invoice, int
   }
 
   QString address{};
-  if constexpr (isTonTransfer) {
+  if constexpr (isTonTransfer || isMsigTransfer) {
     address = invoice.address;
   } else if constexpr (isTokenTransfer) {
     address = invoice.ownerAddress;
@@ -100,6 +102,8 @@ void ConfirmTransactionBox(not_null<Ui::GenericBox *> box, const T &invoice, int
     address = invoice.rootContractAddress;
   } else if constexpr (isCollectTokens) {
     address = invoice.eventContractAddress;
+  } else if constexpr (isMsigConfirm) {
+    address = invoice.multisigAddress;
   }
 
   bool showAsRaw = true;
@@ -116,13 +120,13 @@ void ConfirmTransactionBox(not_null<Ui::GenericBox *> box, const T &invoice, int
   box->setCloseByOutsideClick(false);
 
   const auto amount = [=]() constexpr {
-    if constexpr (isTonTransfer || isTokenTransfer) {
+    if constexpr (isTonTransfer || isTokenTransfer || isMsigTransfer) {
       return FormatAmount(invoice.amount, token).full;
     } else if constexpr (isStakeTransfer) {
       return FormatAmount(invoice.stake, token).full;
     } else if constexpr (isWithdrawal) {
       return FormatAmount(invoice.amount, token).full;
-    } else if constexpr (isCancelWithdrawal || isDeployTokenWallet || isCollectTokens) {
+    } else if constexpr (isCancelWithdrawal || isDeployTokenWallet || isCollectTokens || isMsigConfirm) {
       return FormatAmount(0, token).full;
     }
   }
@@ -137,6 +141,10 @@ void ConfirmTransactionBox(not_null<Ui::GenericBox *> box, const T &invoice, int
       return ph::lng_wallet_confirm_deploy_token_wallet_text();
     } else if constexpr (isCollectTokens) {
       return ph::lng_wallet_confirm_collect_tokens_text();
+    } else if constexpr (isMsigConfirm) {
+      return ph::lng_wallet_confirm_multisig_confirm() | rpl::map([=](QString &&text) {
+               return text.replace(QString{"{value}"}, FormatTransactionId(invoice.transactionId));
+             });
     } else {
       return ph::lng_wallet_confirm_text();
     }
@@ -201,25 +209,19 @@ void ConfirmTransactionBox(not_null<Ui::GenericBox *> box, const T &invoice, int
   box->addButton(ph::lng_wallet_cancel(), [=] { box->closeBox(); });
 }
 
-template void ConfirmTransactionBox(not_null<Ui::GenericBox *> box, const TonTransferInvoice &invoice, int64 fee,
-                                    const Fn<void()> &confirmed);
+#define IMPL_BOX_FOR(T)                                                                            \
+  template void ConfirmTransactionBox(not_null<Ui::GenericBox *> box, const T &invoice, int64 fee, \
+                                      const Fn<void()> &confirmed)
 
-template void ConfirmTransactionBox(not_null<Ui::GenericBox *> box, const TokenTransferInvoice &invoice, int64 fee,
-                                    const Fn<void()> &confirmed);
-
-template void ConfirmTransactionBox(not_null<Ui::GenericBox *> box, const StakeInvoice &invoice, int64 fee,
-                                    const Fn<void()> &confirmed);
-
-template void ConfirmTransactionBox(not_null<Ui::GenericBox *> box, const WithdrawalInvoice &invoice, int64 fee,
-                                    const Fn<void()> &confirmed);
-
-template void ConfirmTransactionBox(not_null<Ui::GenericBox *> box, const CancelWithdrawalInvoice &invoice, int64 fee,
-                                    const Fn<void()> &confirmed);
-
-template void ConfirmTransactionBox(not_null<Ui::GenericBox *> box, const DeployTokenWalletInvoice &invoice, int64 fee,
-                                    const Fn<void()> &confirmed);
-
-template void ConfirmTransactionBox(not_null<Ui::GenericBox *> box, const CollectTokensInvoice &invoice, int64 fee,
-                                    const Fn<void()> &confirmed);
+IMPL_BOX_FOR(TonTransferInvoice);
+IMPL_BOX_FOR(TokenTransferInvoice);
+IMPL_BOX_FOR(StakeInvoice);
+IMPL_BOX_FOR(WithdrawalInvoice);
+IMPL_BOX_FOR(WithdrawalInvoice);
+IMPL_BOX_FOR(CancelWithdrawalInvoice);
+IMPL_BOX_FOR(DeployTokenWalletInvoice);
+IMPL_BOX_FOR(CollectTokensInvoice);
+IMPL_BOX_FOR(MultisigSubmitTransactionInvoice);
+IMPL_BOX_FOR(MultisigConfirmTransactionInvoice);
 
 }  // namespace Wallet

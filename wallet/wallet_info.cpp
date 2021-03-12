@@ -106,6 +106,10 @@ rpl::producer<not_null<const QString *>> Info::executeSwapBackRequests() const {
   return _executeSwapBackRequests.events();
 }
 
+rpl::producer<std::pair<QString, int64>> Info::multisigConfirmRequests() const {
+  return _multisigConfirmRequests.events();
+}
+
 void Info::setupControls(Data &&data) {
   const auto &state = data.state;
   const auto topBar = _widget->lifetime().make_state<TopBar>(
@@ -273,6 +277,7 @@ void Info::setupControls(Data &&data) {
   history->tokenDetailsRequests() | rpl::start_to_stream(_tokenDetailsRequests, history->lifetime());
   history->collectTokenRequests() | rpl::start_to_stream(_collectTokenRequests, history->lifetime());
   history->executeSwapBackRequests() | rpl::start_to_stream(_executeSwapBackRequests, history->lifetime());
+  history->multisigConfirmRequests() | rpl::start_to_stream(_multisigConfirmRequests, history->lifetime());
 
   // initialize default layouts
   _selectedAsset.value() | rpl::start_with_next(

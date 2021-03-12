@@ -154,8 +154,38 @@ struct CollectTokensInvoice {
   auto asTransaction() const -> Ton::CollectTokensTransactionToSend;
 };
 
-using PreparedInvoice = std::variant<TonTransferInvoice, TokenTransferInvoice, StakeInvoice, WithdrawalInvoice,
-                                     CancelWithdrawalInvoice, DeployTokenWalletInvoice, CollectTokensInvoice>;
+struct MultisigSubmitTransactionInvoice {
+  QByteArray publicKey;
+  QString multisigAddress;
+  QString address;
+  int64 amount;
+  bool bounce;
+  QString comment;
+
+  auto asTransaction() const -> Ton::SubmitTransactionToSend;
+};
+
+struct MultisigConfirmTransactionInvoice {
+  QByteArray publicKey;
+  QString multisigAddress;
+  int64 transactionId;
+
+  auto asTransaction() const -> Ton::ConfirmTransactionToSend;
+};
+
+using PreparedInvoice = std::variant<  //
+    TonTransferInvoice,
+    //
+    TokenTransferInvoice,      //
+    DeployTokenWalletInvoice,  //
+    CollectTokensInvoice,      //
+    //
+    StakeInvoice,             //
+    WithdrawalInvoice,        //
+    CancelWithdrawalInvoice,  //
+    //
+    MultisigSubmitTransactionInvoice,  //
+    MultisigConfirmTransactionInvoice>;
 
 enum class Action {
   Refresh,
@@ -174,6 +204,8 @@ enum class Action {
 enum class InfoTransition { Back };
 
 enum class ViewRequestType { Ordinary, DePool };
+
+enum class RecipientWalletType { Main, Multisig };
 
 enum class FormatFlag {
   Signed = 0x01,
@@ -205,6 +237,8 @@ using ParsedAddress = std::variant<ParsedAddressTon, ParsedAddressEth>;
 [[nodiscard]] bool IsEncryptedMessage(const Ton::Transaction &data);
 [[nodiscard]] bool IsServiceTransaction(const Ton::Transaction &data);
 [[nodiscard]] QString ExtractMessage(const Ton::Transaction &data);
+
+[[nodiscard]] QString FormatTransactionId(int64 transactionId);
 
 [[nodiscard]] QString TransferLink(const QString &address, const Ton::Symbol &symbol, const int128 &amount = 0,
                                    const QString &comment = QString());

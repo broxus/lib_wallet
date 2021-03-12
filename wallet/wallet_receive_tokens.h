@@ -14,7 +14,10 @@ enum class Currency;
 
 namespace Wallet {
 
-void ReceiveTokensBox(not_null<Ui::GenericBox *> box, const QString &rawAddress, const Ton::Symbol &token,
-                      const Fn<void()> &createInvoice, const Fn<void(QImage, QString)> &share, const Fn<void()> &swap);
+enum class RecipientWalletType;
+
+void ReceiveTokensBox(not_null<Ui::GenericBox *> box, RecipientWalletType type, const QString &rawAddress,
+                      const Ton::Symbol &token, const Fn<void()> &createInvoice, const Fn<void(QImage, QString)> &share,
+                      const Fn<void()> &swap);
 
 }  // namespace Wallet

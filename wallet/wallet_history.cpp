@@ -60,6 +60,8 @@ enum class TransactionType {
   DePoolReward,
   DePoolRewardNotification,
   DePoolStake,
+  MultisigSubmit,
+  MultisigConfirm,
 };
 
 struct TransactionLayout {
@@ -75,6 +77,7 @@ struct TransactionLayout {
   QString additionalInfo;
   int addressWidth = 0;
   int addressHeight = 0;
+  int lineCount = 2;
   Flags flags = Flags();
   TransactionType type;
 };
@@ -172,6 +175,88 @@ void refreshTimeTexts(TransactionLayout &layout, bool forceDateText = false) {
           return TransactionType::Transfer;
         }
       });
+
+  refreshTimeTexts(result);
+  return result;
+}
+
+[[nodiscard]] TransactionLayout prepareMultisigLayout(const Ton::Transaction &data) {
+  const auto amount = FormatAmount(CalculateValue(data), Ton::Symbol::ton(), FormatFlag::Signed | FormatFlag::Rounded);
+  const auto incoming = !data.incoming.source.isEmpty();
+  const auto pending = (data.id.lt == 0);
+
+  const auto extractedAddress = ExtractAddress(data);
+  const auto address = extractedAddress.isEmpty() ? QString{} : Ton::Wallet::ConvertIntoRaw(extractedAddress);
+  const auto partWidth = [](const QString &address, int from, int length = -1) {
+    return addressStyle().font->width(address.mid(from, length));
+  };
+
+  auto result = TransactionLayout();
+  result.serverTime = data.time;
+
+  const auto setAddress = [&] {
+    result.address = Ui::Text::String(addressStyle(), address, _defaultOptions, st::walletAddressWidthMin);
+    result.addressWidth = (addressStyle().font->spacew / 2) +
+                          std::max(partWidth(address, 0, address.size() / 2), partWidth(address, address.size() / 2));
+    result.addressHeight = addressStyle().font->height * 2;
+  };
+
+  auto showAmount = false;
+  QString comment;
+  v::match(
+      data.additional,
+      [&](const Ton::MultisigSubmitTransaction &submitTransaction) {
+        showAmount = submitTransaction.executed;
+        comment = submitTransaction.comment;
+        result.additionalInfo = FormatTransactionId(submitTransaction.transactionId);
+        if (submitTransaction.executed) {
+          result.type = TransactionType::Transfer;
+          setAddress();
+        } else {
+          result.type = TransactionType::MultisigSubmit;
+
+          const auto dest = Ton::Wallet::ConvertIntoRaw(submitTransaction.dest);
+          const auto requestedAmount = FormatAmount(submitTransaction.amount, Ton::Symbol::ton());
+
+          const auto text = QString{"Amount: %1 TON\n\nTransactionId:\n%2\n\nDestination:\n%3\n%4"}
+                                .arg(requestedAmount.full)
+                                .arg(FormatTransactionId(submitTransaction.transactionId))
+                                .arg(dest.mid(0, dest.size() / 2))
+                                .arg(dest.mid(dest.size() / 2, -1));
+          result.lineCount = 9;
+          result.address = Ui::Text::String(addressStyle(), text, _defaultOptions, st::walletAddressWidthMin);
+          result.addressWidth = (addressStyle().font->spacew / 2) +
+                                std::max(partWidth(dest, 0, dest.size() / 2), partWidth(dest, dest.size() / 2));
+          result.addressHeight = addressStyle().font->height * result.lineCount;
+        }
+      },
+      [&](const Ton::MultisigConfirmTransaction &confirmTransaction) {
+        showAmount = confirmTransaction.executed;
+        result.additionalInfo = FormatTransactionId(confirmTransaction.transactionId);
+        result.type = TransactionType::MultisigConfirm;
+        setAddress();
+      },
+      [&](auto &&) {
+        showAmount = true;
+        comment = ExtractMessage(data);
+        result.type = TransactionType::Transfer;
+        setAddress();
+      });
+
+  if (showAmount) {
+    result.amountGrams.setText(st::walletRowGramsStyle, amount.gramsString);
+    result.amountNano.setText(st::walletRowNanoStyle, amount.separator + amount.nanoString);
+  }
+
+  result.comment = Ui::Text::String(st::walletAddressWidthMin);
+  result.comment.setText(st::defaultTextStyle, comment, _textPlainOptions);
+
+  const auto fee = FormatAmount(data.fee, Ton::Symbol::ton()).full;
+  result.fees.setText(st::defaultTextStyle, ph::lng_wallet_row_fees(ph::now).replace("{amount}", fee));
+
+  result.flags = Flag(0)                                  //
+                 | (incoming ? Flag::Incoming : Flag(0))  //
+                 | (pending ? Flag::Pending : Flag(0));
 
   refreshTimeTexts(result);
   return result;
@@ -448,6 +533,22 @@ class HistoryRow final {
       _button = std::move(button);
     }
   }
+  void setMultisigLayout() {
+    resetButton();
+    _symbol = Ton::Symbol::ton();
+    _layout = prepareMultisigLayout(_transaction);
+    setVisible(true);
+  }
+  void setMultisigSubmitTransactionLayout(not_null<Ui::RpWidget *> parent, const Fn<void()> &openRequest) {
+    setMultisigLayout();
+    if (openRequest) {
+      auto button = object_ptr<Ui::RoundButton>(parent, ph::lng_wallet_history_confirm(), st::walletRowButton);
+      button->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+      button->setVisible(false);
+      button->setClickedCallback(openRequest);
+      _button = std::move(button);
+    }
+  }
 
   void paint(Painter &p, int x, int y) {
     if (!isVisible()) {
@@ -527,6 +628,10 @@ class HistoryRow final {
             return ph::lng_wallet_row_reward_notification_from(ph::now);
           case TransactionType::DePoolStake:
             return ph::lng_wallet_row_ordinary_stake_to(ph::now);
+          case TransactionType::MultisigSubmit:
+            return ph::lng_wallet_row_requested_to(ph::now);
+          case TransactionType::MultisigConfirm:
+            return ph::lng_wallet_row_confirmed(ph::now).replace("{value}", _layout.additionalInfo);
           default:
             if (incoming) {
               return ph::lng_wallet_row_from(ph::now);
@@ -555,14 +660,15 @@ class HistoryRow final {
     if (_button.has_value()) {
       auto &button = *_button;
       const auto buttonWidth = button->width();
-      button->setGeometry(x + avail - buttonWidth, y + st::walletRowAddressTop, buttonWidth, _layout.addressHeight);
+      button->setGeometry(x + avail - buttonWidth, y + st::walletRowAddressTop, buttonWidth,
+                          addressStyle().font->height * 2);
       button->setVisible(true);
     }
 
     if (!_layout.address.isEmpty()) {
       p.setPen(st::windowFg);
       y += st::walletRowAddressTop;
-      _layout.address.drawElided(p, x, y, _layout.addressWidth, 2, style::al_topleft, 0, -1, 0, true);
+      _layout.address.drawElided(p, x, y, _layout.addressWidth, _layout.lineCount, style::al_topleft, 0, -1, 0, true);
       y += _layout.addressHeight;
     }
     if (!_layout.comment.isEmpty()) {
@@ -857,6 +963,10 @@ rpl::producer<not_null<const QString *>> History::executeSwapBackRequests() cons
   return _executeSwapBackRequests.events();
 }
 
+rpl::producer<std::pair<QString, int64>> History::multisigConfirmRequests() const {
+  return _multisigConfirmRequests.events();
+}
+
 rpl::lifetime &History::lifetime() {
   return _widget.lifetime();
 }
@@ -929,6 +1039,15 @@ void History::setupContent(rpl::producer<HistoryState> &&state,
                       return;
                     }
                     for (auto &row : it->second.pending) {
+                      row->setVisible(false);
+                    }
+                  },
+                  [&](const SelectedMultisig &selectedMultisig) {
+                    const auto it = _rows.find(accountPageKey(selectedMultisig.address));
+                    if (it == _rows.end()) {
+                      return;
+                    }
+                    for (auto &row : it->second.regular) {
                       row->setVisible(false);
                     }
                   },
@@ -1229,8 +1348,9 @@ void History::refreshShowDates(const SelectedAsset &selectedAsset) {
   std::map<QString, Ton::EthEventStatus> latestEthStatuses;
   std::map<QString, Ton::TonEventStatus> latestTonStatuses;
 
-  auto filterTransaction = [&, targetAddress = targetAddress](const SelectedAsset &selectedAsset,
-                                                              bool briefNotifications, not_null<HistoryRow *> row) {
+  auto filterTransaction = [&, targetAddress = targetAddress, pageAddress = page.second](
+                               const SelectedAsset &selectedAsset, bool briefNotifications,
+                               not_null<HistoryRow *> row) {
     auto &transaction = row->transaction();
 
     const auto isUnprocessed = transactions == nullptr ||  //
@@ -1325,7 +1445,18 @@ void History::refreshShowDates(const SelectedAsset &selectedAsset) {
             row->setVisible(false);
           }
         },
-        [&](const SelectedMultisig & /*selectedMultisig*/) { row->setRegularLayout(RegularTransactionParams{}); });
+        [&](const SelectedMultisig & /*selectedMultisig*/) {
+          v::match(
+              transaction.additional,
+              [&](const Ton::MultisigSubmitTransaction &submitTransaction) {
+                row->setMultisigSubmitTransactionLayout(&_widget, [=] {
+                  if (submitTransaction.transactionId) {
+                    _multisigConfirmRequests.fire(std::make_pair(pageAddress, submitTransaction.transactionId));
+                  }
+                });
+              },
+              [&](auto &&) { row->setMultisigLayout(); });
+        });
   };
 
   auto previous = QDate();

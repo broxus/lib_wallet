@@ -59,6 +59,7 @@ class Info final {
 
   [[nodiscard]] rpl::producer<not_null<const QString *>> collectTokenRequests() const;
   [[nodiscard]] rpl::producer<not_null<const QString *>> executeSwapBackRequests() const;
+  [[nodiscard]] rpl::producer<std::pair<QString, int64>> multisigConfirmRequests() const;
 
   [[nodiscard]] rpl::lifetime &lifetime();
 
@@ -83,6 +84,7 @@ class Info final {
   rpl::event_stream<not_null<const Ton::Transaction *>> _tokenDetailsRequests;
   rpl::event_stream<not_null<const QString *>> _collectTokenRequests;
   rpl::event_stream<not_null<const QString *>> _executeSwapBackRequests;
+  rpl::event_stream<std::pair<QString, int64>> _multisigConfirmRequests;
 };
 
 }  // namespace Wallet

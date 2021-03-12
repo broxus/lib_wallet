@@ -378,6 +378,10 @@ QString ExtractMessage(const Ton::Transaction &data) {
   return QString();
 }
 
+QString FormatTransactionId(int64 transactionId) {
+  return "0x" + QString::number(static_cast<uint64>(transactionId), 16);
+}
+
 QString TransferLink(const QString &address, const Ton::Symbol &symbol, const int128 &amount, const QString &comment) {
   const auto base = QString{"https://freeton.broxus.com"};
 
@@ -557,6 +561,24 @@ auto DeployTokenWalletInvoice::asTransaction() const -> Ton::DeployTokenWalletTr
 auto CollectTokensInvoice::asTransaction() const -> Ton::CollectTokensTransactionToSend {
   return Ton::CollectTokensTransactionToSend{
       .eventContractAddress = eventContractAddress,
+  };
+}
+
+auto MultisigSubmitTransactionInvoice::asTransaction() const -> Ton::SubmitTransactionToSend {
+  return Ton::SubmitTransactionToSend{
+      .publicKey = publicKey,
+      .multisigAddress = multisigAddress,
+      .dest = address,
+      .value = amount,
+      .bounce = bounce,
+  };
+}
+
+auto MultisigConfirmTransactionInvoice::asTransaction() const -> Ton::ConfirmTransactionToSend {
+  return Ton::ConfirmTransactionToSend{
+      .publicKey = publicKey,
+      .multisigAddress = multisigAddress,
+      .transactionId = transactionId,
   };
 }
 

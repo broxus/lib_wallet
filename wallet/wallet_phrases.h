@@ -112,6 +112,7 @@ extern phrase lng_wallet_empty_history_multisig_address;
 
 extern phrase lng_wallet_history_receive_tokens;
 extern phrase lng_wallet_history_execute_callback;
+extern phrase lng_wallet_history_confirm;
 
 extern phrase lng_wallet_depool_info_title;
 extern phrase lng_wallet_depool_info_stakes_title;
@@ -138,6 +139,8 @@ extern phrase lng_wallet_row_token_transfer;
 extern phrase lng_wallet_row_ordinary_stake_to;
 extern phrase lng_wallet_row_to;
 extern phrase lng_wallet_row_new_event_status;
+extern phrase lng_wallet_row_requested_to;
+extern phrase lng_wallet_row_confirmed;
 extern phrase lng_wallet_row_init;
 extern phrase lng_wallet_row_service;
 extern phrase lng_wallet_row_fees;
@@ -275,6 +278,7 @@ extern phrase lng_wallet_confirm_withdrawal_text;
 extern phrase lng_wallet_confirm_cancel_withdrawal_text;
 extern phrase lng_wallet_confirm_deploy_token_wallet_text;
 extern phrase lng_wallet_confirm_collect_tokens_text;
+extern phrase lng_wallet_confirm_multisig_confirm;
 extern phrase lng_wallet_confirm_fee;
 extern phrase lng_wallet_confirm_send;
 extern phrase lng_wallet_confirm_withdrawal;
