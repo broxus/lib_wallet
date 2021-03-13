@@ -101,6 +101,7 @@ walletWordsNextBottomSkip: 81px;
 
 walletExportTitleTop: 160px;
 walletExportWordsTop: 328px;
+walletExportFtabiWordsTop: 64px;
 walletExportBottomSkip: 4px;
 
 walletStepCheckTitleTop: 150px;

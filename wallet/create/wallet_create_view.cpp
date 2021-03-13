@@ -45,9 +45,12 @@ int Word::top() const {
 }  // namespace
 
 View::View(const std::vector<QString> &words, Layout layout) : Step(Type::Scroll) {
-  setTitle(ph::lng_wallet_words_title(Ui::Text::RichLangValue),
-           (layout == Layout::Export) ? st::walletExportTitleTop : 0);
-  setDescription(ph::lng_wallet_words_description(Ui::Text::RichLangValue));
+  if (layout != Layout::ExportFtabi) {
+    setTitle((layout == Layout::ExportFtabi ? ph::lng_wallet_words_title_ftabi
+                                            : ph::lng_wallet_words_title)(Ui::Text::RichLangValue),
+             (layout != Layout::Create) ? st::walletExportTitleTop : 0);
+    setDescription(ph::lng_wallet_words_description(Ui::Text::RichLangValue));
+  }
   initControls(words, layout);
 }
 
@@ -58,15 +61,19 @@ int View::desiredHeight() const {
 void View::initControls(const std::vector<QString> &words, Layout layout) {
   Expects(words.size() % 2 == 0);
 
-  showLottie("paper", st::walletStepViewLottiePosition, st::walletStepViewLottieSize);
-  stopLottieOnLoop();
+  if (layout != Layout::ExportFtabi) {
+    showLottie("paper", st::walletStepViewLottiePosition, st::walletStepViewLottieSize);
+    stopLottieOnLoop();
+  }
 
   auto labels = std::make_shared<std::vector<std::pair<Word, Word>>>();
   const auto rows = words.size() / 2;
   for (auto i = 0; i != rows; ++i) {
     labels->emplace_back(Word(inner(), i, words[i]), Word(inner(), i + rows, words[i + rows]));
   }
-  const auto wordsTop = (layout == Layout::Export) ? st::walletExportWordsTop : st::walletWordsTop;
+  const auto wordsTop = layout == Layout::Create        ? st::walletWordsTop
+                        : layout == Layout::ExportFtabi ? st::walletExportFtabiWordsTop
+                                                        : st::walletExportWordsTop;
   const auto rowsBottom = wordsTop + rows * st::walletWordHeight;
 
   inner()->sizeValue()  //
@@ -84,7 +91,7 @@ void View::initControls(const std::vector<QString> &words, Layout layout) {
             },
             inner()->lifetime());
 
-  if (layout != Layout::Export) {
+  if (layout == Layout::Create) {
     showNextButton(ph::lng_wallet_continue());
     _desiredHeight = rowsBottom + st::walletWordsNextSkip + st::walletWordsNextBottomSkip;
   } else {

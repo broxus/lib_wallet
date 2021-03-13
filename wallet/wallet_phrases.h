@@ -52,6 +52,7 @@ extern phrase lng_wallet_created_title;
 extern phrase lng_wallet_created_description;
 
 extern phrase lng_wallet_words_title;
+extern phrase lng_wallet_words_title_ftabi;
 extern phrase lng_wallet_words_description;
 extern phrase lng_wallet_words_sure_title;
 extern phrase lng_wallet_words_sure_text;

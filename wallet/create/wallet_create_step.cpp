@@ -368,15 +368,15 @@ void Step::showLottie(const QString &name, QPoint position, int size) {
 }
 
 void Step::startLottie() {
-  Expects(_lottie != nullptr);
-
-  _lottie->start();
+  if (_lottie != nullptr) {
+    _lottie->start();
+  }
 }
 
 void Step::stopLottieOnLoop(int loop) {
-  Expects(_lottie != nullptr);
-
-  _lottie->stopOnLoop(loop);
+  if (_lottie != nullptr) {
+    _lottie->stopOnLoop(loop);
+  }
 }
 
 QRect Step::lottieGeometry(QPoint position, int top, int size) const {

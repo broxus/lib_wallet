@@ -52,6 +52,7 @@ phrase lng_wallet_created_description =
     "it,\nplease set up a secure password and write\ndown secret words.";
 
 phrase lng_wallet_words_title = "24 secret words";
+phrase lng_wallet_words_title_ftabi = "12 secret words";
 phrase lng_wallet_words_description =
     "Write down these 24 words in the correct\norder and store them in a secret place.\n\nUse these secret words to "
     "restore access to\nyour wallet if you lose your password or\naccess to this device.";

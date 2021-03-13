@@ -485,7 +485,7 @@ void ExportedFtabiKeyBox(not_null<Ui::GenericBox *> box, const WordsList &words)
   box->setStyle(st::walletBox);
   box->setNoContentMargin(true);
 
-  const auto view = box->lifetime().make_state<Create::View>(words, Create::View::Layout::Export);
+  const auto view = box->lifetime().make_state<Create::View>(words, Create::View::Layout::ExportFtabi);
   view->widget()->resize(st::boxWideWidth, view->desiredHeight());
   box->addRow(object_ptr<Ui::RpWidget>::fromRaw(view->widget()), QMargins());
   view->showFast();

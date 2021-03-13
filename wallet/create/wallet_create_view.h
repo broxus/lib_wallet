@@ -15,6 +15,7 @@ class View final : public Step {
   enum class Layout {
     Create,
     Export,
+    ExportFtabi,
   };
   View(const std::vector<QString> &words, Layout layout = Layout::Create);
 
