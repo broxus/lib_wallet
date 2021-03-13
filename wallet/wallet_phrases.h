@@ -141,6 +141,7 @@ extern phrase lng_wallet_row_token_transfer;
 extern phrase lng_wallet_row_ordinary_stake_to;
 extern phrase lng_wallet_row_to;
 extern phrase lng_wallet_row_new_event_status;
+extern phrase lng_wallet_row_multisig_deployed;
 extern phrase lng_wallet_row_requested_to;
 extern phrase lng_wallet_row_confirmed;
 extern phrase lng_wallet_row_init;
@@ -280,13 +281,15 @@ extern phrase lng_wallet_confirm_withdrawal_text;
 extern phrase lng_wallet_confirm_cancel_withdrawal_text;
 extern phrase lng_wallet_confirm_deploy_token_wallet_text;
 extern phrase lng_wallet_confirm_collect_tokens_text;
-extern phrase lng_wallet_confirm_multisig_confirm;
+extern phrase lng_wallet_confirm_multisig_confirm_text;
 extern phrase lng_wallet_confirm_multisig_deploy;
 extern phrase lng_wallet_confirm_fee;
 extern phrase lng_wallet_confirm_send;
 extern phrase lng_wallet_confirm_withdrawal;
 extern phrase lng_wallet_confirm_cancel_withdrawal;
 extern phrase lng_wallet_confirm_deploy_token_wallet;
+extern phrase lng_wallet_confirm_deploy_multisig;
+extern phrase lng_wallet_confirm_multisig_confirm;
 extern phrase lng_wallet_confirm_execute;
 extern phrase lng_wallet_confirm_warning;
 
@@ -375,6 +378,9 @@ extern phrase lng_wallet_keystore_delete;
 extern phrase lng_wallet_keystore_export;
 extern phrase lng_wallet_keystore_change_password;
 extern phrase lng_wallet_keystore_pubkey_copied;
+
+extern phrase lng_wallet_key_not_found_title;
+extern phrase lng_wallet_key_not_found_text;
 
 extern phrase lng_wallet_new_ftabi_key_title;
 extern phrase lng_wallet_new_ftabi_key_name;

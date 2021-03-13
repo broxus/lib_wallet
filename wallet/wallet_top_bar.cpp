@@ -160,8 +160,8 @@ void TopBar::showMenu(not_null<Ui::IconButton *> toggle) {
 
   menu->addAction(ph::lng_wallet_menu_settings(ph::now), [=] { _actionRequests.fire(Action::ShowSettings); });
   menu->addAction(ph::lng_wallet_menu_keystore(ph::now), [=] { _actionRequests.fire(Action::ShowKeystore); });
-  menu->addAction(ph::lng_wallet_menu_change_passcode(ph::now), [=] { _actionRequests.fire(Action::ChangePassword); });
-  menu->addAction(ph::lng_wallet_menu_export(ph::now), [=] { _actionRequests.fire(Action::Export); });
+  //menu->addAction(ph::lng_wallet_menu_change_passcode(ph::now), [=] { _actionRequests.fire(Action::ChangePassword); });
+  //menu->addAction(ph::lng_wallet_menu_export(ph::now), [=] { _actionRequests.fire(Action::Export); });
   menu->addAction(ph::lng_wallet_menu_delete(ph::now), [=] { _actionRequests.fire(Action::LogOut); });
 
   _widgetParent->widthValue() |

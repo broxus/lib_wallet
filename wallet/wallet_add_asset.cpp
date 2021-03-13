@@ -539,7 +539,7 @@ void DeployMultisigBox(not_null<Ui::GenericBox *> box, const Ton::MultisigInitia
     const auto owners = checkList();
     if (!owners.has_value()) {
       return;
-    }Show sending done??
+    }
     const auto ownerCount = (*owners)->size();
     if (collected.requiredConfirmations > ownerCount) {
       return;

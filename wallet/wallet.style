@@ -540,7 +540,7 @@ walletDeployTokenWalletDescriptionPadding: margins(22px, 7px, 22px, 16px);
 walletCollectTokensDescriptionPadding: margins(22px, 3px, 22px, 5px);
 walletPredeployMultisigDescriptionPadding: margins(22px, 7px, 22px, 16px);
 
-walletPasscodeHeight: 190px;
+walletPasscodeHeight: 215px;
 walletPasscodeLottieSize: 100px;
 walletPasscodeLottieTop: 8px;
 walletPasscodeInput: InputField(walletInput) {
@@ -552,12 +552,13 @@ walletPasscodeInput: InputField(walletInput) {
 	placeholderFont: font(15px);
 	placeholderAlign: align(top);
 }
-walletPasscodeInputTop: 119px;
+walletPasscodeNameTop: 119px;
+walletPasscodeInputTop: 144px;
 walletPasscodeError: FlatLabel(walletLabel) {
 	textFg: boxTextFgError;
 	align: align(top);
 }
-walletPasscodeErrorTop: 162px;
+walletPasscodeErrorTop: 187px;
 
 walletChangePasscodeHeight: 280px;
 walletChangePasscodeOldTop: 120px;

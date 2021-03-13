@@ -167,7 +167,7 @@ void SendGramsBox(not_null<Ui::GenericBox *> box, const T &invoice, rpl::produce
   }
 
   Ui::InputField *comment = nullptr;
-  if constexpr (isTonTransfer || isMsigTransfer) {
+  if constexpr (isTonTransfer) {
     comment = box->addRow(
         object_ptr<Ui::InputField>::fromRaw(CreateCommentInput(box, ph::lng_wallet_send_comment(), prepared->comment)),
         st::walletSendCommentPadding);
@@ -283,7 +283,7 @@ void SendGramsBox(not_null<Ui::GenericBox *> box, const T &invoice, rpl::produce
     collected.address = address->getLastText();
     if constexpr (isTonTransfer || isMsigTransfer) {
       collected.amount = static_cast<int64>(*parsed);
-      collected.comment = comment->getLastText();
+      //collected.comment = comment->getLastText();
     } else if constexpr (isTokenTransfer) {
       collected.ownerAddress = collected.address;
       collected.amount = *parsed;

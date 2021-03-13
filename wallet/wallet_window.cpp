@@ -308,6 +308,10 @@ void Window::showSendingError(const Ton::Error &error) {
   }
 }
 
+void Window::showKeyNotFound() {
+  showSimpleError(ph::lng_wallet_key_not_found_title(), ph::lng_wallet_key_not_found_text(), ph::lng_wallet_ok());
+}
+
 void Window::createSavePasscode(const QByteArray &passcode, const std::shared_ptr<bool> &guard) {
   if (std::exchange(*guard, true)) {
     return;
@@ -444,7 +448,6 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
                         }
 
                         sendMoney(MultisigSubmitTransactionInvoice{
-                            .publicKey = it->second.publicKey,
                             .multisigAddress = it->first,
                         });
                       });
@@ -477,7 +480,7 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
                   return showKeystore();
                 case Action::AddAsset:
                   return addAsset();
-                case Action::DeployTokenWallet:
+                case Action::Deploy:
                   v::match(
                       _selectedAsset.current().value_or(SelectedToken::defaultToken()),
                       [&](const SelectedToken &selectedToken) {
@@ -490,6 +493,7 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
                                                        .owned = true});
                         }
                       },
+                      [&](const SelectedMultisig &selectedMultisig) { deployMultisig(selectedMultisig.address); },
                       [](auto &&) {});
                   return;
                 case Action::LogOut:
@@ -506,11 +510,11 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
             [=](const CustomAsset &asset) {
               switch (asset.type) {
                 case CustomAssetType::DePool:
-                  return _wallet->removeDePool(_wallet->publicKeys().front(), asset.address);
+                  return _wallet->removeDePool(getMainPublicKey(), asset.address);
                 case CustomAssetType::Token:
-                  return _wallet->removeToken(_wallet->publicKeys().front(), asset.symbol);
+                  return _wallet->removeToken(getMainPublicKey(), asset.symbol);
                 case CustomAssetType::Multisig:
-                  return _wallet->removeMultisig(_wallet->publicKeys().front(), asset.address);
+                  return _wallet->removeMultisig(getMainPublicKey(), asset.address);
                 default:
                   return;
               }
@@ -520,7 +524,7 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
   _info->assetsReorderRequests()  //
       | rpl::start_with_next(
             [this](const std::pair<int, int> &indices) {
-              _wallet->reorderAssets(_wallet->publicKeys().front(), indices.first, indices.second);
+              _wallet->reorderAssets(getMainPublicKey(), indices.first, indices.second);
             },
             _info->lifetime());
 
@@ -565,7 +569,7 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
               }
             }
             _wallet->addDePool(  //
-                _wallet->publicKeys().front(), *dePoolAddress, crl::guard(this, [this](const Ton::Result<> &result) {
+                getMainPublicKey(), *dePoolAddress, crl::guard(this, [this](const Ton::Result<> &result) {
                   if (result.has_value()) {
                     showToast(ph::lng_wallet_add_depool_succeeded(ph::now));
                   } else {
@@ -586,8 +590,7 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
                 }
               }
               _wallet->addToken(  //
-                  _wallet->publicKeys().front(), rootTokenContract,
-                  crl::guard(this, [this](const Ton::Result<> &result) {
+                  getMainPublicKey(), rootTokenContract, crl::guard(this, [this](const Ton::Result<> &result) {
                     if (result.has_value()) {
                       showToast(ph::lng_wallet_add_token_succeeded(ph::now));
                     } else {
@@ -780,10 +783,11 @@ void Window::askDecryptPassword(const Ton::DecryptPasswordNeeded &data) {
   }
   _decryptPasswordState->generation = generation;
   if (!_decryptPasswordState->box) {
-    auto box = Box(EnterPasscodeBox, [=](const QByteArray &passcode, Fn<void(QString)> showError) {
-      _decryptPasswordState->showError = showError;
-      _wallet->updateViewersPassword(key, passcode);
-    });
+    auto box = Box(EnterPasscodeBox, ph::lng_wallet_keystore_main_wallet_key(ph::now),
+                   [=](const QByteArray &passcode, Fn<void(QString)> showError) {
+                     _decryptPasswordState->showError = showError;
+                     _wallet->updateViewersPassword(key, passcode);
+                   });
     QObject::connect(box, &QObject::destroyed, [=] {
       if (!_decryptPasswordState->success) {
         _wallet->updateViewersPassword(key, QByteArray());
@@ -1218,15 +1222,18 @@ void Window::confirmTransaction(PreparedInvoice invoice, const Fn<void(InvoiceFi
       },
       [&](auto &&) {});
 
+  auto handleCheckError = [=](Ton::Result<Ton::TransactionCheckResult> &&result) {
+    if (const auto field = ErrorInvoiceField(result.error())) {
+      return showInvoiceError(*field);
+    }
+    return showGenericError(result.error());
+  };
+
   auto done = [=](Ton::Result<Ton::TransactionCheckResult> result, PreparedInvoice &&invoice) mutable {
     *guard = false;
     if (!result.has_value()) {
-      if (const auto field = ErrorInvoiceField(result.error())) {
-        return showInvoiceError(*field);
-      }
-      return showGenericError(result.error());
+      return handleCheckError(std::move(result));
     }
-
     showSendConfirmation(invoice, *result, showInvoiceError);
   };
 
@@ -1234,10 +1241,43 @@ void Window::confirmTransaction(PreparedInvoice invoice, const Fn<void(InvoiceFi
     done(result, std::move(invoice));
   };
 
+  auto doneSelectMultisigKey = [=](Ton::Result<Ton::TransactionCheckResult> &&result) mutable {
+    *guard = false;
+    if (!result.has_value()) {
+      return handleCheckError(std::move(result));
+    }
+    auto address = v::match(
+        invoice, [](const MultisigSubmitTransactionInvoice &invoice) { return invoice.multisigAddress; },
+        [](const MultisigConfirmTransactionInvoice &invoice) { return invoice.multisigAddress; },
+        [](auto &&) { return QString{}; });
+    if (address.isEmpty()) {
+      return;
+    }
+    const auto states = _state.current().multisigStates;
+    const auto it = states.find(address);
+    if (it == states.end()) {
+      return;
+    }
+    auto keySelectedGuard = std::make_shared<bool>(false);
+    selectMultisigKey(  //
+        it->second.custodians, 0, false, [=, invoice = std::move(invoice)](const QByteArray &publicKey) mutable {
+          if (std::exchange(*keySelectedGuard, true)) {
+            return;
+          }
+          if (_keySelectionBox) {
+            _keySelectionBox->closeBox();
+          }
+          v::match(
+              invoice, [&](MultisigSubmitTransactionInvoice &invoice) { invoice.publicKey = publicKey; },
+              [&](MultisigConfirmTransactionInvoice &invoice) { invoice.publicKey = publicKey; }, [](auto &&) {});
+          showSendConfirmation(invoice, *result, showInvoiceError);
+        });
+  };
+
   v::match(
       invoice,
       [&](const TonTransferInvoice &tonTransferInvoice) {
-        _wallet->checkSendGrams(_wallet->publicKeys().front(), tonTransferInvoice.asTransaction(),
+        _wallet->checkSendGrams(getMainPublicKey(), tonTransferInvoice.asTransaction(),
                                 crl::guard(_sendBox.data(), doneUnchanged));
       },
       [&](const TokenTransferInvoice &tokenTransferInvoice) {
@@ -1270,43 +1310,42 @@ void Window::confirmTransaction(PreparedInvoice invoice, const Fn<void(InvoiceFi
               };
             };
 
-        _wallet->checkSendTokens(_wallet->publicKeys().front(), tokenTransferInvoice.asTransaction(),
+        _wallet->checkSendTokens(getMainPublicKey(), tokenTransferInvoice.asTransaction(),
                                  crl::guard(_sendBox.data(), std::move(tokenHandler)));
       },
       [&](const StakeInvoice &stakeInvoice) {
-        _wallet->checkSendStake(_wallet->publicKeys().front(), stakeInvoice.asTransaction(),
+        _wallet->checkSendStake(getMainPublicKey(), stakeInvoice.asTransaction(),
                                 crl::guard(_sendBox.data(), doneUnchanged));
       },
       [&](const WithdrawalInvoice &withdrawalInvoice) {
-        _wallet->checkWithdraw(_wallet->publicKeys().front(), withdrawalInvoice.asTransaction(),
+        _wallet->checkWithdraw(getMainPublicKey(), withdrawalInvoice.asTransaction(),
                                crl::guard(_sendBox.data(), doneUnchanged));
       },
       [&](const CancelWithdrawalInvoice &cancelWithdrawalInvoice) {
-        _wallet->checkCancelWithdraw(_wallet->publicKeys().front(), cancelWithdrawalInvoice.asTransaction(),
+        _wallet->checkCancelWithdraw(getMainPublicKey(), cancelWithdrawalInvoice.asTransaction(),
                                      crl::guard(_sendBox.data(), doneUnchanged));
       },
       [&](const DeployTokenWalletInvoice &deployTokenWalletInvoice) {
-        _wallet->checkDeployTokenWallet(_wallet->publicKeys().front(), deployTokenWalletInvoice.asTransaction(),
+        _wallet->checkDeployTokenWallet(getMainPublicKey(), deployTokenWalletInvoice.asTransaction(),
                                         crl::guard(_sendBox.data(), doneUnchanged));
       },
       [&](const CollectTokensInvoice &collectTokensInvoice) {
-        _wallet->checkCollectTokens(_wallet->publicKeys().front(), collectTokensInvoice.asTransaction(),
+        _wallet->checkCollectTokens(getMainPublicKey(), collectTokensInvoice.asTransaction(),
                                     crl::guard(_sendBox.data(), doneUnchanged));
       },
       [&](const MultisigDeployInvoice &invoice) {
-        std::cout << "Checking deploy" << std::endl;
         _wallet->checkDeployMultisig(invoice.asTransaction(), crl::guard(_sendBox.data(), doneUnchanged));
       },
       [&](const MultisigSubmitTransactionInvoice &invoice) {
-        _wallet->checkSubmitTransaction(invoice.asTransaction(), crl::guard(_sendBox.data(), doneUnchanged));
+        _wallet->checkSubmitTransaction(invoice.asTransaction(), crl::guard(_sendBox.data(), doneSelectMultisigKey));
       },
       [&](const MultisigConfirmTransactionInvoice &invoice) {
-        _wallet->checkConfirmTransaction(invoice.asTransaction(), crl::guard(this, doneUnchanged));
+        _wallet->checkConfirmTransaction(invoice.asTransaction(), crl::guard(this, doneSelectMultisigKey));
       });
 }
 
 void Window::askSendPassword(const PreparedInvoice &invoice, const Fn<void(InvoiceField)> &showInvoiceError) {
-  const auto publicKey = _wallet->publicKeys().front();
+  const auto mainPublicKey = getMainPublicKey();
   const auto sending = std::make_shared<bool>();
   const auto ready = [=](const QByteArray &passcode, const PreparedInvoice &invoice, Fn<void(QString)> showError) {
     if (*sending) {
@@ -1338,8 +1377,8 @@ void Window::askSendPassword(const PreparedInvoice &invoice, const Fn<void(Invoi
           [](const MultisigSubmitTransactionInvoice &) {},   //
           [](const MultisigConfirmTransactionInvoice &) {},  //
           [&](auto &&) {
-            _wallet->updateViewersPassword(publicKey, passcode);
-            decryptEverything(publicKey);
+            _wallet->updateViewersPassword(mainPublicKey, passcode);
+            decryptEverything(mainPublicKey);
           });
     };
     const auto sent = [=](Ton::Result<> result) {
@@ -1353,50 +1392,63 @@ void Window::askSendPassword(const PreparedInvoice &invoice, const Fn<void(Invoi
     v::match(
         invoice,
         [&](const TonTransferInvoice &tonTransferInvoice) {
-          _wallet->sendGrams(publicKey, passcode, tonTransferInvoice.asTransaction(), crl::guard(this, ready),
+          _wallet->sendGrams(mainPublicKey, passcode, tonTransferInvoice.asTransaction(), crl::guard(this, ready),
                              crl::guard(this, sent));
         },
         [&](const TokenTransferInvoice &tokenTransferInvoice) {
-          _wallet->sendTokens(publicKey, passcode, tokenTransferInvoice.asTransaction(), crl::guard(this, ready),
+          _wallet->sendTokens(mainPublicKey, passcode, tokenTransferInvoice.asTransaction(), crl::guard(this, ready),
                               crl::guard(this, sent));
         },
         [&](const StakeInvoice &stakeInvoice) {
-          _wallet->sendStake(publicKey, passcode, stakeInvoice.asTransaction(), crl::guard(this, ready),
+          _wallet->sendStake(mainPublicKey, passcode, stakeInvoice.asTransaction(), crl::guard(this, ready),
                              crl::guard(this, sent));
         },
         [&](const WithdrawalInvoice &withdrawalInvoice) {
-          _wallet->withdraw(publicKey, passcode, withdrawalInvoice.asTransaction(), crl::guard(this, ready),
+          _wallet->withdraw(mainPublicKey, passcode, withdrawalInvoice.asTransaction(), crl::guard(this, ready),
                             crl::guard(this, sent));
         },
         [&](const CancelWithdrawalInvoice &cancelWithdrawalInvoice) {
-          _wallet->cancelWithdrawal(publicKey, passcode, cancelWithdrawalInvoice.asTransaction(),
+          _wallet->cancelWithdrawal(mainPublicKey, passcode, cancelWithdrawalInvoice.asTransaction(),
                                     crl::guard(this, ready), crl::guard(this, sent));
         },
         [&](const DeployTokenWalletInvoice &deployTokenWalletInvoice) {
-          _wallet->deployTokenWallet(publicKey, passcode, deployTokenWalletInvoice.asTransaction(),
+          _wallet->deployTokenWallet(mainPublicKey, passcode, deployTokenWalletInvoice.asTransaction(),
                                      crl::guard(this, ready), crl::guard(this, sent));
         },
         [&](const CollectTokensInvoice &collectTokensInvoice) {
-          _wallet->collectTokens(publicKey, passcode, collectTokensInvoice.asTransaction(), crl::guard(this, ready),
+          _wallet->collectTokens(mainPublicKey, passcode, collectTokensInvoice.asTransaction(), crl::guard(this, ready),
                                  crl::guard(this, sent));
         },
         [&](const MultisigDeployInvoice &invoice) {
-          _wallet->deployMultisig(publicKey, passcode, invoice.asTransaction(), crl::guard(this, ready),
+          _wallet->deployMultisig(mainPublicKey, passcode, invoice.asTransaction(), crl::guard(this, ready),
                                   crl::guard(this, sent));
         },
         [&](const MultisigSubmitTransactionInvoice &invoice) {
-          _wallet->submitTransaction(publicKey, passcode, invoice.asTransaction(), crl::guard(this, ready),
+          _wallet->submitTransaction(mainPublicKey, passcode, invoice.asTransaction(), crl::guard(this, ready),
                                      crl::guard(this, sent));
         },
         [&](const MultisigConfirmTransactionInvoice &invoice) {
-          _wallet->confirmTransaction(publicKey, passcode, invoice.asTransaction(), crl::guard(this, ready),
+          _wallet->confirmTransaction(mainPublicKey, passcode, invoice.asTransaction(), crl::guard(this, ready),
                                       crl::guard(this, sent));
         });
   };
   if (_sendConfirmBox) {
     _sendConfirmBox->closeBox();
   }
-  auto box = Box(EnterPasscodeBox, [=](const QByteArray &passcode, Fn<void(QString)> showError) {
+
+  auto passcodePublicKey = mainPublicKey;
+  v::match(
+      invoice, [&](const MultisigDeployInvoice &invoice) { passcodePublicKey = invoice.initialInfo.publicKey; },
+      [&](const MultisigSubmitTransactionInvoice &invoice) { passcodePublicKey = invoice.publicKey; },
+      [&](const MultisigConfirmTransactionInvoice &invoice) { passcodePublicKey = invoice.publicKey; }, [](auto &&) {});
+
+  auto existingKeys = getExistingKeys();
+  const auto it = existingKeys.find(passcodePublicKey);
+  if (it == existingKeys.end()) {
+    return showKeyNotFound();
+  }
+
+  auto box = Box(EnterPasscodeBox, it->second.name, [=](const QByteArray &passcode, Fn<void(QString)> showError) {
     ready(passcode, invoice, std::move(showError));
   });
   _sendConfirmBox = box.data();
@@ -1606,7 +1658,8 @@ void Window::showSendingTransaction(const Ton::PendingTransaction &transaction, 
   };
 
   v::match(
-      invoice, [&](const MultisigSubmitTransactionInvoice &invoice) { handleMultisigPending(invoice.multisigAddress); },
+      invoice, [&](const MultisigDeployInvoice &invoice) { handleMultisigPending(invoice.initialInfo.address); },
+      [&](const MultisigSubmitTransactionInvoice &invoice) { handleMultisigPending(invoice.multisigAddress); },
       [&](const MultisigConfirmTransactionInvoice &invoice) { handleMultisigPending(invoice.multisigAddress); },
       [&](auto &&) { handleDefaultPending(); });
 
@@ -1702,11 +1755,11 @@ void Window::addAsset() {
 
     switch (newAsset.type) {
       case CustomAssetType::DePool: {
-        _wallet->addDePool(_wallet->publicKeys().front(), newAsset.address, crl::guard(this, onNewDepool));
+        _wallet->addDePool(getMainPublicKey(), newAsset.address, crl::guard(this, onNewDepool));
         break;
       }
       case CustomAssetType::Token: {
-        _wallet->addToken(_wallet->publicKeys().front(), newAsset.address, crl::guard(this, onNewToken));
+        _wallet->addToken(getMainPublicKey(), newAsset.address, crl::guard(this, onNewToken));
         break;
       }
       case CustomAssetType::Multisig: {
@@ -2002,13 +2055,18 @@ void Window::showKeystore() {
     addFtabiKey([=] { *creationGuard = false; }, [=](const QByteArray &) { showKeystore(); });
   };
 
-  auto box = Box(KeystoreBox, _wallet->publicKeys().front(), _wallet->ftabiKeys(), sharePubKeyCallback(), handleAction,
-                 onCreate);
+  auto box = Box(KeystoreBox, getMainPublicKey(), _wallet->ftabiKeys(), sharePubKeyCallback(), handleAction, onCreate);
   _keystoreBox = box.data();
   _layers->showBox(std::move(box));
 }
 
 void Window::exportFtabiKey(const QByteArray &publicKey) {
+  const auto existingKeys = getExistingKeys();
+  const auto it = existingKeys.find(publicKey);
+  if (it == existingKeys.end()) {
+    return showKeyNotFound();
+  }
+
   const auto exporting = std::make_shared<bool>();
   const auto weakBox = std::make_shared<QPointer<Ui::GenericBox>>();
   const auto ready = [=](const QByteArray &passcode, const Fn<void(QString)> &showError) {
@@ -2033,7 +2091,7 @@ void Window::exportFtabiKey(const QByteArray &publicKey) {
     };
     _wallet->exportFtabiKey(publicKey, passcode, crl::guard(this, ready));
   };
-  auto box = Box(EnterPasscodeBox,
+  auto box = Box(EnterPasscodeBox, it->second.name,
                  [=](const QByteArray &passcode, const Fn<void(QString)> &showError) { ready(passcode, showError); });
   *weakBox = box.data();
   _layers->showBox(std::move(box));
@@ -2183,17 +2241,10 @@ void Window::askFtabiKeyChangePassword(const QByteArray &publicKey) {
 }
 
 void Window::importMultisig(const QString &address) {
-  auto guard = std::make_shared<bool>(false);
-
   const auto onNewMultisig = [=](const Ton::Result<> &result) {
     if (result.has_value()) {
-      if (_keySelectionBox) {
-        _keySelectionBox->closeBox();
-      }
-
       showToast(ph::lng_wallet_add_multisig_succeeded(ph::now));
     } else {
-      *guard = false;
       std::cout << result.error().details.toStdString() << std::endl;
       showMultisigError();
     }
@@ -2205,16 +2256,7 @@ void Window::importMultisig(const QString &address) {
           std::cout << result.error().details.toStdString() << std::endl;
           return showMultisigError();
         }
-        auto info = std::move(result.value());
-
-        auto addMultisig = crl::guard(this, [=](const QByteArray &publicKey) {
-          if (std::exchange(*guard, true)) {
-            return;
-          }
-          _wallet->addMultisig(_wallet->publicKeys().back(), info, publicKey, crl::guard(this, onNewMultisig));
-        });
-
-        selectMultisigKey(info.custodians, 0, false, addMultisig);
+        _wallet->addMultisig(_wallet->publicKeys().back(), result.value(), crl::guard(this, onNewMultisig));
       }));
 }
 
@@ -2271,11 +2313,83 @@ void Window::selectMultisigKey(const std::vector<QByteArray> &custodians, int de
 }
 
 void Window::addNewMultisig() {
-  const auto weakBox = std::make_shared<QPointer<Ui::GenericBox>>();
+  const auto onNewMultisig = [=](const Ton::Result<> &result) {
+    if (result.has_value()) {
+      showToast(ph::lng_wallet_add_multisig_succeeded(ph::now));
+    } else {
+      std::cout << result.error().details.toStdString() << std::endl;
+      showMultisigError();
+    }
+  };
 
-  auto showConstructorBox = [=](const Ton::MultisigPredeployInfo &info) {
+  const auto weakBox = std::make_shared<QPointer<Ui::GenericBox>>();
+  auto versionSelectionGuard = std::make_shared<bool>(false);
+  const auto submit = [=](Ton::MultisigVersion version) {
+    if (std::exchange(*versionSelectionGuard, true)) {
+      return;
+    }
     if (*weakBox) {
       (*weakBox)->closeBox();
+    }
+
+    auto keySelectionGuard = std::make_shared<bool>(false);
+    const auto keySelected = [=](const QByteArray &publicKey) {
+      if (std::exchange(*keySelectionGuard, true)) {
+        return;
+      }
+
+      _wallet->requestNewMultisigAddress(version, publicKey, [=](Ton::Result<Ton::MultisigPredeployInfo> &&result) {
+        if (!result.has_value()) {
+          std::cout << result.error().details.toStdString() << std::endl;
+          *keySelectionGuard = false;
+          return showSimpleError(ph::lng_wallet_deploy_multisig_failed_title(),
+                                 ph::lng_wallet_deploy_multisig_failed_text_already_exists(),
+                                 ph::lng_wallet_continue());
+        }
+        if (_keySelectionBox) {
+          _keySelectionBox->closeBox();
+        }
+        auto info = std::move(result->initialInfo);
+        _wallet->addMultisig(  //
+            getMainPublicKey(),
+            Ton::MultisigInfo{
+                .address = info.address,
+                .version = info.version,
+                .publicKey = info.publicKey,
+            },
+            crl::guard(this, onNewMultisig));
+      });
+    };
+
+    const auto keys = getAllPublicKeys();
+    selectMultisigKey(keys, 0, true, keySelected);
+  };
+  auto box = Box(SelectMultisigVersionBox, submit);
+  *weakBox = box.data();
+  _layers->showBox(std::move(box));
+}
+
+void Window::deployMultisig(const QString &address) {
+  auto state = _state.current();
+  const auto it = state.multisigStates.find(address);
+  if (it == state.multisigStates.end()) {
+    return;
+  }
+
+  if (!_multisigDeploymentGuard) {
+    _multisigDeploymentGuard = std::make_shared<bool>(false);
+  }
+  if (std::exchange(*_multisigDeploymentGuard, true)) {
+    return;
+  }
+
+  if (_multisigDeploymentBox) {
+    _multisigDeploymentBox->closeBox();
+  }
+
+  auto showConstructorBox = [=](const Ton::MultisigPredeployInfo &info) {
+    if (_multisigDeploymentBox) {
+      _multisigDeploymentBox->closeBox();
     }
     auto guard = std::make_shared<bool>(false);
     auto box = Box(DeployMultisigBox, info.initialInfo, [=](MultisigDeployInvoice &&invoice) {
@@ -2293,8 +2407,8 @@ void Window::addNewMultisig() {
                                  const Fn<void(Ton::MultisigInitialInfo)> &showAddressBox) {
     if (!result.has_value()) {
       std::cout << result.error().details.toStdString() << std::endl;
-      if (*weakBox) {
-        (*weakBox)->closeBox();
+      if (_multisigDeploymentBox) {
+        _multisigDeploymentBox->closeBox();
       }
       return showSimpleError(ph::lng_wallet_deploy_multisig_failed_title(),
                              ph::lng_wallet_deploy_multisig_failed_text_already_exists(), ph::lng_wallet_continue());
@@ -2310,51 +2424,33 @@ void Window::addNewMultisig() {
     }
   };
 
-  auto versionSelectionGuard = std::make_shared<bool>(false);
-  const auto submit = [=](Ton::MultisigVersion version) {
-    if (std::exchange(*versionSelectionGuard, true)) {
-      return;
-    }
-    if (*weakBox) {
-      (*weakBox)->closeBox();
-    }
-
-    auto keySelectionGuard = std::make_shared<bool>(false);
-    const auto keySelected = [=](const QByteArray &publicKey) {
-      if (std::exchange(*keySelectionGuard, true)) {
-        return;
-      }
-      if (_keySelectionBox) {
-        _keySelectionBox->closeBox();
-      }
-
-      _wallet->requestNewMultisigAddress(version, publicKey, [=](Ton::Result<Ton::MultisigPredeployInfo> &&result) {
-        handleMultisigState(std::forward<decltype(result)>(result), [=](Ton::MultisigInitialInfo &&info) {
-          auto box = Box(PredeployMultisigBox, info, shareAddressCallback(), [=] {
-            if (std::exchange(*stateHandlerGuard, true)) {
-              return;
-            }
-            _wallet->requestNewMultisigAddress(version, publicKey, [=](auto &&result) {
-              handleMultisigState(std::forward<decltype(result)>(result), [=](auto &&) { *stateHandlerGuard = false; });
-            });
-          });
-
-          *weakBox = box.data();
-          _layers->showBox(std::move(box));
+  const auto version = it->second.version;
+  const auto publicKey = it->second.publicKey;
+  _wallet->requestNewMultisigAddress(version, publicKey, [=](Ton::Result<Ton::MultisigPredeployInfo> &&result) {
+    handleMultisigState(std::forward<decltype(result)>(result), [=](Ton::MultisigInitialInfo &&info) {
+      auto box = Box(PredeployMultisigBox, info, shareAddressCallback(), [=] {
+        if (std::exchange(*stateHandlerGuard, true)) {
+          return;
+        }
+        _wallet->requestNewMultisigAddress(version, publicKey, [=](auto &&result) {
+          handleMultisigState(std::forward<decltype(result)>(result), [=](auto &&) { *stateHandlerGuard = false; });
         });
       });
-    };
 
-    const auto keys = getAllPublicKeys();
-    selectMultisigKey(keys, 0, true, keySelected);
-  };
-  auto box = Box(SelectMultisigVersionBox, submit);
-  *weakBox = box.data();
-  _layers->showBox(std::move(box));
+      _multisigDeploymentBox = box.data();
+      _layers->showBox(std::move(box));
+    });
+
+    *_multisigDeploymentGuard = false;
+  });
+}
+
+QByteArray Window::getMainPublicKey() const {
+  return _wallet->publicKeys().front();
 }
 
 std::vector<QByteArray> Window::getAllPublicKeys() const {
-  const auto mainPublicKey = _wallet->publicKeys().front();
+  const auto mainPublicKey = getMainPublicKey();
   const auto ftabiKeys = _wallet->ftabiKeys();
 
   std::vector<QByteArray> result;
@@ -2369,9 +2465,23 @@ std::vector<QByteArray> Window::getAllPublicKeys() const {
   return result;
 }
 
-std::vector<Ton::AvailableKey> Window::getAvailableKeys(const std::vector<QByteArray> &custodians) {
-  const auto mainPublicKey = _wallet->publicKeys().front();
+std::vector<Ton::AvailableKey> Window::getAvailableKeys(const std::vector<QByteArray> &custodians) const {
+  auto existingKeys = getExistingKeys();
 
+  std::vector<Ton::AvailableKey> availableKeys;
+  availableKeys.reserve(custodians.size());
+  for (const auto &custodian : custodians) {
+    const auto it = existingKeys.find(custodian);
+    if (it != existingKeys.end()) {
+      availableKeys.emplace_back(it->second);
+    }
+  }
+
+  return availableKeys;
+}
+
+base::flat_map<QByteArray, Ton::AvailableKey> Window::getExistingKeys() const {
+  const auto mainPublicKey = getMainPublicKey();
   base::flat_map<QByteArray, Ton::AvailableKey> existingKeys;
   existingKeys.emplace(mainPublicKey, Ton::AvailableKey{
                                           .type = Ton::KeyType::Original,
@@ -2385,17 +2495,7 @@ std::vector<Ton::AvailableKey> Window::getAvailableKeys(const std::vector<QByteA
                                             .name = key.name,
                                         });
   }
-
-  std::vector<Ton::AvailableKey> availableKeys;
-  availableKeys.reserve(custodians.size());
-  for (const auto &custodian : custodians) {
-    const auto it = existingKeys.find(custodian);
-    if (it != existingKeys.end()) {
-      availableKeys.emplace_back(it->second);
-    }
-  }
-
-  return availableKeys;
+  return existingKeys;
 }
 
 void Window::askExportPassword() {
@@ -2421,9 +2521,9 @@ void Window::askExportPassword() {
       }
       showExported(*result);
     };
-    _wallet->exportKey(_wallet->publicKeys().front(), passcode, crl::guard(this, ready));
+    _wallet->exportKey(getMainPublicKey(), passcode, crl::guard(this, ready));
   };
-  auto box = Box(EnterPasscodeBox,
+  auto box = Box(EnterPasscodeBox, ph::lng_wallet_keystore_main_wallet_key(ph::now),
                  [=](const QByteArray &passcode, const Fn<void(QString)> &showError) { ready(passcode, showError); });
   *weakBox = box.data();
   _layers->showBox(std::move(box));

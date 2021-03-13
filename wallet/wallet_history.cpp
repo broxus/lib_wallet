@@ -60,6 +60,7 @@ enum class TransactionType {
   DePoolReward,
   DePoolRewardNotification,
   DePoolStake,
+  MultisigDeployment,
   MultisigSubmit,
   MultisigConfirm,
 };
@@ -90,6 +91,16 @@ enum class EventType {
 struct RegularTransactionParams {
   bool brief{};
   bool asReturnedChange{};
+};
+
+enum class SubmitTransactionStatus {
+  Pending,
+  Executed,
+  Expired,
+};
+
+struct MultisigTransactionParams {
+  SubmitTransactionStatus submitTransactionStatus;
 };
 
 [[nodiscard]] HistoryPageKey accountPageKey(const QString &address) {
@@ -180,7 +191,8 @@ void refreshTimeTexts(TransactionLayout &layout, bool forceDateText = false) {
   return result;
 }
 
-[[nodiscard]] TransactionLayout prepareMultisigLayout(const Ton::Transaction &data) {
+[[nodiscard]] TransactionLayout prepareMultisigLayout(const Ton::Transaction &data,
+                                                      const MultisigTransactionParams &params) {
   const auto amount = FormatAmount(CalculateValue(data), Ton::Symbol::ton(), FormatFlag::Signed | FormatFlag::Rounded);
   const auto incoming = !data.incoming.source.isEmpty();
   const auto pending = (data.id.lt == 0);
@@ -205,10 +217,26 @@ void refreshTimeTexts(TransactionLayout &layout, bool forceDateText = false) {
   QString comment;
   v::match(
       data.additional,
+      [&](const Ton::MultisigDeploymentTransaction &) { result.type = TransactionType::MultisigDeployment; },
       [&](const Ton::MultisigSubmitTransaction &submitTransaction) {
         showAmount = submitTransaction.executed;
         comment = submitTransaction.comment;
-        result.additionalInfo = FormatTransactionId(submitTransaction.transactionId);
+
+        if (!submitTransaction.executed) {
+          switch (params.submitTransactionStatus) {
+            case SubmitTransactionStatus::Executed: {
+              result.additionalInfo = " (executed)";
+              break;
+            }
+            case SubmitTransactionStatus::Expired: {
+              result.additionalInfo = " (expired)";
+              break;
+            }
+            default:
+              break;
+          }
+        }
+
         if (submitTransaction.executed) {
           result.type = TransactionType::Transfer;
           setAddress();
@@ -533,14 +561,15 @@ class HistoryRow final {
       _button = std::move(button);
     }
   }
-  void setMultisigLayout() {
+  void setMultisigLayout(MultisigTransactionParams params = MultisigTransactionParams{}) {
     resetButton();
     _symbol = Ton::Symbol::ton();
-    _layout = prepareMultisigLayout(_transaction);
+    _layout = prepareMultisigLayout(_transaction, params);
     setVisible(true);
   }
-  void setMultisigSubmitTransactionLayout(not_null<Ui::RpWidget *> parent, const Fn<void()> &openRequest) {
-    setMultisigLayout();
+  void setMultisigSubmitTransactionLayout(not_null<Ui::RpWidget *> parent, SubmitTransactionStatus status,
+                                          const Fn<void()> &openRequest) {
+    setMultisigLayout(MultisigTransactionParams{.submitTransactionStatus = status});
     if (openRequest) {
       auto button = object_ptr<Ui::RoundButton>(parent, ph::lng_wallet_history_confirm(), st::walletRowButton);
       button->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
@@ -628,8 +657,10 @@ class HistoryRow final {
             return ph::lng_wallet_row_reward_notification_from(ph::now);
           case TransactionType::DePoolStake:
             return ph::lng_wallet_row_ordinary_stake_to(ph::now);
+          case TransactionType::MultisigDeployment:
+            return ph::lng_wallet_row_multisig_deployed(ph::now);
           case TransactionType::MultisigSubmit:
-            return ph::lng_wallet_row_requested_to(ph::now);
+            return ph::lng_wallet_row_requested_to(ph::now).replace("{additional}", _layout.additionalInfo);
           case TransactionType::MultisigConfirm:
             return ph::lng_wallet_row_confirmed(ph::now).replace("{value}", _layout.additionalInfo);
           default:
@@ -1459,12 +1490,19 @@ void History::refreshShowDates(const SelectedAsset &selectedAsset) {
               transaction.additional,
               [&](const Ton::MultisigSubmitTransaction &submitTransaction) {
                 auto showButton = !submitTransaction.executed;
-                if (showButton && (executedTransactions.contains(submitTransaction.transactionId) ||
-                                   (transaction.time + expirationTime) < base::unixtime::now())) {
-                  showButton = false;
+                SubmitTransactionStatus status;
+                if (showButton) {
+                  const auto executed = executedTransactions.contains(submitTransaction.transactionId);
+                  const auto expired = (transaction.time + expirationTime) < base::unixtime::now();
+                  status = executed  ? SubmitTransactionStatus::Executed
+                           : expired ? SubmitTransactionStatus::Expired
+                                     : SubmitTransactionStatus::Pending;
+                  showButton = !executed && !expired;
+                } else {
+                  status = SubmitTransactionStatus::Executed;
                 }
 
-                row->setMultisigSubmitTransactionLayout(&_widget, showButton ? [=] {
+                row->setMultisigSubmitTransactionLayout(&_widget, status, showButton ? [=] {
                   if (submitTransaction.transactionId) {
                     _multisigConfirmRequests.fire(std::make_pair(pageAddress, submitTransaction.transactionId));
                   }

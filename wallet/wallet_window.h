@@ -71,6 +71,7 @@ class Window final : public base::has_weak_ptr {
   void showSimpleError(rpl::producer<QString> title, rpl::producer<QString> text, rpl::producer<QString> button);
   void showGenericError(const Ton::Error &error, const QString &additional = QString());
   void showSendingError(const Ton::Error &error);
+  void showKeyNotFound();
   void showToast(const QString &text);
   void startWallet();
 
@@ -140,9 +141,12 @@ class Window final : public base::has_weak_ptr {
   void selectMultisigKey(const std::vector<QByteArray> &custodians, int defaultIndex, bool allowNewKeys,
                          const Fn<void(QByteArray)> &done);
   void addNewMultisig();
+  void deployMultisig(const QString &address);
 
+  QByteArray getMainPublicKey() const;
   std::vector<QByteArray> getAllPublicKeys() const;
-  std::vector<Ton::AvailableKey> getAvailableKeys(const std::vector<QByteArray> &custodians);
+  std::vector<Ton::AvailableKey> getAvailableKeys(const std::vector<QByteArray> &custodians) const;
+  base::flat_map<QByteArray, Ton::AvailableKey> getExistingKeys() const;
 
   [[nodiscard]] Fn<void(QImage, QString)> shareCallback(const QString &linkCopied, const QString &textCopied,
                                                         const QString &qr);
@@ -190,6 +194,9 @@ class Window final : public base::has_weak_ptr {
 
   QPointer<Ui::GenericBox> _keystoreBox;
   QPointer<Ui::GenericBox> _keySelectionBox;
+
+  std::shared_ptr<bool> _multisigDeploymentGuard;
+  QPointer<Ui::GenericBox> _multisigDeploymentBox;
 
   std::shared_ptr<bool> _multisigConfirmationGuard;
 };

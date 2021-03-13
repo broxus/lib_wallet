@@ -10,6 +10,7 @@
 
 namespace Wallet {
 
-void EnterPasscodeBox(not_null<Ui::GenericBox*> box, const Fn<void(QByteArray password, Fn<void(QString)> error)>& submit);
+void EnterPasscodeBox(not_null<Ui::GenericBox*> box, const QString& keyName,
+                      const Fn<void(QByteArray password, Fn<void(QString)> error)>& submit);
 
 }  // namespace Wallet

@@ -14,10 +14,11 @@
 #include "ui/widgets/labels.h"
 #include "base/platform/base_platform_layout_switch.h"
 #include "styles/style_wallet.h"
+#include "wallet_common.h"
 
 namespace Wallet {
 
-void EnterPasscodeBox(not_null<Ui::GenericBox*> box,
+void EnterPasscodeBox(not_null<Ui::GenericBox*> box, const QString& keyName,
                       const Fn<void(QByteArray password, Fn<void(QString)> error)>& submit) {
   box->setTitle(ph::lng_wallet_passcode_title());
 
@@ -26,6 +27,10 @@ void EnterPasscodeBox(not_null<Ui::GenericBox*> box,
   const auto lottie = inner->lifetime().make_state<Ui::LottieAnimation>(inner, Ui::LottieFromResource("lock"));
   lottie->start();
   lottie->stopOnLoop(1);
+
+  auto titleText = Ui::Text::String(st::walletSubsectionTitle.style, keyName);
+  auto title = Ui::CreateChild<Ui::FlatLabel>(inner, rpl::single(keyName), st::walletSubsectionTitle);
+  title->setFixedWidth(titleText.maxWidth());
 
   const auto input =
       Ui::CreateChild<Ui::PasswordInput>(inner, st::walletPasscodeInput, ph::lng_wallet_passcode_enter());
@@ -37,6 +42,7 @@ void EnterPasscodeBox(not_null<Ui::GenericBox*> box,
           [=](int width) {
             lottie->setGeometry({(width - st::walletPasscodeLottieSize) / 2, st::walletPasscodeLottieTop,
                                  st::walletPasscodeLottieSize, st::walletPasscodeLottieSize});
+            title->move((width - title->width()) / 2, st::walletPasscodeNameTop);
             input->move((width - input->width()) / 2, st::walletPasscodeInputTop);
           },
           input->lifetime());

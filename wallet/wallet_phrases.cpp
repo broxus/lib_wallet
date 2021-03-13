@@ -143,7 +143,8 @@ phrase lng_wallet_row_token_transfer = "token transfer from:";
 phrase lng_wallet_row_ordinary_stake_to = "ordinary stake to:";
 phrase lng_wallet_row_to = "to:";
 phrase lng_wallet_row_new_event_status = "new event status: {value}";
-phrase lng_wallet_row_requested_to = "requested withdrawal";
+phrase lng_wallet_row_multisig_deployed = "contract deployment";
+phrase lng_wallet_row_requested_to = "requested withdrawal{additional}";
 phrase lng_wallet_row_confirmed = "confirmed";
 phrase lng_wallet_row_init = "Wallet initialization";
 phrase lng_wallet_row_service = "Empty transaction";
@@ -296,13 +297,15 @@ phrase lng_wallet_confirm_withdrawal_text = "Do you want to withdraw **{grams}**
 phrase lng_wallet_confirm_cancel_withdrawal_text = "Do you want to cancel withdrawal from:";
 phrase lng_wallet_confirm_deploy_token_wallet_text = "Do you want to deploy a token wallet for:";
 phrase lng_wallet_confirm_collect_tokens_text = "Do you want to execute proxy callback for:";
-phrase lng_wallet_confirm_multisig_confirm = "Do you want to confirm transaction **{value}** for:";
+phrase lng_wallet_confirm_multisig_confirm_text = "Do you want to confirm transaction **{value}** for:";
 phrase lng_wallet_confirm_multisig_deploy = "Do you want to deploy multisig contract to:";
 phrase lng_wallet_confirm_fee = "Fee: ~{grams}";
 phrase lng_wallet_confirm_send = "Send {ticker}";
 phrase lng_wallet_confirm_withdrawal = "Withdraw";
 phrase lng_wallet_confirm_cancel_withdrawal = "Confirm";
 phrase lng_wallet_confirm_deploy_token_wallet = "Deploy";
+phrase lng_wallet_confirm_deploy_multisig = "Deploy";
+phrase lng_wallet_confirm_multisig_confirm = "Confirm";
 phrase lng_wallet_confirm_execute = "Execute";
 phrase lng_wallet_confirm_warning = "**Note:** your comment \xC2\xAB{comment}\xC2\xBB **will not be encrypted**.";
 
@@ -395,6 +398,9 @@ phrase lng_wallet_keystore_delete = "Delete";
 phrase lng_wallet_keystore_export = "Export phrase";
 phrase lng_wallet_keystore_change_password = "Change password";
 phrase lng_wallet_keystore_pubkey_copied = "Public key copied to clipboard.";
+
+phrase lng_wallet_key_not_found_title = "Key not found";
+phrase lng_wallet_key_not_found_text = "The specified key was not found. Please add it to the keystore.";
 
 phrase lng_wallet_new_ftabi_key_title = "Create new key";
 phrase lng_wallet_new_ftabi_key_name = "Name";

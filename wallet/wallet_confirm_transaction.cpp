@@ -145,7 +145,7 @@ void ConfirmTransactionBox(not_null<Ui::GenericBox *> box, const T &invoice, int
     } else if constexpr (isCollectTokens) {
       return ph::lng_wallet_confirm_collect_tokens_text();
     } else if constexpr (isMsigConfirm) {
-      return ph::lng_wallet_confirm_multisig_confirm() | rpl::map([=](QString &&text) {
+      return ph::lng_wallet_confirm_multisig_confirm_text() | rpl::map([=](QString &&text) {
                return text.replace(QString{"{value}"}, FormatTransactionId(invoice.transactionId));
              });
     } else if constexpr (isMsigDeploy) {
@@ -206,6 +206,8 @@ void ConfirmTransactionBox(not_null<Ui::GenericBox *> box, const T &invoice, int
       return ph::lng_wallet_confirm_execute();
     } else if constexpr (isMsigDeploy) {
       return ph::lng_wallet_deploy();
+    } else if constexpr (isMsigConfirm) {
+      return ph::lng_wallet_confirm_multisig_confirm();
     } else {
       return ph::lng_wallet_confirm_send();
     }

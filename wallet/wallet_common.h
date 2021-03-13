@@ -211,7 +211,7 @@ enum class Action {
   ShowSettings,
   ShowKeystore,
   AddAsset,
-  DeployTokenWallet,
+  Deploy,
   LogOut,
   Back,
 };
