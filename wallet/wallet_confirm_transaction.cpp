@@ -226,7 +226,6 @@ IMPL_BOX_FOR(TonTransferInvoice);
 IMPL_BOX_FOR(TokenTransferInvoice);
 IMPL_BOX_FOR(StakeInvoice);
 IMPL_BOX_FOR(WithdrawalInvoice);
-IMPL_BOX_FOR(WithdrawalInvoice);
 IMPL_BOX_FOR(CancelWithdrawalInvoice);
 IMPL_BOX_FOR(DeployTokenWalletInvoice);
 IMPL_BOX_FOR(CollectTokensInvoice);
