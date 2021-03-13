@@ -348,7 +348,7 @@ void ImportFtabiKeyBox(not_null<Ui::GenericBox *> box, const Fn<void()> &cancel,
 
   auto inputs = std::make_shared<std::vector<std::unique_ptr<TonWordInput>>>();
   const auto rowsTop = st::walletWordHeight;
-  const auto rowsBottom = rowsTop + rows * st::walletWordHeight;
+  const auto rowsBottom = rowsTop * 2 + rows * st::walletWordHeight;
 
   const auto currentWords = [=] {
     return (*inputs)                                                                                     //

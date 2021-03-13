@@ -15,6 +15,7 @@ namespace Ton {
 class Symbol;
 enum class EthEventStatus;
 enum class TonEventStatus;
+enum class MultisigVersion;
 }  // namespace Ton
 
 namespace ph {
@@ -27,6 +28,7 @@ extern phrase lng_wallet_warning;
 extern phrase lng_wallet_error;
 extern phrase lng_wallet_ok;
 extern phrase lng_wallet_next;
+extern phrase lng_wallet_deploy;
 
 extern phrase lng_wallet_copy_address;
 
@@ -279,6 +281,7 @@ extern phrase lng_wallet_confirm_cancel_withdrawal_text;
 extern phrase lng_wallet_confirm_deploy_token_wallet_text;
 extern phrase lng_wallet_confirm_collect_tokens_text;
 extern phrase lng_wallet_confirm_multisig_confirm;
+extern phrase lng_wallet_confirm_multisig_deploy;
 extern phrase lng_wallet_confirm_fee;
 extern phrase lng_wallet_confirm_send;
 extern phrase lng_wallet_confirm_withdrawal;
@@ -303,6 +306,9 @@ extern phrase lng_wallet_sending_all_stake;
 extern phrase lng_wallet_sent_title;
 extern phrase lng_wallet_sent_cancel_withdrawal;
 extern phrase lng_wallet_sent_deploy_token_wallet;
+extern phrase lng_wallet_sent_multisig_deployed;
+extern phrase lng_wallet_sent_withdrawal_requested;
+extern phrase lng_wallet_sent_withdrawal_confirmed;
 extern phrase lng_wallet_sent_collect_tokens;
 extern phrase lng_wallet_sent_close;
 extern phrase lng_wallet_sent_close_view;
@@ -318,14 +324,30 @@ extern phrase lng_wallet_add_asset_depool_address;
 extern phrase lng_wallet_add_asset_multisig_address;
 extern phrase lng_wallet_add_asset_confirm;
 
-extern phrase lng_wallet_add_multisig_title;
+extern phrase lng_wallet_add_multisig_title_import;
+extern phrase lng_wallet_add_multisig_title_deploy;
 extern phrase lng_wallet_add_multisig_select_key;
+extern phrase lng_wallet_add_multisig_select_version;
 extern phrase lng_wallet_add_multisig_add_new_key;
+extern phrase lng_wallet_add_multisig_required_confirmations;
+extern phrase lng_wallet_add_multisig_confirmation_count;
+extern phrase lng_wallet_add_multisig_max_confirmations;
+extern phrase lng_wallet_add_multisig_max_custodians;
+extern phrase lng_wallet_add_multisig_custodians;
+extern phrase lng_wallet_add_multisig_enter_custodians_list;
 extern phrase lng_wallet_add_multisig_confirm;
 extern phrase lng_wallet_add_multisig_is_not_a_custodian;
 extern phrase lng_wallet_add_multisig_succeeded;
 extern phrase lng_wallet_add_multisig_failed_title;
 extern phrase lng_wallet_add_multisig_failed_text;
+
+extern phrase lng_wallet_predeploy_multisig_title;
+extern phrase lng_wallet_predeploy_multisig_address;
+extern phrase lng_wallet_predeploy_multisig_description;
+extern phrase lng_wallet_predeploy_multisig_insufficient_funds;
+
+extern phrase lng_wallet_deploy_multisig_failed_title;
+extern phrase lng_wallet_deploy_multisig_failed_text_already_exists;
 
 extern phrase lng_wallet_settings_title;
 extern phrase lng_wallet_settings_version_title;
@@ -375,6 +397,12 @@ extern phrase lng_wallet_event_status_confirmed;
 extern phrase lng_wallet_event_status_executed;
 extern phrase lng_wallet_event_status_rejected;
 
+extern phrase lng_wallet_multisig_version_safe_multisig;
+extern phrase lng_wallet_multisig_version_safe_multisig_24h;
+extern phrase lng_wallet_multisig_version_setcode_multisig;
+extern phrase lng_wallet_multisig_version_surf;
+extern phrase lng_wallet_multisig_version_unknown;
+
 extern phrase lng_wallet_warning_reconnect;
 extern phrase lng_wallet_warning_blockchain_name;
 extern phrase lng_wallet_warning_to_testnet;
@@ -394,5 +422,6 @@ extern Fn<phrase(QString, const Ton::Symbol &)> lng_wallet_grams_count_sent;
 extern Fn<phrase(QString)> lng_wallet_grams_count_withdrawn;
 extern Fn<phrase(Ton::EthEventStatus)> lng_wallet_eth_event_status;
 extern Fn<phrase(Ton::TonEventStatus)> lng_wallet_ton_event_status;
+extern Fn<phrase(Ton::MultisigVersion)> lng_wallet_multisig_version;
 
 }  // namespace ph

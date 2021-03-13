@@ -67,9 +67,11 @@ void SendingDoneBox(not_null<Ui::GenericBox *> box, const Ton::Transaction &resu
   constexpr auto isCancelWithdrawal = std::is_same_v<T, CancelWithdrawalInvoice>;
   constexpr auto isDeployTokenWallet = std::is_same_v<T, DeployTokenWalletInvoice>;
   constexpr auto isCollectTokens = std::is_same_v<T, CollectTokensInvoice>;
+  constexpr auto isMsigDeploy = std::is_same_v<T, MultisigDeployInvoice>;
   constexpr auto isMsigTransfer = std::is_same_v<T, MultisigSubmitTransactionInvoice>;
+  constexpr auto isMsigConfirm = std::is_same_v<T, MultisigConfirmTransactionInvoice>;
   static_assert(isTonTransfer || isTokenTransfer || isStakeTransfer || isWithdrawal || isCancelWithdrawal ||
-                isDeployTokenWallet || isCollectTokens || isMsigTransfer);
+                isDeployTokenWallet || isCollectTokens || isMsigDeploy || isMsigConfirm || isMsigTransfer);
 
   const auto defaultToken = Ton::Symbol::ton();
 
@@ -98,12 +100,20 @@ void SendingDoneBox(not_null<Ui::GenericBox *> box, const Ton::Transaction &resu
         Ui::CreateChild<Ui::FlatLabel>(inner, ph::lng_wallet_sent_deploy_token_wallet(), st::walletSendingText);
   } else if constexpr (isCollectTokens) {
     amountLabel = Ui::CreateChild<Ui::FlatLabel>(inner, ph::lng_wallet_sent_collect_tokens(), st::walletSendingText);
+  } else if constexpr (isMsigDeploy) {
+    amountLabel = Ui::CreateChild<Ui::FlatLabel>(inner, ph::lng_wallet_sent_multisig_deployed(), st::walletSendingText);
+  } else if constexpr (isMsigTransfer) {
+    amountLabel =
+        Ui::CreateChild<Ui::FlatLabel>(inner, ph::lng_wallet_sent_withdrawal_requested(), st::walletSendingText);
+  } else if constexpr (isMsigConfirm) {
+    amountLabel =
+        Ui::CreateChild<Ui::FlatLabel>(inner, ph::lng_wallet_sent_withdrawal_confirmed(), st::walletSendingText);
   }
 
   const auto realAmount = FormatAmount(-CalculateValue(result), defaultToken).full;
   Ui::FlatLabel *text = nullptr;
   if constexpr (isTonTransfer || isStakeTransfer || isWithdrawal || isCancelWithdrawal || isDeployTokenWallet ||
-                isCollectTokens || isMsigTransfer) {
+                isCollectTokens) {
     text = Ui::CreateChild<Ui::FlatLabel>(inner, ph::lng_wallet_grams_count_sent(realAmount, defaultToken)(),
                                           st::walletSendingText);
   } else if constexpr (isTokenTransfer) {
@@ -143,28 +153,19 @@ void SendingDoneBox(not_null<Ui::GenericBox *> box, const Ton::Transaction &resu
   });
 }
 
-template void SendingDoneBox(not_null<Ui::GenericBox *> box, const Ton::Transaction &result,
-                             const TonTransferInvoice &invoice, const Fn<void()> &onClose);
+#define IMPL_BOX_FOR(T)                                                                                          \
+  template void SendingDoneBox(not_null<Ui::GenericBox *> box, const Ton::Transaction &result, const T &invoice, \
+                               const Fn<void()> &onClose)
 
-template void SendingDoneBox(not_null<Ui::GenericBox *> box, const Ton::Transaction &result,
-                             const TokenTransferInvoice &invoice, const Fn<void()> &onClose);
-
-template void SendingDoneBox(not_null<Ui::GenericBox *> box, const Ton::Transaction &result,
-                             const StakeInvoice &invoice, const Fn<void()> &onClose);
-
-template void SendingDoneBox(not_null<Ui::GenericBox *> box, const Ton::Transaction &result,
-                             const WithdrawalInvoice &invoice, const Fn<void()> &onClose);
-
-template void SendingDoneBox(not_null<Ui::GenericBox *> box, const Ton::Transaction &result,
-                             const CancelWithdrawalInvoice &invoice, const Fn<void()> &onClose);
-
-template void SendingDoneBox(not_null<Ui::GenericBox *> box, const Ton::Transaction &result,
-                             const DeployTokenWalletInvoice &invoice, const Fn<void()> &onClose);
-
-template void SendingDoneBox(not_null<Ui::GenericBox *> box, const Ton::Transaction &result,
-                             const CollectTokensInvoice &invoice, const Fn<void()> &onClose);
-
-template void SendingDoneBox(not_null<Ui::GenericBox *> box, const Ton::Transaction &result,
-                             const MultisigSubmitTransactionInvoice &invoice, const Fn<void()> &onClose);
+IMPL_BOX_FOR(TonTransferInvoice);
+IMPL_BOX_FOR(TokenTransferInvoice);
+IMPL_BOX_FOR(StakeInvoice);
+IMPL_BOX_FOR(WithdrawalInvoice);
+IMPL_BOX_FOR(CancelWithdrawalInvoice);
+IMPL_BOX_FOR(DeployTokenWalletInvoice);
+IMPL_BOX_FOR(CollectTokensInvoice);
+IMPL_BOX_FOR(MultisigDeployInvoice);
+IMPL_BOX_FOR(MultisigSubmitTransactionInvoice);
+IMPL_BOX_FOR(MultisigConfirmTransactionInvoice);
 
 }  // namespace Wallet

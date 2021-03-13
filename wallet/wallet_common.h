@@ -27,6 +27,7 @@ namespace Wallet {
 enum class InvoiceField;
 
 inline constexpr auto kMaxCommentLength = 500;
+inline constexpr auto kMaxCustodiansLength = 2500;
 inline constexpr auto kEncodedAddressLength = 48;
 inline constexpr auto kRawAddressLength = 64;
 inline constexpr auto kEtheriumAddressLength = 40;
@@ -43,6 +44,11 @@ struct SelectedToken {
         .symbol = Ton::Symbol::ton(),
     };
   }
+};
+
+struct FixedAmount {
+  QString text;
+  int position = 0;
 };
 
 struct SelectedDePool {
@@ -154,6 +160,14 @@ struct CollectTokensInvoice {
   auto asTransaction() const -> Ton::CollectTokensTransactionToSend;
 };
 
+struct MultisigDeployInvoice {
+  Ton::MultisigInitialInfo initialInfo;
+  uint8 requiredConfirmations;
+  std::vector<QByteArray> owners;
+
+  auto asTransaction() const -> Ton::DeployMultisigTransactionToSend;
+};
+
 struct MultisigSubmitTransactionInvoice {
   QByteArray publicKey;
   QString multisigAddress;
@@ -184,6 +198,7 @@ using PreparedInvoice = std::variant<  //
     WithdrawalInvoice,        //
     CancelWithdrawalInvoice,  //
     //
+    MultisigDeployInvoice,             //
     MultisigSubmitTransactionInvoice,  //
     MultisigConfirmTransactionInvoice>;
 

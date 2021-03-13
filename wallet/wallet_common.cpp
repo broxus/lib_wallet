@@ -29,11 +29,6 @@ constexpr auto ipow(const int128 &base, size_t power, const int128 &result = 1) 
   return power < 1 ? result : ipow(base * base, power >> 1u, (power & 0x1u) ? (result * base) : result);
 }
 
-struct FixedAmount {
-  QString text;
-  int position = 0;
-};
-
 std::optional<int128> ParseAmountInt(const QString &trimmed, size_t decimals) {
   const auto one = ipow(int128{10}, decimals);
   try {
@@ -561,6 +556,14 @@ auto DeployTokenWalletInvoice::asTransaction() const -> Ton::DeployTokenWalletTr
 auto CollectTokensInvoice::asTransaction() const -> Ton::CollectTokensTransactionToSend {
   return Ton::CollectTokensTransactionToSend{
       .eventContractAddress = eventContractAddress,
+  };
+}
+
+auto MultisigDeployInvoice::asTransaction() const -> Ton::DeployMultisigTransactionToSend {
+  return Ton::DeployMultisigTransactionToSend{
+      .initialInfo = initialInfo,
+      .requiredConfirmations = requiredConfirmations,
+      .owners = owners,
   };
 }
 

@@ -518,6 +518,10 @@ walletInput: InputField(defaultInputField) {
 	heightMin: 34px;
 	heightMax: 100px;
 }
+walletCustodianListInput: InputField(walletInput) {
+	heightMin: 112px;
+	heightMax: 160px;
+}
 walletSendInput: InputField(walletInput) {
 }
 walletSendAbout: FlatLabel(walletLabel) {
@@ -534,6 +538,7 @@ walletSendStakeWarningPadding: margins(22px, 7px, 22px, 16px);
 walletCancelWithdrawalDescriptionPadding: margins(22px, 7px, 22px, 16px);
 walletDeployTokenWalletDescriptionPadding: margins(22px, 7px, 22px, 16px);
 walletCollectTokensDescriptionPadding: margins(22px, 3px, 22px, 5px);
+walletPredeployMultisigDescriptionPadding: margins(22px, 7px, 22px, 16px);
 
 walletPasscodeHeight: 190px;
 walletPasscodeLottieSize: 100px;

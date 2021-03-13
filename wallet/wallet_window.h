@@ -137,8 +137,12 @@ class Window final : public base::has_weak_ptr {
 
   void importMultisig(const QString &address);
   void showMultisigError();
-  void selectMultisigKey(const Ton::MultisigInfo &info, int defaultIndex);
+  void selectMultisigKey(const std::vector<QByteArray> &custodians, int defaultIndex, bool allowNewKeys,
+                         const Fn<void(QByteArray)> &done);
   void addNewMultisig();
+
+  std::vector<QByteArray> getAllPublicKeys() const;
+  std::vector<Ton::AvailableKey> getAvailableKeys(const std::vector<QByteArray> &custodians);
 
   [[nodiscard]] Fn<void(QImage, QString)> shareCallback(const QString &linkCopied, const QString &textCopied,
                                                         const QString &qr);
@@ -185,6 +189,7 @@ class Window final : public base::has_weak_ptr {
   QPointer<Ui::GenericBox> _saveConfirmBox;
 
   QPointer<Ui::GenericBox> _keystoreBox;
+  QPointer<Ui::GenericBox> _keySelectionBox;
 
   std::shared_ptr<bool> _multisigConfirmationGuard;
 };

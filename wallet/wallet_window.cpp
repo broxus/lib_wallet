@@ -1216,12 +1216,7 @@ void Window::confirmTransaction(PreparedInvoice invoice, const Fn<void(InvoiceFi
       [&](CollectTokensInvoice &collectTokensInvoice) {
         collectTokensInvoice.realAmount = Ton::CollectTokensTransactionToSend::realAmount;
       },
-      [&](MultisigSubmitTransactionInvoice &multisigSubmitTransactionInvoice) {
-        // stay same
-      },
-      [&](MultisigConfirmTransactionInvoice &multisigConfirmTransactionInvoice) {
-        // stay same
-      });
+      [&](auto &&) {});
 
   auto done = [=](Ton::Result<Ton::TransactionCheckResult> result, PreparedInvoice &&invoice) mutable {
     *guard = false;
@@ -1297,6 +1292,10 @@ void Window::confirmTransaction(PreparedInvoice invoice, const Fn<void(InvoiceFi
       [&](const CollectTokensInvoice &collectTokensInvoice) {
         _wallet->checkCollectTokens(_wallet->publicKeys().front(), collectTokensInvoice.asTransaction(),
                                     crl::guard(_sendBox.data(), doneUnchanged));
+      },
+      [&](const MultisigDeployInvoice &invoice) {
+        std::cout << "Checking deploy" << std::endl;
+        _wallet->checkDeployMultisig(invoice.asTransaction(), crl::guard(_sendBox.data(), doneUnchanged));
       },
       [&](const MultisigSubmitTransactionInvoice &invoice) {
         _wallet->checkSubmitTransaction(invoice.asTransaction(), crl::guard(_sendBox.data(), doneUnchanged));
@@ -1380,6 +1379,10 @@ void Window::askSendPassword(const PreparedInvoice &invoice, const Fn<void(Invoi
         [&](const CollectTokensInvoice &collectTokensInvoice) {
           _wallet->collectTokens(publicKey, passcode, collectTokensInvoice.asTransaction(), crl::guard(this, ready),
                                  crl::guard(this, sent));
+        },
+        [&](const MultisigDeployInvoice &invoice) {
+          _wallet->deployMultisig(publicKey, passcode, invoice.asTransaction(), crl::guard(this, ready),
+                                  crl::guard(this, sent));
         },
         [&](const MultisigSubmitTransactionInvoice &invoice) {
           _wallet->submitTransaction(publicKey, passcode, invoice.asTransaction(), crl::guard(this, ready),
@@ -1512,6 +1515,10 @@ void Window::showSendConfirmation(const PreparedInvoice &invoice, const Ton::Tra
                    collectTokensInvoice.realAmount + sourceFees,
                    [=] { askSendPassword(collectTokensInvoice, showInvoiceError); });
       },
+      [&](const MultisigDeployInvoice &invoice) -> object_ptr<Ui::GenericBox> {
+        return Box(ConfirmTransactionBox<MultisigDeployInvoice>, invoice, sourceFees,
+                   [=] { askSendPassword(invoice, showInvoiceError); });
+      },
       [&](const MultisigSubmitTransactionInvoice &invoice) -> object_ptr<Ui::GenericBox> {
         const auto it = currentState.multisigStates.find(invoice.multisigAddress);
         if (it == currentState.multisigStates.end() || !checkAmountByState(invoice.amount, it->second.accountState)) {
@@ -1570,6 +1577,8 @@ void Window::showSendingTransaction(const Ton::PendingTransaction &transaction, 
               _sendBox->lifetime());
   };
 
+  auto justSent = std::make_shared<bool>(true);
+
   const auto handleMultisigPending = [&](const QString &address) {
     _state.value()  //
         | rpl::map([=](const Ton::WalletState &state) -> std::optional<Ton::MultisigState> {
@@ -1587,7 +1596,12 @@ void Window::showSendingTransaction(const Ton::PendingTransaction &transaction, 
             return (i != end(state.lastTransactions.list)) ? std::make_optional(*i) : std::nullopt;
           })  //
         | rpl::start_with_next(
-              [=](std::optional<Ton::Transaction> &&result) { showSendingDone(std::move(result), invoice); },
+              [=](std::optional<Ton::Transaction> &&result) {
+                if (*justSent) {  // prevents the window from closing before transaction is really sent
+                  return;
+                }
+                showSendingDone(std::move(result), invoice);
+              },
               _sendBox->lifetime());
   };
 
@@ -1597,6 +1611,7 @@ void Window::showSendingTransaction(const Ton::PendingTransaction &transaction, 
       [&](auto &&) { handleDefaultPending(); });
 
   _layers->showBox(std::move(box));
+  *justSent = false;
 
   if (_sendConfirmBox) {
     _sendConfirmBox->closeBox();
@@ -1630,17 +1645,21 @@ void Window::showSendingDone(std::optional<Ton::Transaction> result, const Prepa
         [&](const CollectTokensInvoice &collectTokensInvoice) {
           return Box(SendingDoneBox<CollectTokensInvoice>, *result, collectTokensInvoice, refresh);
         },
+        [&](const MultisigDeployInvoice &invoice) {
+          return Box(SendingDoneBox<MultisigDeployInvoice>, *result, invoice, refresh);
+        },
         [&](const MultisigSubmitTransactionInvoice &invoice) -> object_ptr<Ui::GenericBox> {
           return Box(SendingDoneBox<MultisigSubmitTransactionInvoice>, *result, invoice, refresh);
         },
         [&](const MultisigConfirmTransactionInvoice &invoice) -> object_ptr<Ui::GenericBox> {
-          return nullptr;  // TODO
+          return Box(SendingDoneBox<MultisigConfirmTransactionInvoice>, *result, invoice, refresh);
         });
 
     if (box != nullptr) {
       _layers->showBox(std::move(box));
     }
   } else {
+    std::cout << "Show sending done??" << std::endl;
     showSimpleError(ph::lng_wallet_send_failed_title(), ph::lng_wallet_send_failed_text(), ph::lng_wallet_continue());
   }
 
@@ -2164,13 +2183,38 @@ void Window::askFtabiKeyChangePassword(const QByteArray &publicKey) {
 }
 
 void Window::importMultisig(const QString &address) {
+  auto guard = std::make_shared<bool>(false);
+
+  const auto onNewMultisig = [=](const Ton::Result<> &result) {
+    if (result.has_value()) {
+      if (_keySelectionBox) {
+        _keySelectionBox->closeBox();
+      }
+
+      showToast(ph::lng_wallet_add_multisig_succeeded(ph::now));
+    } else {
+      *guard = false;
+      std::cout << result.error().details.toStdString() << std::endl;
+      showMultisigError();
+    }
+  };
+
   _wallet->requestMultisigInfo(  //
-      address, crl::guard(this, [=](const Ton::Result<Ton::MultisigInfo> &result) {
+      address, crl::guard(this, [=](Ton::Result<Ton::MultisigInfo> &&result) {
         if (!result.has_value()) {
           std::cout << result.error().details.toStdString() << std::endl;
           return showMultisigError();
         }
-        selectMultisigKey(result.value(), 0);
+        auto info = std::move(result.value());
+
+        auto addMultisig = crl::guard(this, [=](const QByteArray &publicKey) {
+          if (std::exchange(*guard, true)) {
+            return;
+          }
+          _wallet->addMultisig(_wallet->publicKeys().back(), info, publicKey, crl::guard(this, onNewMultisig));
+        });
+
+        selectMultisigKey(info.custodians, 0, false, addMultisig);
       }));
 }
 
@@ -2179,29 +2223,153 @@ void Window::showMultisigError() {
                   ph::lng_wallet_continue());
 }
 
-void Window::selectMultisigKey(const Ton::MultisigInfo &info, int defaultIndex) {
+void Window::selectMultisigKey(const std::vector<QByteArray> &custodians, int defaultIndex, bool allowNewKeys,
+                               const Fn<void(QByteArray)> &done) {
   auto showImportKeyError = [=] {
     showSimpleError(ph::lng_wallet_add_multisig_failed_title(), ph::lng_wallet_add_multisig_is_not_a_custodian(),
                     ph::lng_wallet_continue());
   };
 
-  const auto weakBox = std::make_shared<QPointer<Ui::GenericBox>>();
   const auto closeBox = [=] {
+    if (_keySelectionBox) {
+      _keySelectionBox->closeBox();
+    }
+  };
+
+  auto guard = std::make_shared<bool>(false);
+  const auto addNewKey = crl::guard(this, [=] {
+    if (std::exchange(*guard, true)) {
+      return;
+    }
+
+    addFtabiKey(closeBox, [=](const QByteArray &publicKey) {
+      if (allowNewKeys) {
+        return done(publicKey);
+      }
+
+      const auto it = std::find(custodians.begin(), custodians.end(), publicKey);
+      if (it != custodians.end()) {
+        done(publicKey);
+      } else {
+        *guard = false;
+        showImportKeyError();
+      }
+    });
+  });
+
+  const auto availableKeys = getAvailableKeys(custodians);
+
+  if (availableKeys.empty()) {
+    addNewKey();
+  } else if (custodians.size() == 1 && !allowNewKeys) {
+    done(custodians.front());
+  } else {
+    auto box = Box(SelectMultisigKeyBox, custodians, availableKeys, defaultIndex, addNewKey, done);
+    _keySelectionBox = box.data();
+    _layers->showBox(std::move(box));
+  }
+}
+
+void Window::addNewMultisig() {
+  const auto weakBox = std::make_shared<QPointer<Ui::GenericBox>>();
+
+  auto showConstructorBox = [=](const Ton::MultisigPredeployInfo &info) {
     if (*weakBox) {
       (*weakBox)->closeBox();
     }
+    auto guard = std::make_shared<bool>(false);
+    auto box = Box(DeployMultisigBox, info.initialInfo, [=](MultisigDeployInvoice &&invoice) {
+      std::cout << "Confirming" << std::endl;
+
+      confirmTransaction(
+          std::forward<decltype(invoice)>(invoice), [=](InvoiceField) {}, guard);
+    });
+    _sendBox = box.data();
+    _layers->showBox(std::move(box));
   };
 
-  const auto onNewMultisig = [=](const Ton::Result<> &result) {
-    if (result.has_value()) {
-      closeBox();
-      showToast(ph::lng_wallet_add_multisig_succeeded(ph::now));
-    } else {
+  auto stateHandlerGuard = std::make_shared<bool>(false);
+  auto handleMultisigState = [=](Ton::Result<Ton::MultisigPredeployInfo> &&result,
+                                 const Fn<void(Ton::MultisigInitialInfo)> &showAddressBox) {
+    if (!result.has_value()) {
       std::cout << result.error().details.toStdString() << std::endl;
-      showMultisigError();
+      if (*weakBox) {
+        (*weakBox)->closeBox();
+      }
+      return showSimpleError(ph::lng_wallet_deploy_multisig_failed_title(),
+                             ph::lng_wallet_deploy_multisig_failed_text_already_exists(), ph::lng_wallet_continue());
+    }
+
+    if (result->balance < Ton::kMinimalDeploymentBalance) {
+      if (*stateHandlerGuard) {
+        showToast(ph::lng_wallet_predeploy_multisig_insufficient_funds(ph::now));
+      }
+      showAddressBox(std::move(result->initialInfo));
+    } else {
+      showConstructorBox(*result);
     }
   };
 
+  auto versionSelectionGuard = std::make_shared<bool>(false);
+  const auto submit = [=](Ton::MultisigVersion version) {
+    if (std::exchange(*versionSelectionGuard, true)) {
+      return;
+    }
+    if (*weakBox) {
+      (*weakBox)->closeBox();
+    }
+
+    auto keySelectionGuard = std::make_shared<bool>(false);
+    const auto keySelected = [=](const QByteArray &publicKey) {
+      if (std::exchange(*keySelectionGuard, true)) {
+        return;
+      }
+      if (_keySelectionBox) {
+        _keySelectionBox->closeBox();
+      }
+
+      _wallet->requestNewMultisigAddress(version, publicKey, [=](Ton::Result<Ton::MultisigPredeployInfo> &&result) {
+        handleMultisigState(std::forward<decltype(result)>(result), [=](Ton::MultisigInitialInfo &&info) {
+          auto box = Box(PredeployMultisigBox, info, shareAddressCallback(), [=] {
+            if (std::exchange(*stateHandlerGuard, true)) {
+              return;
+            }
+            _wallet->requestNewMultisigAddress(version, publicKey, [=](auto &&result) {
+              handleMultisigState(std::forward<decltype(result)>(result), [=](auto &&) { *stateHandlerGuard = false; });
+            });
+          });
+
+          *weakBox = box.data();
+          _layers->showBox(std::move(box));
+        });
+      });
+    };
+
+    const auto keys = getAllPublicKeys();
+    selectMultisigKey(keys, 0, true, keySelected);
+  };
+  auto box = Box(SelectMultisigVersionBox, submit);
+  *weakBox = box.data();
+  _layers->showBox(std::move(box));
+}
+
+std::vector<QByteArray> Window::getAllPublicKeys() const {
+  const auto mainPublicKey = _wallet->publicKeys().front();
+  const auto ftabiKeys = _wallet->ftabiKeys();
+
+  std::vector<QByteArray> result;
+  result.reserve(1 + ftabiKeys.size());
+
+  result.emplace_back(mainPublicKey);
+
+  for (const auto &key : ftabiKeys) {
+    result.emplace_back(key.publicKey);
+  }
+
+  return result;
+}
+
+std::vector<Ton::AvailableKey> Window::getAvailableKeys(const std::vector<QByteArray> &custodians) {
   const auto mainPublicKey = _wallet->publicKeys().front();
 
   base::flat_map<QByteArray, Ton::AvailableKey> existingKeys;
@@ -2219,50 +2387,15 @@ void Window::selectMultisigKey(const Ton::MultisigInfo &info, int defaultIndex) 
   }
 
   std::vector<Ton::AvailableKey> availableKeys;
-  availableKeys.reserve(info.custodians.size());
-  for (const auto &custodian : info.custodians) {
+  availableKeys.reserve(custodians.size());
+  for (const auto &custodian : custodians) {
     const auto it = existingKeys.find(custodian);
     if (it != existingKeys.end()) {
       availableKeys.emplace_back(it->second);
     }
   }
 
-  auto guard = std::make_shared<bool>(false);
-  auto addMultisig = crl::guard(this, [=](const QByteArray &publicKey) {
-    if (std::exchange(*guard, true)) {
-      return;
-    }
-    _wallet->addMultisig(_wallet->publicKeys().back(), info, publicKey, crl::guard(this, onNewMultisig));
-  });
-
-  const auto addNewKey = crl::guard(this, [=] {
-    if (std::exchange(*guard, true)) {
-      return;
-    }
-    addFtabiKey(closeBox, [=](const QByteArray &publicKey) {
-      const auto it = std::find_if(info.custodians.begin(), info.custodians.end(),
-                                   [&](const auto &item) { return item == publicKey; });
-      *guard = false;
-      if (it != info.custodians.end()) {
-        addMultisig(publicKey);
-      } else {
-        showImportKeyError();
-      }
-    });
-  });
-
-  if (availableKeys.empty()) {
-    addNewKey();
-  } else if (info.custodians.size() == 1) {
-    addMultisig(info.custodians.front());
-  } else {
-    auto box = Box(SelectMultisigKeyBox, info, availableKeys, defaultIndex, addNewKey, addMultisig);
-    *weakBox = box.data();
-    _layers->showBox(std::move(box));
-  }
-}
-
-void Window::addNewMultisig() {
+  return availableKeys;
 }
 
 void Window::askExportPassword() {

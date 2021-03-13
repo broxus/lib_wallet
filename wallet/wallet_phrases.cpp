@@ -23,6 +23,7 @@ phrase lng_wallet_warning = "Warning";
 phrase lng_wallet_error = "Error";
 phrase lng_wallet_ok = "OK";
 phrase lng_wallet_next = "Next";
+phrase lng_wallet_deploy = "Deploy";
 
 phrase lng_wallet_copy_address = "Copy Wallet Address";
 
@@ -296,6 +297,7 @@ phrase lng_wallet_confirm_cancel_withdrawal_text = "Do you want to cancel withdr
 phrase lng_wallet_confirm_deploy_token_wallet_text = "Do you want to deploy a token wallet for:";
 phrase lng_wallet_confirm_collect_tokens_text = "Do you want to execute proxy callback for:";
 phrase lng_wallet_confirm_multisig_confirm = "Do you want to confirm transaction **{value}** for:";
+phrase lng_wallet_confirm_multisig_deploy = "Do you want to deploy multisig contract to:";
 phrase lng_wallet_confirm_fee = "Fee: ~{grams}";
 phrase lng_wallet_confirm_send = "Send {ticker}";
 phrase lng_wallet_confirm_withdrawal = "Withdraw";
@@ -323,6 +325,9 @@ phrase lng_wallet_sent_title = "Done!";
 phrase lng_wallet_sent_cancel_withdrawal = "Withdrawal cancelled";
 phrase lng_wallet_sent_deploy_token_wallet = "Deployed";
 phrase lng_wallet_sent_collect_tokens = "Tokens collected";
+phrase lng_wallet_sent_multisig_deployed = "Deployed";
+phrase lng_wallet_sent_withdrawal_requested = "Withdrawal requested";
+phrase lng_wallet_sent_withdrawal_confirmed = "Confirmed";
 phrase lng_wallet_sent_close = "Close";
 phrase lng_wallet_sent_close_view = "View";
 
@@ -337,14 +342,32 @@ phrase lng_wallet_add_asset_depool_address = "DePool address";
 phrase lng_wallet_add_asset_multisig_address = "Multisig address";
 phrase lng_wallet_add_asset_confirm = "Confirm";
 
-phrase lng_wallet_add_multisig_title = "Import multisig wallet";
+phrase lng_wallet_add_multisig_title_import = "Import multisig wallet";
+phrase lng_wallet_add_multisig_title_deploy = "Deploy multisig wallet";
 phrase lng_wallet_add_multisig_select_key = "Select key";
+phrase lng_wallet_add_multisig_select_version = "Select version";
 phrase lng_wallet_add_multisig_add_new_key = "Add new key";
+phrase lng_wallet_add_multisig_required_confirmations = "Required confirmations";
+phrase lng_wallet_add_multisig_confirmation_count = "Confirmation count";
+phrase lng_wallet_add_multisig_custodians = "Custodians";
+phrase lng_wallet_add_multisig_enter_custodians_list = "Enter custodian public keys list";
+phrase lng_wallet_add_multisig_max_confirmations = "Max: {value}";
+phrase lng_wallet_add_multisig_max_custodians = "Max: {value}";
 phrase lng_wallet_add_multisig_is_not_a_custodian = "Specified key is not a custodian";
 phrase lng_wallet_add_multisig_confirm = "Confirm";
 phrase lng_wallet_add_multisig_succeeded = "Multisig wallet added successfully!";
 phrase lng_wallet_add_multisig_failed_title = "Failed to add multisig wallet";
 phrase lng_wallet_add_multisig_failed_text = "The specified account was not found, or it is not a multisig contract";
+
+phrase lng_wallet_predeploy_multisig_title = "Prepare deployment";
+phrase lng_wallet_predeploy_multisig_address = "Multisig address";
+phrase lng_wallet_predeploy_multisig_description =
+    "Please top up this address in order to deploy contract.\nIt requires about **{value}** TON for deployment.";
+phrase lng_wallet_predeploy_multisig_insufficient_funds = "Can't proceed due to lack of funds.";
+
+phrase lng_wallet_deploy_multisig_failed_title = "Failed to create multisig wallet";
+phrase lng_wallet_deploy_multisig_failed_text_already_exists =
+    "Failed to prepare new multisig wallet. Probably the specified account is already deployed";
 
 phrase lng_wallet_settings_title = "Settings";
 phrase lng_wallet_settings_version_title = "Version and updates";
@@ -394,6 +417,12 @@ phrase lng_wallet_event_status_in_process = "in progress";
 phrase lng_wallet_event_status_confirmed = "confirmed";
 phrase lng_wallet_event_status_executed = "executed";
 phrase lng_wallet_event_status_rejected = "rejected";
+
+phrase lng_wallet_multisig_version_safe_multisig = "SafeMultisig";
+phrase lng_wallet_multisig_version_safe_multisig_24h = "SafeMultisig24h";
+phrase lng_wallet_multisig_version_setcode_multisig = "SetcodeMultisig";
+phrase lng_wallet_multisig_version_surf = "Surf";
+phrase lng_wallet_multisig_version_unknown = "Unknown";
 
 phrase lng_wallet_warning_reconnect = "If you proceed, you will need to reconnect your wallet using 24 secret words.";
 phrase lng_wallet_warning_blockchain_name =
@@ -508,6 +537,21 @@ Fn<phrase(Ton::TonEventStatus)> lng_wallet_ton_event_status = [](Ton::TonEventSt
       return ph::lng_wallet_event_status_rejected;
     default:
       return ph::lng_wallet_event_status_unknown;
+  }
+};
+
+Fn<phrase(Ton::MultisigVersion)> lng_wallet_multisig_version = [](Ton::MultisigVersion version) {
+  switch (version) {
+    case Ton::MultisigVersion::SafeMultisig:
+      return ph::lng_wallet_multisig_version_safe_multisig;
+    case Ton::MultisigVersion::SafeMultisig24h:
+      return ph::lng_wallet_multisig_version_safe_multisig_24h;
+    case Ton::MultisigVersion::SetcodeMultisig:
+      return ph::lng_wallet_multisig_version_setcode_multisig;
+    case Ton::MultisigVersion::Surf:
+      return ph::lng_wallet_multisig_version_surf;
+    default:
+      return ph::lng_wallet_multisig_version_unknown;
   }
 };
 
