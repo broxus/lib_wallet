@@ -414,11 +414,11 @@ phrase lng_wallet_new_ftabi_key_generate = "Generate";
 phrase lng_wallet_new_ftabi_key_import = "Import";
 phrase lng_wallet_new_ftabi_key_done = "Key added successfully.";
 
-extern phrase lng_wallet_import_ftabi_key_title = "Import new key";
-extern phrase lng_wallet_import_ftabi_key_incorrect_title = "Incorrect words";
-extern phrase lng_wallet_import_ftabi_key_incorrect_text =
+phrase lng_wallet_import_ftabi_key_title = "Import new key";
+phrase lng_wallet_import_ftabi_key_incorrect_title = "Incorrect words";
+phrase lng_wallet_import_ftabi_key_incorrect_text =
     "Sorry, you have entered incorrect secret words. Please double check and try again.";
-extern phrase lng_wallet_import_ftabi_key_incorrect_retry = "Try again";
+phrase lng_wallet_import_ftabi_key_incorrect_retry = "Try again";
 
 phrase lng_wallet_event_status_unknown = "unknown";
 phrase lng_wallet_event_status_in_process = "in progress";
