@@ -25,7 +25,7 @@ enum class AddAssetField {
 void AddAssetBox(not_null<Ui::GenericBox *> box, const Fn<void(NewAsset)> &done);
 
 void SelectMultisigKeyBox(not_null<Ui::GenericBox *> box, const std::vector<QByteArray> &custodians,
-                          const std::vector<Ton::AvailableKey> &availableKeys, int defaultIndex,
+                          const std::vector<Ton::AvailableKey> &availableKeys, int defaultIndex, bool allowNewKeys,
                           const Fn<void()> &addNewKey, const Fn<void(QByteArray)> &done);
 
 void SelectMultisigVersionBox(not_null<Ui::GenericBox *> box, const Fn<void(Ton::MultisigVersion)> &done);

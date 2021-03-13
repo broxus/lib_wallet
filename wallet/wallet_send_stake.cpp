@@ -36,8 +36,8 @@ void SendStakeBox(not_null<Ui::GenericBox *> box, const StakeInvoice &invoice, r
           CreateAmountInput(box, rpl::single("0" + AmountSeparator() + "0"), 0, defaultToken)),
       st::walletSendAmountPadding);
 
-  box->addRow(object_ptr<Ui::FlatLabel>(box, ph::lng_wallet_send_stake_warning(), st::walletSendAbout),
-              st::walletSendStakeWarningPadding);
+  //  box->addRow(object_ptr<Ui::FlatLabel>(box, ph::lng_wallet_send_stake_warning(), st::walletSendAbout),
+  //              st::walletSendStakeWarningPadding);
 
   auto balanceText =
       rpl::combine(ph::lng_wallet_send_stake_balance(), rpl::duplicate(availableBalance)) |

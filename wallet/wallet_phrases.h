@@ -327,7 +327,7 @@ extern phrase lng_wallet_add_asset_depool_address;
 extern phrase lng_wallet_add_asset_multisig_address;
 extern phrase lng_wallet_add_asset_confirm;
 
-extern phrase lng_wallet_add_multisig_title_import;
+extern phrase lng_wallet_add_multisig_title_select_key;
 extern phrase lng_wallet_add_multisig_title_deploy;
 extern phrase lng_wallet_add_multisig_select_key;
 extern phrase lng_wallet_add_multisig_select_version;
@@ -338,6 +338,7 @@ extern phrase lng_wallet_add_multisig_max_confirmations;
 extern phrase lng_wallet_add_multisig_max_custodians;
 extern phrase lng_wallet_add_multisig_custodians;
 extern phrase lng_wallet_add_multisig_enter_custodians_list;
+extern phrase lng_wallet_add_multisig_custodians_list_tip;
 extern phrase lng_wallet_add_multisig_confirm;
 extern phrase lng_wallet_add_multisig_is_not_a_custodian;
 extern phrase lng_wallet_add_multisig_succeeded;

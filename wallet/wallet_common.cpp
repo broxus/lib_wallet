@@ -574,6 +574,7 @@ auto MultisigSubmitTransactionInvoice::asTransaction() const -> Ton::SubmitTrans
       .dest = address,
       .value = amount,
       .bounce = bounce,
+      .comment = comment,
   };
 }
 

@@ -260,6 +260,7 @@ void refreshTimeTexts(TransactionLayout &layout, bool forceDateText = false) {
       },
       [&](const Ton::MultisigConfirmTransaction &confirmTransaction) {
         showAmount = confirmTransaction.executed;
+        comment = ExtractMessage(data);
         result.additionalInfo = FormatTransactionId(confirmTransaction.transactionId);
         result.type = TransactionType::MultisigConfirm;
         setAddress();

@@ -345,7 +345,7 @@ phrase lng_wallet_add_asset_depool_address = "DePool address";
 phrase lng_wallet_add_asset_multisig_address = "Multisig address";
 phrase lng_wallet_add_asset_confirm = "Confirm";
 
-phrase lng_wallet_add_multisig_title_import = "Import multisig wallet";
+phrase lng_wallet_add_multisig_title_select_key = "Select key";
 phrase lng_wallet_add_multisig_title_deploy = "Deploy multisig wallet";
 phrase lng_wallet_add_multisig_select_key = "Select key";
 phrase lng_wallet_add_multisig_select_version = "Select version";
@@ -354,6 +354,7 @@ phrase lng_wallet_add_multisig_required_confirmations = "Required confirmations"
 phrase lng_wallet_add_multisig_confirmation_count = "Confirmation count";
 phrase lng_wallet_add_multisig_custodians = "Custodians";
 phrase lng_wallet_add_multisig_enter_custodians_list = "Enter custodian public keys list";
+phrase lng_wallet_add_multisig_custodians_list_tip = "Public keys must be in hex format without prefix";
 phrase lng_wallet_add_multisig_max_confirmations = "Max: {value}";
 phrase lng_wallet_add_multisig_max_custodians = "Max: {value}";
 phrase lng_wallet_add_multisig_is_not_a_custodian = "Specified key is not a custodian";

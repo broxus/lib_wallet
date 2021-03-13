@@ -100,6 +100,7 @@ not_null<Ui::InputField *> CreateCustodiansInput(not_null<QWidget *> parent, con
   const auto result =
       Ui::CreateChild<Ui::InputField>(parent.get(), st::walletCustodianListInput, Ui::InputField::Mode::MultiLine,
                                       ph::lng_wallet_add_multisig_enter_custodians_list(), value);
+  result->setSubmitSettings(Ui::InputSubmitSettings::None);
   result->setMaxLength(kMaxCustodiansLength);
   return result;
 }
@@ -162,6 +163,8 @@ void AddAssetBox(not_null<Ui::GenericBox *> box, const Fn<void(NewAsset)> &done)
                                  ph::lng_wallet_add_asset_token_address()),
       st::boxRowPadding);
   address->rawTextEdit()->setWordWrapMode(QTextOption::WrapAnywhere);
+
+  addressWrapper->setMaximumHeight(assetType->current() != NewAssetType::NewMultisig ? QWIDGETSIZE_MAX : 0);
 
   assetTypeSelector->setChangedCallback([=](int value) {
     const auto type = static_cast<NewAssetType>(value);
@@ -284,11 +287,11 @@ void AddAssetBox(not_null<Ui::GenericBox *> box, const Fn<void(NewAsset)> &done)
 }
 
 void SelectMultisigKeyBox(not_null<Ui::GenericBox *> box, const std::vector<QByteArray> &custodians,
-                          const std::vector<Ton::AvailableKey> &availableKeys, int defaultIndex,
+                          const std::vector<Ton::AvailableKey> &availableKeys, int defaultIndex, bool allowNewKeys,
                           const Fn<void()> &addNewKey, const Fn<void(QByteArray)> &done) {
   Assert(!availableKeys.empty());
 
-  box->setTitle(ph::lng_wallet_add_multisig_title_import());
+  box->setTitle(ph::lng_wallet_add_multisig_title_select_key());
   box->setStyle(st::walletBox);
 
   box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
@@ -307,7 +310,7 @@ void SelectMultisigKeyBox(not_null<Ui::GenericBox *> box, const std::vector<QByt
     Ui::CreateChild<Ui::Radiobutton>(item, indexSelector, i, availableKeys[i].name);
   }
 
-  if (availableKeys.size() < custodians.size()) {
+  if (availableKeys.size() < custodians.size() || allowNewKeys) {
     const auto newItem = box->addRow(  //
         object_ptr<Ui::FixedHeightWidget>(box, radioButtonHeight), radioButtonMargin);
     Ui::CreateChild<Ui::Radiobutton>(newItem, indexSelector, -1, ph::lng_wallet_add_multisig_add_new_key(ph::now));
@@ -475,6 +478,9 @@ void DeployMultisigBox(not_null<Ui::GenericBox *> box, const Ton::MultisigInitia
             maxCustodianCountLabel->moveToRight(st::boxRowPadding.right(), labelTop);
           },
           maxCustodianCountLabel->lifetime());
+
+  box->addRow(object_ptr<Ui::FlatLabel>(box, ph::lng_wallet_add_multisig_custodians_list_tip(), st::walletSendAbout));
+
   ////
 
   auto checkCount = [=](const std::optional<int> &max, const QString &value) -> std::optional<int> {

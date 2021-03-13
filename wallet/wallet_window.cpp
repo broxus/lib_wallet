@@ -1712,7 +1712,6 @@ void Window::showSendingDone(std::optional<Ton::Transaction> result, const Prepa
       _layers->showBox(std::move(box));
     }
   } else {
-    std::cout << "Show sending done??" << std::endl;
     showSimpleError(ph::lng_wallet_send_failed_title(), ph::lng_wallet_send_failed_text(), ph::lng_wallet_continue());
   }
 
@@ -2306,7 +2305,7 @@ void Window::selectMultisigKey(const std::vector<QByteArray> &custodians, int de
   } else if (custodians.size() == 1 && !allowNewKeys) {
     done(custodians.front());
   } else {
-    auto box = Box(SelectMultisigKeyBox, custodians, availableKeys, defaultIndex, addNewKey, done);
+    auto box = Box(SelectMultisigKeyBox, custodians, availableKeys, defaultIndex, allowNewKeys, addNewKey, done);
     _keySelectionBox = box.data();
     _layers->showBox(std::move(box));
   }
@@ -2356,6 +2355,7 @@ void Window::addNewMultisig() {
                 .address = info.address,
                 .version = info.version,
                 .publicKey = info.publicKey,
+                .expirationTime = Ton::GetExpirationTime(version),
             },
             crl::guard(this, onNewMultisig));
       });
@@ -2393,8 +2393,6 @@ void Window::deployMultisig(const QString &address) {
     }
     auto guard = std::make_shared<bool>(false);
     auto box = Box(DeployMultisigBox, info.initialInfo, [=](MultisigDeployInvoice &&invoice) {
-      std::cout << "Confirming" << std::endl;
-
       confirmTransaction(
           std::forward<decltype(invoice)>(invoice), [=](InvoiceField) {}, guard);
     });
