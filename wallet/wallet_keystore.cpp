@@ -47,8 +47,8 @@ not_null<Ui::RpWidget *> CreatePubKeyLabel(not_null<Ui::RpWidget *> parent, rpl:
   mono->style = ComputePubKeyStyle(mono->style);
   mono->minWidth = 50;
 
-  const auto result = CreateChild<Ui::RpWidget>(parent.get());
-  const auto label = CreateChild<Ui::FlatLabel>(result, rpl::duplicate(text), *mono);
+  const auto result = Ui::CreateChild<Ui::RpWidget>(parent.get());
+  const auto label = Ui::CreateChild<Ui::FlatLabel>(result, rpl::duplicate(text), *mono);
   label->setBreakEverywhere(true);
 
   label->setAttribute(Qt::WA_TransparentForMouseEvents);
