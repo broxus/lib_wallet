@@ -67,8 +67,12 @@ rpl::producer<> Cover::receiveRequests() const {
   return _receiveRequests.events();
 }
 
-rpl::producer<> Cover::deployRequest() const {
+rpl::producer<> Cover::deployRequests() const {
   return _deployRequests.events();
+}
+
+rpl::producer<> Cover::upgradeRequests() const {
+  return _upgradeRequests.events();
 }
 
 rpl::lifetime &Cover::lifetime() {
@@ -288,8 +292,12 @@ void Cover::setupControls() {
                   return v::match(
                       state.asset,
                       [&](const SelectedToken &selectedToken) {
-                        if (selectedToken.symbol.isToken() && !state.isDeployed) {
-                          return ph::lng_wallet_cover_deploy();
+                        if (selectedToken.symbol.isToken()) {
+                          if (!state.isDeployed) {
+                            return ph::lng_wallet_cover_deploy();
+                          } else if (state.shouldUpgrade) {
+                            return ph::lng_wallet_cover_upgrade();
+                          }
                         }
                         return ph::lng_wallet_cover_send();
                       },
@@ -306,6 +314,7 @@ void Cover::setupControls() {
   send->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 
   auto shouldDeploy = receive->lifetime().make_state<rpl::variable<bool>>(false);
+  auto shouldUpgrade = receive->lifetime().make_state<rpl::variable<bool>>(false);
 
   rpl::combine(_state.value(), _widget.sizeValue(), std::move(hasUnlockedFunds)) |
       rpl::start_with_next(
@@ -313,20 +322,20 @@ void Cover::setupControls() {
             const auto fullWidth = st::walletCoverButtonWidthFull;
             const auto left = (size.width() - fullWidth) / 2;
             const auto top = size.height() - st::walletCoverButtonBottom - receive->height();
-            const auto isDeployed = state.isDeployed;
 
             const auto [showSend, showReceive] = v::match(
                 state.asset,
                 [&](const SelectedToken &selectedToken) {
-                  *shouldDeploy = selectedToken.symbol.isToken() && !isDeployed;
-                  return std::make_pair(hasUnlockedFunds || shouldDeploy->current(), true);
+                  *shouldDeploy = selectedToken.symbol.isToken() && !state.isDeployed;
+                  *shouldUpgrade = state.shouldUpgrade;
+                  return std::make_pair(hasUnlockedFunds || shouldDeploy->current() || shouldUpgrade->current(), !shouldUpgrade->current());
                 },
                 [&](const SelectedDePool & /*selectedDePool*/) {
                   *shouldDeploy = false;
                   return std::make_pair(true, hasUnlockedFunds);
                 },
                 [&](const SelectedMultisig & /*selectedMultisig*/) {
-                  *shouldDeploy = !isDeployed;
+                  *shouldDeploy = !state.isDeployed;
                   return std::make_pair(hasUnlockedFunds || shouldDeploy->current(), true);
                 });
 
@@ -352,6 +361,8 @@ void Cover::setupControls() {
           [=] {
             if (shouldDeploy->current()) {
               _deployRequests.fire({});
+            } else if (shouldUpgrade->current()) {
+              _upgradeRequests.fire({});
             } else {
               _sendRequests.fire({});
             }
@@ -391,6 +402,7 @@ rpl::producer<CoverState> MakeCoverState(rpl::producer<Ton::WalletViewerState> s
                      result.unlockedBalance = it->second.balance;
                      result.isDeployed =
                          it->second.lastTransactions.previousId.lt != 0 || !it->second.lastTransactions.list.empty();
+                     result.shouldUpgrade = it->second.version == Ton::TokenVersion::tipo3v0;
                    }
                  }
                },

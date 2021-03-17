@@ -26,6 +26,7 @@ struct CoverState {
   bool useTestNetwork = false;
   bool reinvest = false;
   bool isDeployed = false;
+  bool shouldUpgrade = false;
 
   [[nodiscard]] auto selectedToken() const -> Ton::Symbol;
 };
@@ -39,7 +40,8 @@ class Cover final {
 
   [[nodiscard]] rpl::producer<> sendRequests() const;
   [[nodiscard]] rpl::producer<> receiveRequests() const;
-  [[nodiscard]] rpl::producer<> deployRequest() const;
+  [[nodiscard]] rpl::producer<> deployRequests() const;
+  [[nodiscard]] rpl::producer<> upgradeRequests() const;
 
   [[nodiscard]] rpl::lifetime &lifetime();
 
@@ -53,6 +55,7 @@ class Cover final {
   rpl::event_stream<> _sendRequests;
   rpl::event_stream<> _receiveRequests;
   rpl::event_stream<> _deployRequests;
+  rpl::event_stream<> _upgradeRequests;
 };
 
 [[nodiscard]] rpl::producer<CoverState> MakeCoverState(rpl::producer<Ton::WalletViewerState> state,

@@ -98,6 +98,7 @@ phrase lng_wallet_cover_cancel_withdrawal = "Cancel";
 phrase lng_wallet_cover_send = "Send";
 phrase lng_wallet_cover_stake = "Stake";
 phrase lng_wallet_cover_deploy = "Deploy";
+phrase lng_wallet_cover_upgrade = "Upgrade";
 phrase lng_wallet_cover_withdraw = "Withdraw";
 
 phrase lng_wallet_update = "Update Wallet";
