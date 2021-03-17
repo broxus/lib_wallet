@@ -569,7 +569,7 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
               }
             }
             _wallet->addDePool(  //
-                getMainPublicKey(), *dePoolAddress, crl::guard(this, [this](const Ton::Result<> &result) {
+                getMainPublicKey(), *dePoolAddress, true, crl::guard(this, [this](const Ton::Result<> &result) {
                   if (result.has_value()) {
                     showToast(ph::lng_wallet_add_depool_succeeded(ph::now));
                   } else {
@@ -590,7 +590,7 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
                 }
               }
               _wallet->addToken(  //
-                  getMainPublicKey(), rootTokenContract, crl::guard(this, [this](const Ton::Result<> &result) {
+                  getMainPublicKey(), rootTokenContract, true, crl::guard(this, [this](const Ton::Result<> &result) {
                     if (result.has_value()) {
                       showToast(ph::lng_wallet_add_token_succeeded(ph::now));
                     } else {
@@ -1754,11 +1754,11 @@ void Window::addAsset() {
 
     switch (newAsset.type) {
       case CustomAssetType::DePool: {
-        _wallet->addDePool(getMainPublicKey(), newAsset.address, crl::guard(this, onNewDepool));
+        _wallet->addDePool(getMainPublicKey(), newAsset.address, false, crl::guard(this, onNewDepool));
         break;
       }
       case CustomAssetType::Token: {
-        _wallet->addToken(getMainPublicKey(), newAsset.address, crl::guard(this, onNewToken));
+        _wallet->addToken(getMainPublicKey(), newAsset.address, false, crl::guard(this, onNewToken));
         break;
       }
       case CustomAssetType::Multisig: {
