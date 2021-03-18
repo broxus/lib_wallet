@@ -517,7 +517,8 @@ auto TonTransferInvoice::asTransaction() const -> Ton::TransactionToSend {
 }
 
 auto TokenTransferInvoice::asTransaction() const -> Ton::TokenTransactionToSend {
-  return Ton::TokenTransactionToSend{.rootContractAddress = rootContractAddress,
+  return Ton::TokenTransactionToSend{.version = version,
+                                     .rootContractAddress = rootContractAddress,
                                      .walletContractAddress = walletContractAddress,
                                      .amount = amount,
                                      .recipient = address,
@@ -548,6 +549,7 @@ auto CancelWithdrawalInvoice::asTransaction() const -> Ton::CancelWithdrawalTran
 
 auto DeployTokenWalletInvoice::asTransaction() const -> Ton::DeployTokenWalletTransactionToSend {
   return Ton::DeployTokenWalletTransactionToSend{
+      .version = version,
       .rootContractAddress = rootContractAddress,
       .walletContractAddress = walletContractAddress,
   };

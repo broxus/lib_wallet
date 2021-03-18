@@ -402,7 +402,7 @@ rpl::producer<CoverState> MakeCoverState(rpl::producer<Ton::WalletViewerState> s
                      result.unlockedBalance = it->second.balance;
                      result.isDeployed =
                          it->second.lastTransactions.previousId.lt != 0 || !it->second.lastTransactions.list.empty();
-                     result.shouldUpgrade = it->second.version == Ton::TokenVersion::tipo3v0;
+                     result.shouldUpgrade = it->second.version != Ton::TokenVersion::Current;
                    }
                  }
                },

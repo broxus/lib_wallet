@@ -108,6 +108,7 @@ struct TonTransferInvoice {
 
 struct TokenTransferInvoice {
   Ton::Symbol token;
+  Ton::TokenVersion version;
   int128 amount{};
   int64 realAmount{};
   QString rootContractAddress;
@@ -145,6 +146,7 @@ struct CancelWithdrawalInvoice {
 };
 
 struct DeployTokenWalletInvoice {
+  Ton::TokenVersion version;
   QString rootContractAddress;
   QString walletContractAddress;
   int64 realAmount{};
@@ -154,6 +156,7 @@ struct DeployTokenWalletInvoice {
 };
 
 struct UpgradeTokenWalletInvoice {
+  Ton::TokenVersion version;
   QString rootContractAddress;
   QString walletContractAddress;
   Ton::TokenVersion oldVersion;

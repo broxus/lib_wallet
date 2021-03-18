@@ -1461,7 +1461,11 @@ void History::refreshShowDates(const SelectedAsset &selectedAsset) {
                   }
                 },
                 [&](auto &&) {});
-            row->setTokenTransactionLayout(selectedToken.symbol);
+            if (!transaction.aborted) {
+              row->setTokenTransactionLayout(selectedToken.symbol);
+            } else {
+              row->setVisible(false);
+            }
           }
         },
         [&](const SelectedDePool &selectedDePool) {

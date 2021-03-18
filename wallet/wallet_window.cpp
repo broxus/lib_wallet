@@ -488,7 +488,8 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
                         const auto it = state.tokenStates.find(selectedToken.symbol);
                         if (it != state.tokenStates.end()) {
                           deployTokenWallet(
-                              DeployTokenWalletInvoice{.rootContractAddress = it->first.rootContractAddress(),
+                              DeployTokenWalletInvoice{.version = it->second.version,
+                                                       .rootContractAddress = it->first.rootContractAddress(),
                                                        .walletContractAddress = it->second.walletContractAddress,
                                                        .owned = true});
                         }
@@ -643,7 +644,7 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
                 }
 
                 _wallet->getRootTokenContractDetails(
-                    rootTokenContract,
+                    rootTokenContract, Ton::TokenVersion::Current,
                     crl::guard(this, [=](const Ton::Result<Ton::RootTokenContractDetails> &details) mutable {
                       const auto symbol = Ton::Symbol::tip3(details->symbol, details->decimals, rootTokenContract);
 
@@ -1032,6 +1033,7 @@ void Window::sendMoney(const PreparedInvoiceOrLink &invoice) {
           const auto it = state.tokenStates.find(tokenTransferInvoice.token);
           if (it != state.tokenStates.end()) {
             tokenTransferInvoice.callbackAddress = it->second.rootOwnerAddress;
+            tokenTransferInvoice.version = it->second.version;
           }
         }
 
@@ -1266,7 +1268,6 @@ void Window::confirmTransaction(PreparedInvoice invoice, const Fn<void(InvoiceFi
   auto done = [=](Ton::Result<Ton::TransactionCheckResult> result, PreparedInvoice &&invoice) mutable {
     *guard = false;
     if (!result.has_value()) {
-      std::cout << "Error? " << result.error().details.toStdString() << std::endl;
       return handleCheckError(std::move(result));
     }
     showSendConfirmation(invoice, *result, showInvoiceError);
@@ -1500,8 +1501,6 @@ void Window::askSendPassword(const PreparedInvoice &invoice, const Fn<void(Invoi
 
 void Window::showSendConfirmation(const PreparedInvoice &invoice, const Ton::TransactionCheckResult &checkResult,
                                   const Fn<void(InvoiceField)> &showInvoiceError) {
-  std::cout << "Show send confirmation?" << std::endl;
-
   const auto currentState = _state.current();
   const auto account = currentState.account;
   const auto gramsAvailable = account.fullBalance - account.lockedBalance;
