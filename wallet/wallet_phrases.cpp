@@ -300,12 +300,16 @@ phrase lng_wallet_confirm_cancel_withdrawal_text = "Do you want to cancel withdr
 phrase lng_wallet_confirm_deploy_token_wallet_text = "Do you want to deploy a token wallet for:";
 phrase lng_wallet_confirm_collect_tokens_text = "Do you want to execute proxy callback for:";
 phrase lng_wallet_confirm_multisig_confirm_text = "Do you want to confirm transaction **{value}** for:";
-phrase lng_wallet_confirm_multisig_deploy = "Do you want to deploy multisig contract to:";
+phrase lng_wallet_confirm_multisig_deploy_text = "Do you want to deploy multisig contract to:";
+phrase lng_wallet_confirm_upgrade_token_wallet_text =
+    "Updating the contract code is a necessary event in the early stages of bridge development. You are now "
+    "upgrading version from **{old}** to **{new}**.\n\nAll your tokens will be burned in favor of the new contract.";
 phrase lng_wallet_confirm_fee = "Fee: ~{grams}";
 phrase lng_wallet_confirm_send = "Send {ticker}";
 phrase lng_wallet_confirm_withdrawal = "Withdraw";
 phrase lng_wallet_confirm_cancel_withdrawal = "Confirm";
 phrase lng_wallet_confirm_deploy_token_wallet = "Deploy";
+phrase lng_wallet_confirm_upgrade_token_wallet = "Upgrade";
 phrase lng_wallet_confirm_deploy_multisig = "Deploy";
 phrase lng_wallet_confirm_multisig_confirm = "Confirm";
 phrase lng_wallet_confirm_execute = "Execute";
@@ -329,6 +333,7 @@ phrase lng_wallet_sending_all_stake = "All stake was requested for withdrawal.";
 phrase lng_wallet_sent_title = "Done!";
 phrase lng_wallet_sent_cancel_withdrawal = "Withdrawal cancelled";
 phrase lng_wallet_sent_deploy_token_wallet = "Deployed";
+phrase lng_wallet_sent_upgrade_token_wallet = "Upgraded";
 phrase lng_wallet_sent_collect_tokens = "Tokens collected";
 phrase lng_wallet_sent_multisig_deployed = "Deployed";
 phrase lng_wallet_sent_withdrawal_requested = "Withdrawal requested";
@@ -426,6 +431,10 @@ phrase lng_wallet_event_status_in_process = "in progress";
 phrase lng_wallet_event_status_confirmed = "confirmed";
 phrase lng_wallet_event_status_executed = "executed";
 phrase lng_wallet_event_status_rejected = "rejected";
+
+phrase lng_wallet_token_version_unknown = "unknown";
+phrase lng_wallet_token_version_tipo3v0 = "tipo3v0";
+phrase lng_wallet_token_version_tipo3v1 = "tipo3v1";
 
 phrase lng_wallet_multisig_version_safe_multisig = "SafeMultisig";
 phrase lng_wallet_multisig_version_safe_multisig_24h = "SafeMultisig24h";
@@ -547,6 +556,17 @@ Fn<phrase(Ton::TonEventStatus)> lng_wallet_ton_event_status = [](Ton::TonEventSt
     default:
       return ph::lng_wallet_event_status_unknown;
   }
+};
+
+Fn<phrase(Ton::TokenVersion)> lng_wallet_token_version = [](Ton::TokenVersion version) {
+    switch (version) {
+      case Ton::TokenVersion::tipo3v0:
+        return ph::lng_wallet_token_version_tipo3v0;
+      case Ton::TokenVersion::tipo3v1:
+        return ph::lng_wallet_token_version_tipo3v1;
+      default:
+        return ph::lng_wallet_token_version_unknown;
+    }
 };
 
 Fn<phrase(Ton::MultisigVersion)> lng_wallet_multisig_version = [](Ton::MultisigVersion version) {

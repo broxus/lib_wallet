@@ -66,12 +66,14 @@ void SendingDoneBox(not_null<Ui::GenericBox *> box, const Ton::Transaction &resu
   constexpr auto isWithdrawal = std::is_same_v<T, WithdrawalInvoice>;
   constexpr auto isCancelWithdrawal = std::is_same_v<T, CancelWithdrawalInvoice>;
   constexpr auto isDeployTokenWallet = std::is_same_v<T, DeployTokenWalletInvoice>;
+  constexpr auto isUpgradeTokenWallet = std::is_same_v<T, UpgradeTokenWalletInvoice>;
   constexpr auto isCollectTokens = std::is_same_v<T, CollectTokensInvoice>;
   constexpr auto isMsigDeploy = std::is_same_v<T, MultisigDeployInvoice>;
   constexpr auto isMsigTransfer = std::is_same_v<T, MultisigSubmitTransactionInvoice>;
   constexpr auto isMsigConfirm = std::is_same_v<T, MultisigConfirmTransactionInvoice>;
   static_assert(isTonTransfer || isTokenTransfer || isStakeTransfer || isWithdrawal || isCancelWithdrawal ||
-                isDeployTokenWallet || isCollectTokens || isMsigDeploy || isMsigConfirm || isMsigTransfer);
+                isDeployTokenWallet || isUpgradeTokenWallet || isCollectTokens || isCollectTokens || isMsigDeploy ||
+                isMsigConfirm || isMsigTransfer);
 
   const auto defaultToken = Ton::Symbol::ton();
 
@@ -98,6 +100,9 @@ void SendingDoneBox(not_null<Ui::GenericBox *> box, const Ton::Transaction &resu
   } else if constexpr (isDeployTokenWallet) {
     amountLabel =
         Ui::CreateChild<Ui::FlatLabel>(inner, ph::lng_wallet_sent_deploy_token_wallet(), st::walletSendingText);
+  } else if constexpr (isUpgradeTokenWallet) {
+    amountLabel =
+        Ui::CreateChild<Ui::FlatLabel>(inner, ph::lng_wallet_sent_upgrade_token_wallet(), st::walletSendingText);
   } else if constexpr (isCollectTokens) {
     amountLabel = Ui::CreateChild<Ui::FlatLabel>(inner, ph::lng_wallet_sent_collect_tokens(), st::walletSendingText);
   } else if constexpr (isMsigDeploy) {
@@ -113,7 +118,7 @@ void SendingDoneBox(not_null<Ui::GenericBox *> box, const Ton::Transaction &resu
   const auto realAmount = FormatAmount(-CalculateValue(result), defaultToken).full;
   Ui::FlatLabel *text = nullptr;
   if constexpr (isTonTransfer || isStakeTransfer || isWithdrawal || isCancelWithdrawal || isDeployTokenWallet ||
-                isCollectTokens) {
+                isUpgradeTokenWallet || isCollectTokens) {
     text = Ui::CreateChild<Ui::FlatLabel>(inner, ph::lng_wallet_grams_count_sent(realAmount, defaultToken)(),
                                           st::walletSendingText);
   } else if constexpr (isTokenTransfer) {
@@ -163,6 +168,7 @@ IMPL_BOX_FOR(StakeInvoice);
 IMPL_BOX_FOR(WithdrawalInvoice);
 IMPL_BOX_FOR(CancelWithdrawalInvoice);
 IMPL_BOX_FOR(DeployTokenWalletInvoice);
+IMPL_BOX_FOR(UpgradeTokenWalletInvoice);
 IMPL_BOX_FOR(CollectTokensInvoice);
 IMPL_BOX_FOR(MultisigDeployInvoice);
 IMPL_BOX_FOR(MultisigSubmitTransactionInvoice);

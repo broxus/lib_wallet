@@ -80,12 +80,14 @@ void ConfirmTransactionBox(not_null<Ui::GenericBox *> box, const T &invoice, int
   constexpr auto isWithdrawal = std::is_same_v<T, WithdrawalInvoice>;
   constexpr auto isCancelWithdrawal = std::is_same_v<T, CancelWithdrawalInvoice>;
   constexpr auto isDeployTokenWallet = std::is_same_v<T, DeployTokenWalletInvoice>;
+  constexpr auto isUpgradeTokenWallet = std::is_same_v<T, UpgradeTokenWalletInvoice>;
   constexpr auto isCollectTokens = std::is_same_v<T, CollectTokensInvoice>;
   constexpr auto isMsigDeploy = std::is_same_v<T, MultisigDeployInvoice>;
   constexpr auto isMsigTransfer = std::is_same_v<T, MultisigSubmitTransactionInvoice>;
   constexpr auto isMsigConfirm = std::is_same_v<T, MultisigConfirmTransactionInvoice>;
   static_assert(isTonTransfer || isTokenTransfer || isStakeTransfer || isWithdrawal || isCancelWithdrawal ||
-                isDeployTokenWallet || isCollectTokens || isMsigDeploy || isMsigTransfer || isMsigConfirm);
+                isDeployTokenWallet || isUpgradeTokenWallet || isCollectTokens || isMsigDeploy || isMsigTransfer ||
+                isMsigConfirm);
 
   auto token = Ton::Symbol::ton();
   if constexpr (isTokenTransfer) {
@@ -100,6 +102,8 @@ void ConfirmTransactionBox(not_null<Ui::GenericBox *> box, const T &invoice, int
   } else if constexpr (isStakeTransfer || isWithdrawal || isCancelWithdrawal) {
     address = invoice.dePool;
   } else if constexpr (isDeployTokenWallet) {
+    address = invoice.rootContractAddress;
+  } else if constexpr (isUpgradeTokenWallet) {
     address = invoice.rootContractAddress;
   } else if constexpr (isCollectTokens) {
     address = invoice.eventContractAddress;
@@ -142,6 +146,11 @@ void ConfirmTransactionBox(not_null<Ui::GenericBox *> box, const T &invoice, int
       return ph::lng_wallet_confirm_cancel_withdrawal_text();
     } else if constexpr (isDeployTokenWallet) {
       return ph::lng_wallet_confirm_deploy_token_wallet_text();
+    } else if constexpr (isUpgradeTokenWallet) {
+      return ph::lng_wallet_confirm_upgrade_token_wallet_text() | rpl::map([=](QString &&text) {
+               return text.replace(QString{"{old}"}, ph::lng_wallet_token_version(invoice.oldVersion)(ph::now))
+                   .replace(QString{"{new}"}, ph::lng_wallet_token_version(Ton::TokenVersion::Current)(ph::now));
+             });
     } else if constexpr (isCollectTokens) {
       return ph::lng_wallet_confirm_collect_tokens_text();
     } else if constexpr (isMsigConfirm) {
@@ -149,7 +158,7 @@ void ConfirmTransactionBox(not_null<Ui::GenericBox *> box, const T &invoice, int
                return text.replace(QString{"{value}"}, FormatTransactionId(invoice.transactionId));
              });
     } else if constexpr (isMsigDeploy) {
-      return ph::lng_wallet_confirm_multisig_deploy();
+      return ph::lng_wallet_confirm_multisig_deploy_text();
     } else {
       return ph::lng_wallet_confirm_text();
     }
@@ -202,10 +211,12 @@ void ConfirmTransactionBox(not_null<Ui::GenericBox *> box, const T &invoice, int
       return ph::lng_wallet_confirm_cancel_withdrawal();
     } else if constexpr (isDeployTokenWallet) {
       return ph::lng_wallet_confirm_deploy_token_wallet();
+    } else if constexpr (isUpgradeTokenWallet) {
+      return ph::lng_wallet_confirm_upgrade_token_wallet();
     } else if constexpr (isCollectTokens) {
       return ph::lng_wallet_confirm_execute();
     } else if constexpr (isMsigDeploy) {
-      return ph::lng_wallet_deploy();
+      return ph::lng_wallet_confirm_deploy_multisig();
     } else if constexpr (isMsigConfirm) {
       return ph::lng_wallet_confirm_multisig_confirm();
     } else {
@@ -228,6 +239,7 @@ IMPL_BOX_FOR(StakeInvoice);
 IMPL_BOX_FOR(WithdrawalInvoice);
 IMPL_BOX_FOR(CancelWithdrawalInvoice);
 IMPL_BOX_FOR(DeployTokenWalletInvoice);
+IMPL_BOX_FOR(UpgradeTokenWalletInvoice);
 IMPL_BOX_FOR(CollectTokensInvoice);
 IMPL_BOX_FOR(MultisigDeployInvoice);
 IMPL_BOX_FOR(MultisigSubmitTransactionInvoice);

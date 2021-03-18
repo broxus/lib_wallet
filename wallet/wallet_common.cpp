@@ -553,6 +553,15 @@ auto DeployTokenWalletInvoice::asTransaction() const -> Ton::DeployTokenWalletTr
   };
 }
 
+auto UpgradeTokenWalletInvoice::asTransaction() const -> Ton::UpgradeTokenWalletTransactionToSend {
+  return Ton::UpgradeTokenWalletTransactionToSend{
+      .amount = amount,
+      .rootContractAddress = rootContractAddress,
+      .walletContractAddress = walletContractAddress,
+      .oldVersion = oldVersion,
+  };
+}
+
 auto CollectTokensInvoice::asTransaction() const -> Ton::CollectTokensTransactionToSend {
   return Ton::CollectTokensTransactionToSend{
       .eventContractAddress = eventContractAddress,

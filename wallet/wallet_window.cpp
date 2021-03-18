@@ -496,6 +496,35 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
                       [&](const SelectedMultisig &selectedMultisig) { deployMultisig(selectedMultisig.address); },
                       [](auto &&) {});
                   return;
+                case Action::Upgrade:
+                  v::match(
+                      _selectedAsset.current().value_or(SelectedToken::defaultToken()),
+                      [&](const SelectedToken &selectedToken) {
+                        if (!selectedToken.symbol.isToken()) {
+                          return;
+                        }
+                        auto state = _state.current();
+                        const auto it = state.tokenStates.find(selectedToken.symbol);
+                        if (it != state.tokenStates.end()) {
+                          if (_tokenUpgradeGuard && *_tokenUpgradeGuard) {
+                            return;
+                          }
+
+                          if (!_tokenUpgradeGuard) {
+                            _tokenUpgradeGuard = std::make_shared<bool>(false);
+                          }
+                          confirmTransaction(
+                              UpgradeTokenWalletInvoice{
+                                  .rootContractAddress = selectedToken.symbol.rootContractAddress(),
+                                  .walletContractAddress = it->second.walletContractAddress,
+                                  .oldVersion = it->second.version,
+                                  .amount = it->second.balance,
+                              },
+                              [=](InvoiceField) {}, _tokenUpgradeGuard);
+                        }
+                      },
+                      [](auto &&) {});
+                  return;
                 case Action::LogOut:
                   return logoutWithConfirmation();
                 case Action::Back:
@@ -1184,11 +1213,13 @@ void Window::confirmTransaction(PreparedInvoice invoice, const Fn<void(InvoiceFi
   }
 
   const auto withoutBox = v::match(
-      invoice, [](const MultisigConfirmTransactionInvoice &) { return true; }, [](auto &&) { return false; });
+      invoice,                                                         //
+      [](const MultisigConfirmTransactionInvoice &) { return true; },  //
+      [](const UpgradeTokenWalletInvoice &) { return true; },          //
+      [](auto &&) { return false; });
   if (!withoutBox && !_sendBox) {
     return;
   }
-
   *guard = true;
 
   v::match(
@@ -1217,6 +1248,9 @@ void Window::confirmTransaction(PreparedInvoice invoice, const Fn<void(InvoiceFi
       [&](DeployTokenWalletInvoice &deployTokenWalletInvoice) {
         deployTokenWalletInvoice.realAmount = Ton::DeployTokenWalletTransactionToSend::realAmount;
       },
+      [&](UpgradeTokenWalletInvoice &upgradeTokenWalletInvoice) {
+        upgradeTokenWalletInvoice.realAmount = Ton::UpgradeTokenWalletTransactionToSend::realAmount;
+      },
       [&](CollectTokensInvoice &collectTokensInvoice) {
         collectTokensInvoice.realAmount = Ton::CollectTokensTransactionToSend::realAmount;
       },
@@ -1232,6 +1266,7 @@ void Window::confirmTransaction(PreparedInvoice invoice, const Fn<void(InvoiceFi
   auto done = [=](Ton::Result<Ton::TransactionCheckResult> result, PreparedInvoice &&invoice) mutable {
     *guard = false;
     if (!result.has_value()) {
+      std::cout << "Error? " << result.error().details.toStdString() << std::endl;
       return handleCheckError(std::move(result));
     }
     showSendConfirmation(invoice, *result, showInvoiceError);
@@ -1329,6 +1364,10 @@ void Window::confirmTransaction(PreparedInvoice invoice, const Fn<void(InvoiceFi
         _wallet->checkDeployTokenWallet(getMainPublicKey(), deployTokenWalletInvoice.asTransaction(),
                                         crl::guard(_sendBox.data(), doneUnchanged));
       },
+      [&](const UpgradeTokenWalletInvoice &upgradeTokenWalletInvoice) {
+        _wallet->checkUpgradeTokenWallet(getMainPublicKey(), upgradeTokenWalletInvoice.asTransaction(),
+                                         crl::guard(this, doneUnchanged));
+      },
       [&](const CollectTokensInvoice &collectTokensInvoice) {
         _wallet->checkCollectTokens(getMainPublicKey(), collectTokensInvoice.asTransaction(),
                                     crl::guard(_sendBox.data(), doneUnchanged));
@@ -1415,6 +1454,10 @@ void Window::askSendPassword(const PreparedInvoice &invoice, const Fn<void(Invoi
           _wallet->deployTokenWallet(mainPublicKey, passcode, deployTokenWalletInvoice.asTransaction(),
                                      crl::guard(this, ready), crl::guard(this, sent));
         },
+        [&](const UpgradeTokenWalletInvoice &upgradeTokenWalletInvoice) {
+          _wallet->upgradeTokenWallet(mainPublicKey, passcode, upgradeTokenWalletInvoice.asTransaction(),
+                                      crl::guard(this, ready), crl::guard(this, sent));
+        },
         [&](const CollectTokensInvoice &collectTokensInvoice) {
           _wallet->collectTokens(mainPublicKey, passcode, collectTokensInvoice.asTransaction(), crl::guard(this, ready),
                                  crl::guard(this, sent));
@@ -1457,6 +1500,8 @@ void Window::askSendPassword(const PreparedInvoice &invoice, const Fn<void(Invoi
 
 void Window::showSendConfirmation(const PreparedInvoice &invoice, const Ton::TransactionCheckResult &checkResult,
                                   const Fn<void(InvoiceField)> &showInvoiceError) {
+  std::cout << "Show send confirmation?" << std::endl;
+
   const auto currentState = _state.current();
   const auto account = currentState.account;
   const auto gramsAvailable = account.fullBalance - account.lockedBalance;
@@ -1554,6 +1599,20 @@ void Window::showSendConfirmation(const PreparedInvoice &invoice, const Ton::Tra
         return Box(ConfirmTransactionBox<DeployTokenWalletInvoice>, deployTokenWalletInvoice,
                    deployTokenWalletInvoice.realAmount + sourceFees,
                    [=] { askSendPassword(deployTokenWalletInvoice, showInvoiceError); });
+      },
+      [&](const UpgradeTokenWalletInvoice &upgradeTokenWalletInvoice) -> object_ptr<Ui::GenericBox> {
+        if (!checkAmount(upgradeTokenWalletInvoice.realAmount)) {
+          showInvoiceError(InvoiceField::Amount);
+          showSimpleError(ph::lng_wallet_send_failed_title(), ph::lng_wallet_send_failed_text(),
+                          ph::lng_wallet_continue());
+          return nullptr;
+        }
+
+        std::cout << "Show confirmation?" << std::endl;
+
+        return Box(ConfirmTransactionBox<UpgradeTokenWalletInvoice>, upgradeTokenWalletInvoice,
+                   upgradeTokenWalletInvoice.realAmount + sourceFees,
+                   [=] { askSendPassword(upgradeTokenWalletInvoice, showInvoiceError); });
       },
       [&](const CollectTokensInvoice &collectTokensInvoice) -> object_ptr<Ui::GenericBox> {
         if (!checkAmount(collectTokensInvoice.realAmount)) {
@@ -1675,38 +1734,9 @@ void Window::showSendingDone(std::optional<Ton::Transaction> result, const Prepa
   if (result) {
     const auto refresh = crl::guard(this, [this] { refreshNow(); });
 
-    auto box = v::match(
-        invoice,
-        [&](const TonTransferInvoice &tonTransferInvoice) {
-          return Box(SendingDoneBox<TonTransferInvoice>, *result, tonTransferInvoice, refresh);
-        },
-        [&](const TokenTransferInvoice &tokenTransferInvoice) {
-          return Box(SendingDoneBox<TokenTransferInvoice>, *result, tokenTransferInvoice, refresh);
-        },
-        [&](const StakeInvoice &stakeInvoice) {
-          return Box(SendingDoneBox<StakeInvoice>, *result, stakeInvoice, refresh);
-        },
-        [&](const WithdrawalInvoice &withdrawalInvoice) {
-          return Box(SendingDoneBox<WithdrawalInvoice>, *result, withdrawalInvoice, refresh);
-        },
-        [&](const CancelWithdrawalInvoice &cancelWithdrawalInvoice) {
-          return Box(SendingDoneBox<CancelWithdrawalInvoice>, *result, cancelWithdrawalInvoice, refresh);
-        },
-        [&](const DeployTokenWalletInvoice &deployTokenWalletInvoice) {
-          return Box(SendingDoneBox<DeployTokenWalletInvoice>, *result, deployTokenWalletInvoice, refresh);
-        },
-        [&](const CollectTokensInvoice &collectTokensInvoice) {
-          return Box(SendingDoneBox<CollectTokensInvoice>, *result, collectTokensInvoice, refresh);
-        },
-        [&](const MultisigDeployInvoice &invoice) {
-          return Box(SendingDoneBox<MultisigDeployInvoice>, *result, invoice, refresh);
-        },
-        [&](const MultisigSubmitTransactionInvoice &invoice) -> object_ptr<Ui::GenericBox> {
-          return Box(SendingDoneBox<MultisigSubmitTransactionInvoice>, *result, invoice, refresh);
-        },
-        [&](const MultisigConfirmTransactionInvoice &invoice) -> object_ptr<Ui::GenericBox> {
-          return Box(SendingDoneBox<MultisigConfirmTransactionInvoice>, *result, invoice, refresh);
-        });
+    auto box = v::match(invoice, [&](const auto &invoice) {
+      return Box(SendingDoneBox<std::decay_t<decltype(invoice)>>, *result, invoice, refresh);
+    });
 
     if (box != nullptr) {
       _layers->showBox(std::move(box));

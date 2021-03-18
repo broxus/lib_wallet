@@ -16,6 +16,7 @@ class Symbol;
 enum class EthEventStatus;
 enum class TonEventStatus;
 enum class MultisigVersion;
+enum class TokenVersion;
 }  // namespace Ton
 
 namespace ph {
@@ -284,12 +285,14 @@ extern phrase lng_wallet_confirm_cancel_withdrawal_text;
 extern phrase lng_wallet_confirm_deploy_token_wallet_text;
 extern phrase lng_wallet_confirm_collect_tokens_text;
 extern phrase lng_wallet_confirm_multisig_confirm_text;
-extern phrase lng_wallet_confirm_multisig_deploy;
+extern phrase lng_wallet_confirm_multisig_deploy_text;
+extern phrase lng_wallet_confirm_upgrade_token_wallet_text;
 extern phrase lng_wallet_confirm_fee;
 extern phrase lng_wallet_confirm_send;
 extern phrase lng_wallet_confirm_withdrawal;
 extern phrase lng_wallet_confirm_cancel_withdrawal;
 extern phrase lng_wallet_confirm_deploy_token_wallet;
+extern phrase lng_wallet_confirm_upgrade_token_wallet;
 extern phrase lng_wallet_confirm_deploy_multisig;
 extern phrase lng_wallet_confirm_multisig_confirm;
 extern phrase lng_wallet_confirm_execute;
@@ -311,6 +314,7 @@ extern phrase lng_wallet_sending_all_stake;
 extern phrase lng_wallet_sent_title;
 extern phrase lng_wallet_sent_cancel_withdrawal;
 extern phrase lng_wallet_sent_deploy_token_wallet;
+extern phrase lng_wallet_sent_upgrade_token_wallet;
 extern phrase lng_wallet_sent_multisig_deployed;
 extern phrase lng_wallet_sent_withdrawal_requested;
 extern phrase lng_wallet_sent_withdrawal_confirmed;
@@ -406,6 +410,10 @@ extern phrase lng_wallet_event_status_confirmed;
 extern phrase lng_wallet_event_status_executed;
 extern phrase lng_wallet_event_status_rejected;
 
+extern phrase lng_wallet_token_version_unknown;
+extern phrase lng_wallet_token_version_tipo3v0;
+extern phrase lng_wallet_token_version_tipo3v1;
+
 extern phrase lng_wallet_multisig_version_safe_multisig;
 extern phrase lng_wallet_multisig_version_safe_multisig_24h;
 extern phrase lng_wallet_multisig_version_setcode_multisig;
@@ -431,6 +439,7 @@ extern Fn<phrase(QString, const Ton::Symbol &)> lng_wallet_grams_count_sent;
 extern Fn<phrase(QString)> lng_wallet_grams_count_withdrawn;
 extern Fn<phrase(Ton::EthEventStatus)> lng_wallet_eth_event_status;
 extern Fn<phrase(Ton::TonEventStatus)> lng_wallet_ton_event_status;
+extern Fn<phrase(Ton::TokenVersion)> lng_wallet_token_version;
 extern Fn<phrase(Ton::MultisigVersion)> lng_wallet_multisig_version;
 
 }  // namespace ph

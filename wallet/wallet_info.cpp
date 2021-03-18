@@ -178,7 +178,8 @@ void Info::setupControls(Data &&data) {
   // register top cover events
   rpl::merge(cover->sendRequests() | rpl::map([] { return Action::Send; }),
              cover->receiveRequests() | rpl::map([] { return Action::Receive; }),
-             cover->deployRequests() | rpl::map([] { return Action::Deploy; }))  //
+             cover->deployRequests() | rpl::map([] { return Action::Deploy; }),
+             cover->upgradeRequests() | rpl::map([] { return Action::Upgrade; }))  //
       | rpl::start_to_stream(_actionRequests, cover->lifetime());
 
   // create transactions lists

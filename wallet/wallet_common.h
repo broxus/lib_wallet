@@ -153,6 +153,16 @@ struct DeployTokenWalletInvoice {
   auto asTransaction() const -> Ton::DeployTokenWalletTransactionToSend;
 };
 
+struct UpgradeTokenWalletInvoice {
+  QString rootContractAddress;
+  QString walletContractAddress;
+  Ton::TokenVersion oldVersion;
+  int128 amount{};
+  int64 realAmount{};
+
+  auto asTransaction() const -> Ton::UpgradeTokenWalletTransactionToSend;
+};
+
 struct CollectTokensInvoice {
   QString eventContractAddress;
   int64 realAmount{};
@@ -190,9 +200,10 @@ struct MultisigConfirmTransactionInvoice {
 using PreparedInvoice = std::variant<  //
     TonTransferInvoice,
     //
-    TokenTransferInvoice,      //
-    DeployTokenWalletInvoice,  //
-    CollectTokensInvoice,      //
+    TokenTransferInvoice,       //
+    DeployTokenWalletInvoice,   //
+    UpgradeTokenWalletInvoice,  //
+    CollectTokensInvoice,       //
     //
     StakeInvoice,             //
     WithdrawalInvoice,        //
@@ -212,6 +223,7 @@ enum class Action {
   ShowKeystore,
   AddAsset,
   Deploy,
+  Upgrade,
   LogOut,
   Back,
 };
