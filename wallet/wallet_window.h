@@ -199,7 +199,6 @@ class Window final : public base::has_weak_ptr {
   std::shared_ptr<bool> _multisigDeploymentGuard;
   QPointer<Ui::GenericBox> _multisigDeploymentBox;
 
-  std::shared_ptr<bool> _tokenTransferGuard;
   std::shared_ptr<bool> _tokenUpgradeGuard;
   std::shared_ptr<bool> _multisigConfirmationGuard;
 };

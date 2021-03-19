@@ -159,6 +159,7 @@ struct UpgradeTokenWalletInvoice {
   Ton::TokenVersion version;
   QString rootContractAddress;
   QString walletContractAddress;
+  QString callbackAddress;
   Ton::TokenVersion oldVersion;
   int128 amount{};
   int64 realAmount{};

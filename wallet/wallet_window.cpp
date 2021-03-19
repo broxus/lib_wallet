@@ -518,6 +518,7 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
                               UpgradeTokenWalletInvoice{
                                   .rootContractAddress = selectedToken.symbol.rootContractAddress(),
                                   .walletContractAddress = it->second.walletContractAddress,
+                                  .callbackAddress = it->second.proxyAddress,
                                   .oldVersion = it->second.version,
                                   .amount = it->second.balance,
                               },
@@ -1065,26 +1066,9 @@ void Window::sendTokens(TokenTransferInvoice &&invoice) {
   }
 
   invoice.version = it->second.version;
+  invoice.callbackAddress = it->second.proxyAddress;
 
-  if (_tokenTransferGuard && std::exchange(*_tokenTransferGuard, true)) {
-    return;
-  }
-
-  if (!_tokenTransferGuard) {
-    _tokenTransferGuard = std::make_shared<bool>(true);
-  }
-
-  _wallet->getRootTokenContractDetails(  //
-      invoice.token.rootContractAddress(), it->second.version,
-      [=](const Ton::Result<Ton::RootTokenContractDetails> &details) mutable {
-        if (_tokenTransferGuard) {
-          *_tokenTransferGuard = false;
-        }
-        if (details.has_value()) {
-          invoice.callbackAddress = details->ownerAddress;
-        }
-        sendMoney(std::move(invoice));
-      });
+  sendMoney(std::move(invoice));
 }
 
 void Window::sendStake(const StakeInvoice &invoice) {
