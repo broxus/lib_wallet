@@ -431,7 +431,7 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
                         if (selectedToken.symbol.isTon()) {
                           sendMoney(TonTransferInvoice{});
                         } else {
-                          sendMoney(TokenTransferInvoice{.token = selectedToken.symbol});
+                          sendTokens(TokenTransferInvoice{.token = selectedToken.symbol});
                         }
                       },
                       [&](const SelectedDePool &selectedDePool) {
@@ -723,7 +723,7 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
                           .address = address,
                       });
                     } else {
-                      sendMoney(TokenTransferInvoice{
+                      sendTokens(TokenTransferInvoice{
                           .token = selectedToken.symbol,
                           .ownerAddress = address,
                           .address = address,
@@ -1028,15 +1028,6 @@ void Window::sendMoney(const PreparedInvoiceOrLink &invoice) {
           }
         };
 
-        if (tokenTransferInvoice.callbackAddress.isEmpty()) {
-          const auto state = _state.current();
-          const auto it = state.tokenStates.find(tokenTransferInvoice.token);
-          if (it != state.tokenStates.end()) {
-            tokenTransferInvoice.callbackAddress = it->second.rootOwnerAddress;
-            tokenTransferInvoice.version = it->second.version;
-          }
-        }
-
         return Box(SendGramsBox<TokenTransferInvoice>, tokenTransferInvoice, _state.value(), send);
       },
       [=](MultisigSubmitTransactionInvoice &invoice) {
@@ -1064,6 +1055,36 @@ void Window::sendMoney(const PreparedInvoiceOrLink &invoice) {
     _sendBox = box.data();
     _layers->showBox(std::move(box));
   }
+}
+
+void Window::sendTokens(TokenTransferInvoice &&invoice) {
+  const auto state = _state.current();
+  const auto it = state.tokenStates.find(invoice.token);
+  if (it == state.tokenStates.end()) {
+    return;
+  }
+
+  invoice.version = it->second.version;
+
+  if (_tokenTransferGuard && std::exchange(*_tokenTransferGuard, true)) {
+    return;
+  }
+
+  if (!_tokenTransferGuard) {
+    _tokenTransferGuard = std::make_shared<bool>(true);
+  }
+
+  _wallet->getRootTokenContractDetails(  //
+      invoice.token.rootContractAddress(), it->second.version,
+      [=](const Ton::Result<Ton::RootTokenContractDetails> &details) mutable {
+        if (_tokenTransferGuard) {
+          *_tokenTransferGuard = false;
+        }
+        if (details.has_value()) {
+          invoice.callbackAddress = details->ownerAddress;
+        }
+        sendMoney(std::move(invoice));
+      });
 }
 
 void Window::sendStake(const StakeInvoice &invoice) {

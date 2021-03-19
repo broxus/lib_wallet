@@ -94,6 +94,7 @@ class Window final : public base::has_weak_ptr {
   void setupUpdateWithInfo();
   void setupRefreshEach();
   void sendMoney(const PreparedInvoiceOrLink &symbol);
+  void sendTokens(TokenTransferInvoice&& invoice);
   void sendStake(const StakeInvoice &invoice);
   void dePoolWithdraw(const WithdrawalInvoice &invoice);
   void dePoolCancelWithdrawal(const CancelWithdrawalInvoice &invoice);
@@ -198,6 +199,7 @@ class Window final : public base::has_weak_ptr {
   std::shared_ptr<bool> _multisigDeploymentGuard;
   QPointer<Ui::GenericBox> _multisigDeploymentBox;
 
+  std::shared_ptr<bool> _tokenTransferGuard;
   std::shared_ptr<bool> _tokenUpgradeGuard;
   std::shared_ptr<bool> _multisigConfirmationGuard;
 };

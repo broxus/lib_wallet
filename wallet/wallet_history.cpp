@@ -1734,7 +1734,6 @@ rpl::producer<HistoryState> MakeHistoryState(rpl::producer<Ton::WalletViewerStat
              for (auto &&[symbol, token] : state.wallet.tokenStates) {
                lastTransactions.emplace(std::make_pair(symbol, QString{}), token.lastTransactions);
                knownContracts.insert(token.walletContractAddress);
-               knownContracts.insert(token.rootOwnerAddress);
                knownContracts.insert(symbol.rootContractAddress());
              }
 
