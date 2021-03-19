@@ -328,7 +328,8 @@ void Cover::setupControls() {
                 [&](const SelectedToken &selectedToken) {
                   *shouldDeploy = selectedToken.symbol.isToken() && !state.isDeployed;
                   *shouldUpgrade = state.shouldUpgrade;
-                  return std::make_pair(hasUnlockedFunds || shouldDeploy->current() || shouldUpgrade->current(), !shouldUpgrade->current());
+                  return std::make_pair(hasUnlockedFunds || shouldDeploy->current() || shouldUpgrade->current(),
+                                        !shouldUpgrade->current());
                 },
                 [&](const SelectedDePool & /*selectedDePool*/) {
                   *shouldDeploy = false;
@@ -402,7 +403,8 @@ rpl::producer<CoverState> MakeCoverState(rpl::producer<Ton::WalletViewerState> s
                      result.unlockedBalance = it->second.balance;
                      result.isDeployed =
                          it->second.lastTransactions.previousId.lt != 0 || !it->second.lastTransactions.list.empty();
-                     result.shouldUpgrade = it->second.version != Ton::TokenVersion::Current;
+                     result.shouldUpgrade =
+                         result.unlockedBalance > 0 && it->second.version != Ton::TokenVersion::Current;
                    }
                  }
                },

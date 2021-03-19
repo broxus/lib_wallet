@@ -303,7 +303,8 @@ phrase lng_wallet_confirm_multisig_confirm_text = "Do you want to confirm transa
 phrase lng_wallet_confirm_multisig_deploy_text = "Do you want to deploy multisig contract to:";
 phrase lng_wallet_confirm_upgrade_token_wallet_text =
     "Updating the contract code is a necessary event in the early stages of bridge development. You are now "
-    "upgrading version from **{old}** to **{new}**.\n\nAll your tokens will be burned in favor of the new contract.";
+    "upgrading version from **{old}** to **{new}**.\n\nAll your tokens will be burned and new contract with the "
+    "same balance will be deployed.";
 phrase lng_wallet_confirm_fee = "Fee: ~{grams}";
 phrase lng_wallet_confirm_send = "Send {ticker}";
 phrase lng_wallet_confirm_withdrawal = "Withdraw";
@@ -559,14 +560,14 @@ Fn<phrase(Ton::TonEventStatus)> lng_wallet_ton_event_status = [](Ton::TonEventSt
 };
 
 Fn<phrase(Ton::TokenVersion)> lng_wallet_token_version = [](Ton::TokenVersion version) {
-    switch (version) {
-      case Ton::TokenVersion::tipo3v0:
-        return ph::lng_wallet_token_version_tipo3v0;
-      case Ton::TokenVersion::tipo3v1:
-        return ph::lng_wallet_token_version_tipo3v1;
-      default:
-        return ph::lng_wallet_token_version_unknown;
-    }
+  switch (version) {
+    case Ton::TokenVersion::tipo3v0:
+      return ph::lng_wallet_token_version_tipo3v0;
+    case Ton::TokenVersion::tipo3v1:
+      return ph::lng_wallet_token_version_tipo3v1;
+    default:
+      return ph::lng_wallet_token_version_unknown;
+  }
 };
 
 Fn<phrase(Ton::MultisigVersion)> lng_wallet_multisig_version = [](Ton::MultisigVersion version) {

@@ -103,8 +103,6 @@ void ConfirmTransactionBox(not_null<Ui::GenericBox *> box, const T &invoice, int
     address = invoice.dePool;
   } else if constexpr (isDeployTokenWallet) {
     address = invoice.rootContractAddress;
-  } else if constexpr (isUpgradeTokenWallet) {
-    address = invoice.rootContractAddress;
   } else if constexpr (isCollectTokens) {
     address = invoice.eventContractAddress;
   } else if constexpr (isMsigConfirm) {
@@ -117,7 +115,7 @@ void ConfirmTransactionBox(not_null<Ui::GenericBox *> box, const T &invoice, int
   if constexpr (isTokenTransfer) {
     showAsRaw = Ton::Wallet::CheckAddress(address);
   }
-  if (showAsRaw) {
+  if (showAsRaw && !address.isEmpty()) {
     address = Ton::Wallet::ConvertIntoRaw(address);
   }
 
@@ -172,9 +170,11 @@ void ConfirmTransactionBox(not_null<Ui::GenericBox *> box, const T &invoice, int
 
   box->addRow(object_ptr<Ui::FlatLabel>(box, std::move(text), st::walletLabel), st::walletConfirmationLabelPadding);
 
-  box->addRow(object_ptr<Ui::RpWidget>::fromRaw(Ui::CreateAddressLabel(
-                  box, rpl::single(address), st::walletConfirmationAddressLabel, nullptr, st::windowBgOver->c)),
-              st::walletConfirmationAddressPadding);
+  if (!address.isEmpty()) {
+    box->addRow(object_ptr<Ui::RpWidget>::fromRaw(Ui::CreateAddressLabel(
+                    box, rpl::single(address), st::walletConfirmationAddressLabel, nullptr, st::windowBgOver->c)),
+                st::walletConfirmationAddressPadding);
+  }
 
   const auto feeParsed = FormatAmount(fee, Ton::Symbol::ton()).full;
   auto feeText =

@@ -24,6 +24,7 @@ struct TokenItem {
   Ton::Symbol token = Ton::Symbol::ton();
   QString address = "";
   int128 balance = 0;
+  bool outdated;
 };
 
 struct DePoolItem {

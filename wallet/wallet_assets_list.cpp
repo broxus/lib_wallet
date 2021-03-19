@@ -26,6 +26,7 @@ struct AssetItemLayout {
   Ui::Text::String balanceNano;
   Ui::Text::String address;
   int addressWidth = 0;
+  Ui::Text::String outdated;
 };
 
 [[nodiscard]] const style::TextStyle &addressStyle() {
@@ -38,21 +39,21 @@ auto addressPartWidth(const QString &address, int from, int length = -1) {
 }
 
 [[nodiscard]] AssetItemLayout prepareLayout(const AssetItem &data) {
-  const auto [title, token, address, balance] = v::match(
+  const auto [title, token, address, balance, outdated] = v::match(
       data,
       [](const TokenItem &item) {
         return std::make_tuple(
             item.token.name(), item.token,
             Ton::Wallet::ConvertIntoRaw(item.token.isTon() ? item.address : item.token.rootContractAddress()),
-            item.balance);
+            item.balance, item.outdated);
       },
       [](const DePoolItem &item) {
         return std::make_tuple(QString{"DePool"}, Ton::Symbol::ton(), Ton::Wallet::ConvertIntoRaw(item.address),
-                               int128{item.total});
+                               int128{item.total}, false);
       },
       [](const MultisigItem &item) {
         return std::make_tuple(QString{"Msig"}, Ton::Symbol::ton(), Ton::Wallet::ConvertIntoRaw(item.address),
-                               int128{item.balance});
+                               int128{item.balance}, false);
       });
 
   const auto formattedBalance = FormatAmount(balance > 0 ? balance : 0, token);
@@ -69,6 +70,10 @@ auto addressPartWidth(const QString &address, int from, int length = -1) {
   result.address = Ui::Text::String(addressStyle(), address, _defaultOptions, st::walletAddressWidthMin);
   result.addressWidth = (addressStyle().font->spacew / 2) + std::max(addressPartWidth(address, 0, address.size() / 2),
                                                                      addressPartWidth(address, address.size() / 2));
+
+  if (outdated) {
+    result.outdated = Ui::Text::String(st::walletTokensListOutdatedStyle, "old");
+  }
 
   return result;
 }
@@ -131,6 +136,19 @@ class AssetsListRow final {
                                     /*yTo*/ -1,
                                     /*removeFromEnd*/ 0,
                                     /*breakEverywhere*/ true);
+
+    if (!_layout.outdated.isEmpty()) {
+      const auto outdatedLeft = 0;
+      const auto outdatedTop = iconTop;
+
+      const auto leftOffset = _layout.outdated.style()->font->width(QChar{' '});
+
+      p.translate(outdatedLeft, outdatedTop);
+      p.rotate(-45);
+      p.fillRect(-availableWidth, 0, availableWidth * 2, _layout.outdated.minHeight(), st::boxTextFgError->c);
+      p.setPen(st::windowBg->c);
+      _layout.outdated.draw(p, leftOffset, 0, availableWidth);
+    }
   }
 
   bool refresh(const AssetItem &item) {
@@ -454,6 +472,7 @@ rpl::producer<AssetsListState> MakeTokensListState(rpl::producer<Ton::WalletView
                          .token = token.symbol,
                          .address = it->second.walletContractAddress,
                          .balance = it->second.balance,
+                         .outdated = it->second.version != Ton::TokenVersion::Current,
                      };
                    } else {
                      return TokenItem{.token = token.symbol, .address = Ton::kZeroAddress};
