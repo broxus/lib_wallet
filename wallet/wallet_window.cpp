@@ -644,7 +644,7 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
                 }
 
                 _wallet->getRootTokenContractDetails(
-                    rootTokenContract, Ton::TokenVersion::Current,
+                    rootTokenContract,
                     crl::guard(this, [=](const Ton::Result<Ton::RootTokenContractDetails> &details) mutable {
                       const auto symbol = Ton::Symbol::tip3(details->symbol, details->decimals, rootTokenContract);
 
