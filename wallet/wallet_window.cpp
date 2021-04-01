@@ -507,7 +507,8 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
                         auto state = _state.current();
                         const auto it = state.tokenStates.find(selectedToken.symbol);
                         if (it != state.tokenStates.end()) {
-                          if (_tokenUpgradeGuard && *_tokenUpgradeGuard) {
+                          const auto newVersion = it->second.shouldUpdate();
+                          if (_tokenUpgradeGuard && *_tokenUpgradeGuard || !newVersion.has_value()) {
                             return;
                           }
 
@@ -520,6 +521,7 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
                                   .walletContractAddress = it->second.walletContractAddress,
                                   .callbackAddress = it->second.proxyAddress,
                                   .oldVersion = it->second.version,
+                                  .newVersion = *newVersion,
                                   .amount = it->second.balance,
                               },
                               [=](InvoiceField) {}, _tokenUpgradeGuard);

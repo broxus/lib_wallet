@@ -147,7 +147,7 @@ void ConfirmTransactionBox(not_null<Ui::GenericBox *> box, const T &invoice, int
     } else if constexpr (isUpgradeTokenWallet) {
       return ph::lng_wallet_confirm_upgrade_token_wallet_text() | rpl::map([=](QString &&text) {
                return text.replace(QString{"{old}"}, ph::lng_wallet_token_version(invoice.oldVersion)(ph::now))
-                   .replace(QString{"{new}"}, ph::lng_wallet_token_version(Ton::TokenVersion::Current)(ph::now));
+                   .replace(QString{"{new}"}, ph::lng_wallet_token_version(invoice.newVersion)(ph::now));
              });
     } else if constexpr (isCollectTokens) {
       return ph::lng_wallet_confirm_collect_tokens_text();

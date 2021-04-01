@@ -434,8 +434,9 @@ phrase lng_wallet_event_status_executed = "executed";
 phrase lng_wallet_event_status_rejected = "rejected";
 
 phrase lng_wallet_token_version_unknown = "unknown";
-phrase lng_wallet_token_version_tipo3v0 = "tipo3v0";
 phrase lng_wallet_token_version_tipo3v1 = "tipo3v1";
+phrase lng_wallet_token_version_tipo3v2 = "tipo3v2";
+phrase lng_wallet_token_version_tip3v3 = "TIP3v3";
 
 phrase lng_wallet_multisig_version_safe_multisig = "SafeMultisig";
 phrase lng_wallet_multisig_version_safe_multisig_24h = "SafeMultisig24h";
@@ -561,10 +562,12 @@ Fn<phrase(Ton::TonEventStatus)> lng_wallet_ton_event_status = [](Ton::TonEventSt
 
 Fn<phrase(Ton::TokenVersion)> lng_wallet_token_version = [](Ton::TokenVersion version) {
   switch (version) {
-    case Ton::TokenVersion::tipo3v0:
-      return ph::lng_wallet_token_version_tipo3v0;
     case Ton::TokenVersion::tipo3v1:
       return ph::lng_wallet_token_version_tipo3v1;
+    case Ton::TokenVersion::tipo3v2:
+      return ph::lng_wallet_token_version_tipo3v2;
+    case Ton::TokenVersion::TIP3v3:
+      return ph::lng_wallet_token_version_tip3v3;
     default:
       return ph::lng_wallet_token_version_unknown;
   }

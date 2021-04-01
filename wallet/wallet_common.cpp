@@ -562,6 +562,7 @@ auto UpgradeTokenWalletInvoice::asTransaction() const -> Ton::UpgradeTokenWallet
       .walletContractAddress = walletContractAddress,
       .callbackAddress = callbackAddress,
       .oldVersion = oldVersion,
+      .newVersion = newVersion,
   };
 }
 

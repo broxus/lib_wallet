@@ -404,7 +404,7 @@ rpl::producer<CoverState> MakeCoverState(rpl::producer<Ton::WalletViewerState> s
                      result.isDeployed =
                          it->second.lastTransactions.previousId.lt != 0 || !it->second.lastTransactions.list.empty();
                      result.shouldUpgrade =
-                         result.unlockedBalance > 0 && it->second.shouldUpdate();
+                         result.unlockedBalance > 0 && it->second.shouldUpdate().has_value();
                    }
                  }
                },

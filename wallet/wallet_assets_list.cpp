@@ -472,7 +472,7 @@ rpl::producer<AssetsListState> MakeTokensListState(rpl::producer<Ton::WalletView
                          .token = token.symbol,
                          .address = it->second.walletContractAddress,
                          .balance = it->second.balance,
-                         .outdated = it->second.shouldUpdate(),
+                         .outdated = it->second.shouldUpdate().has_value(),
                      };
                    } else {
                      return TokenItem{.token = token.symbol, .address = Ton::kZeroAddress};
