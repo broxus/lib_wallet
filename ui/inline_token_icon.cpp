@@ -60,6 +60,13 @@ const std::vector<std::pair<int, QString>> &TokenVariants(const QString &name) {
             {44, "weth@2x.png"},
             {88, "weth@4x.png"},
             {192, "weth@large.png"},
+        }},
+       {"wton",
+        {
+            {24, "wton.png"},
+            {44, "wton@2x.png"},
+            {88, "wton@4x.png"},
+            {192, "wton@large.png"},
         }}};
 
   const auto it = tokenIcons.find(name.trimmed().toLower());
@@ -118,6 +125,7 @@ const QImage &Image(const Ton::Symbol &symbol) {
       {"dai", TokenImage("DAI", st::walletTokenIconSize * style::DevicePixelRatio())},
       {"wbtc", TokenImage("WBTC", st::walletTokenIconSize * style::DevicePixelRatio())},
       {"weth", TokenImage("WETH", st::walletTokenIconSize * style::DevicePixelRatio())},
+      {"wton", TokenImage("wTON", st::walletTokenIconSize * style::DevicePixelRatio())},
   };
 
   if (symbol.isTon()) {

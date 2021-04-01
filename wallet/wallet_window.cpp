@@ -508,7 +508,7 @@ void Window::showAccount(const QByteArray &publicKey, bool justCreated) {
                         const auto it = state.tokenStates.find(selectedToken.symbol);
                         if (it != state.tokenStates.end()) {
                           const auto newVersion = it->second.shouldUpdate();
-                          if (_tokenUpgradeGuard && *_tokenUpgradeGuard || !newVersion.has_value()) {
+                          if ((_tokenUpgradeGuard && *_tokenUpgradeGuard) || !newVersion.has_value()) {
                             return;
                           }
 

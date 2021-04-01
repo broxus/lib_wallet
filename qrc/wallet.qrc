@@ -49,5 +49,10 @@
     <file alias="art/dai@2x.png">../art/dai@2x.png</file>
     <file alias="art/dai@4x.png">../art/dai@4x.png</file>
     <file alias="art/dai@large.png">../art/dai@large.png</file>
+
+    <file alias="art/wton.png">../art/wton.png</file>
+    <file alias="art/wton@2x.png">../art/wton@2x.png</file>
+    <file alias="art/wton@4x.png">../art/wton@4x.png</file>
+    <file alias="art/wton@large.png">../art/wton@large.png</file>
   </qresource>
 </RCC>
