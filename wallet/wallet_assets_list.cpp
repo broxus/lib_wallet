@@ -19,6 +19,9 @@
 namespace Wallet {
 
 namespace {
+
+enum class LayoutType { Compact, Full };
+
 struct AssetItemLayout {
   QImage image;
   Ui::Text::String title;
@@ -27,7 +30,12 @@ struct AssetItemLayout {
   Ui::Text::String address;
   int addressWidth = 0;
   Ui::Text::String outdated;
+  LayoutType type;
 };
+
+int assetRowHeight(LayoutType type) {
+  return type == LayoutType::Compact ? st::walletTokensListCompactRowHeight : st::walletTokensListRowHeight;
+}
 
 [[nodiscard]] const style::TextStyle &addressStyle() {
   const static auto result = Ui::ComputeAddressStyle(st::defaultTextStyle);
@@ -39,26 +47,28 @@ auto addressPartWidth(const QString &address, int from, int length = -1) {
 }
 
 [[nodiscard]] AssetItemLayout prepareLayout(const AssetItem &data) {
-  const auto [title, token, address, balance, outdated] = v::match(
+  const auto [type, title, token, address, balance, outdated] = v::match(
       data,
       [](const TokenItem &item) {
-        return std::make_tuple(
-            item.token.name(), item.token,
-            Ton::Wallet::ConvertIntoRaw(item.token.isTon() ? item.address : item.token.rootContractAddress()),
-            item.balance, item.outdated);
+        const auto layoutType = item.token.isToken() ? LayoutType::Compact : LayoutType::Full;
+
+        return std::make_tuple(layoutType, item.token.name(), item.token,
+                               item.token.isTon() ? Ton::Wallet::ConvertIntoRaw(item.address) : QString{}, item.balance,
+                               item.outdated);
       },
       [](const DePoolItem &item) {
-        return std::make_tuple(QString{"DePool"}, Ton::Symbol::ton(), Ton::Wallet::ConvertIntoRaw(item.address),
-                               int128{item.total}, false);
+        return std::make_tuple(LayoutType::Full, QString{"DePool"}, Ton::Symbol::ton(),
+                               Ton::Wallet::ConvertIntoRaw(item.address), int128{item.total}, false);
       },
       [](const MultisigItem &item) {
-        return std::make_tuple(QString{"Msig"}, Ton::Symbol::ton(), Ton::Wallet::ConvertIntoRaw(item.address),
-                               int128{item.balance}, false);
+        return std::make_tuple(LayoutType::Full, QString{"Msig"}, Ton::Symbol::ton(),
+                               Ton::Wallet::ConvertIntoRaw(item.address), int128{item.balance}, false);
       });
 
   const auto formattedBalance = FormatAmount(balance > 0 ? balance : 0, token);
 
   auto result = AssetItemLayout();
+  result.type = type;
   result.image = Ui::InlineTokenIcon(token, st::walletTokensListRowIconSize);
   result.title.setText(st::walletTokensListRowTitleStyle.style, title);
 
@@ -67,9 +77,11 @@ auto addressPartWidth(const QString &address, int from, int length = -1) {
   result.balanceNano.setText(st::walletTokensListRowNanoStyle,
                              formattedBalance.separator + formattedBalance.nanoString);
 
-  result.address = Ui::Text::String(addressStyle(), address, _defaultOptions, st::walletAddressWidthMin);
-  result.addressWidth = (addressStyle().font->spacew / 2) + std::max(addressPartWidth(address, 0, address.size() / 2),
-                                                                     addressPartWidth(address, address.size() / 2));
+  if (!address.isEmpty()) {
+    result.address = Ui::Text::String(addressStyle(), address, _defaultOptions, st::walletAddressWidthMin);
+    result.addressWidth = (addressStyle().font->spacew / 2) + std::max(addressPartWidth(address, 0, address.size() / 2),
+                                                                       addressPartWidth(address, address.size() / 2));
+  }
 
   if (outdated) {
     result.outdated = Ui::Text::String(st::walletTokensListOutdatedStyle, "old");
@@ -108,11 +120,13 @@ class AssetsListRow final {
     }
     p.drawImage(iconLeft, iconTop, _layout.image);
 
-    // draw token name
-    p.setPen(st::walletTokensListRowTitleStyle.textFg);
-    const auto titleTop = iconTop + st::walletTokensListRowIconSize;
-    const auto titleLeft = iconLeft + (st::walletTokensListRowIconSize - _layout.title.maxWidth()) / 2;
-    _layout.title.draw(p, titleLeft, titleTop, availableWidth);
+    if (_layout.type == LayoutType::Full) {
+      // draw asset name
+      p.setPen(st::walletTokensListRowTitleStyle.textFg);
+      const auto titleTop = iconTop + st::walletTokensListRowIconSize;
+      const auto titleLeft = iconLeft + (st::walletTokensListRowIconSize - _layout.title.maxWidth()) / 2;
+      _layout.title.draw(p, titleLeft, titleTop, availableWidth);
+    }
 
     // draw balance
     p.setPen(st::walletTokensListRow.textFg);
@@ -126,16 +140,25 @@ class AssetsListRow final {
     const auto gramLeft = availableWidth - _layout.balanceNano.maxWidth() - _layout.balanceGrams.maxWidth();
     _layout.balanceGrams.draw(p, gramLeft, gramTop, availableWidth);
 
-    // draw address
-    p.setPen(st::walletTokensListRowTitleStyle.textFg);
+    if (_layout.type == LayoutType::Compact) {
+      // draw asset name
+      p.setPen(st::walletTokensListRowTitleStyle.textFg);
+      const auto titleTop = iconTop + _layout.image.height() - _layout.title.minHeight();
+      _layout.title.drawRight(p, 0, titleTop, _layout.title.maxWidth(), availableWidth);
+    }
 
-    const auto addressTop = availableHeight - padding.bottom() - addressStyle().font->ascent * 2;
-    _layout.address.drawRightElided(p, padding.right(), addressTop, _layout.addressWidth, _width - padding.right(),
-                                    /*lines*/ 2, style::al_bottomright,
-                                    /*yFrom*/ 0,
-                                    /*yTo*/ -1,
-                                    /*removeFromEnd*/ 0,
-                                    /*breakEverywhere*/ true);
+    if (_layout.type == LayoutType::Full) {
+      // draw address
+      p.setPen(st::walletTokensListRowTitleStyle.textFg);
+
+      const auto addressTop = availableHeight - padding.bottom() - addressStyle().font->ascent * 2;
+      _layout.address.drawRightElided(p, padding.right(), addressTop, _layout.addressWidth, _width - padding.right(),
+                                      /*lines*/ 2, style::al_bottomright,
+                                      /*yFrom*/ 0,
+                                      /*yTo*/ -1,
+                                      /*removeFromEnd*/ 0,
+                                      /*breakEverywhere*/ true);
+    }
 
     if (!_layout.outdated.isEmpty()) {
       const auto outdatedLeft = 0;
@@ -167,8 +190,16 @@ class AssetsListRow final {
     }
 
     _width = width;
-    _height = st::walletTokensListRowHeight;
+    _height = assetRowHeight(layoutType());
     // TODO: handle contents resize
+  }
+
+  LayoutType layoutType() {
+    return _layout.type;
+  }
+
+  int height() {
+    return _height;
   }
 
   [[nodiscard]] auto data() const -> const AssetItem & {
@@ -304,8 +335,13 @@ void AssetsList::setupContent(rpl::producer<AssetsListState> &&state) {
               return _widget.update();
             }
 
+            int totalHeight = 0;
             for (size_t i = 0; i < _rows.size(); ++i) {
+              int rowHeight = assetRowHeight(_rows[i]->layoutType());
+              totalHeight += rowHeight + st::walletTokensListRowSpacing;
+
               if (i < _buttons.size()) {
+                _buttons[i].button->setFixedHeight(rowHeight);
                 // skip already existing buttons
                 continue;
               }
@@ -385,7 +421,7 @@ void AssetsList::setupContent(rpl::producer<AssetsListState> &&state) {
                       },
                       button->lifetime());
 
-              button->setFixedHeight(st::walletTokensListRowHeight);
+              button->setFixedHeight(rowHeight);
 
               _buttons.emplace_back(ButtonState{
                   .button = layout->add(std::move(button), QMargins{0, st::walletTokensListRowSpacing, 0, 0}),
@@ -401,10 +437,8 @@ void AssetsList::setupContent(rpl::producer<AssetsListState> &&state) {
               _buttons.pop_back();
             }
 
-            *contentHeight =
-                static_cast<int>(_rows.size()) * (st::walletTokensListRowHeight + st::walletTokensListRowSpacing) -
-                (_rows.empty() ? 0 : st::walletTokensListRowSpacing) + st::walletTokensListPadding.top() +
-                st::walletTokensListPadding.bottom();
+            *contentHeight = totalHeight - (_rows.empty() ? 0 : st::walletTokensListRowSpacing) +
+                             st::walletTokensListPadding.top() + st::walletTokensListPadding.bottom();
 
             layout->setMinimumHeight(std::max(contentHeight->current(), _widget.height()));
             _height = topSectionHeight + contentHeight->current();

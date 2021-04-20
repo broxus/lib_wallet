@@ -214,7 +214,8 @@ walletTokensListTitle: FlatLabel(defaultFlatLabel) {
 }
 
 walletTokensListRowsTopOffset: 50px;
-walletTokensListRowHeight: 96px;
+walletTokensListRowHeight: 94px;
+walletTokensListCompactRowHeight: 76px;
 walletTokensListRowIconSize: 44px;
 walletTokensListRowTitleStyle: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
