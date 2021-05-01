@@ -331,6 +331,9 @@ phrase lng_wallet_sending_title = "Sending {ticker}";
 phrase lng_wallet_sending_text = "Please wait a few seconds for your\ntransaction to be processed...";
 phrase lng_wallet_sending_all_stake = "All stake was requested for withdrawal.";
 
+phrase lng_wallet_approving_ledger_title = "Waiting for approval";
+phrase lng_wallet_approving_ledger_text = "You need to approve the transaction by Ledger before sending";
+
 phrase lng_wallet_sent_title = "Done!";
 phrase lng_wallet_sent_cancel_withdrawal = "Withdrawal cancelled";
 phrase lng_wallet_sent_deploy_token_wallet = "Deployed";
@@ -408,6 +411,9 @@ phrase lng_wallet_keystore_export = "Export phrase";
 phrase lng_wallet_keystore_change_password = "Change password";
 phrase lng_wallet_keystore_pubkey_copied = "Public key copied to clipboard.";
 
+phrase lng_wallet_import_ledger_title = "Import Ledger";
+phrase lng_wallet_import_ledger_description = "Select the key to view in Crystal Wallet";
+
 phrase lng_wallet_key_not_found_title = "Key not found";
 phrase lng_wallet_key_not_found_text = "The specified key was not found. Please add it to the keystore.";
 
@@ -416,10 +422,13 @@ phrase lng_wallet_new_ftabi_key_name = "Name";
 phrase lng_wallet_new_ftabi_key_enter_key_name = "Enter the name of the key";
 phrase lng_wallet_new_ftabi_key_generate_new = "Generate new";
 phrase lng_wallet_new_ftabi_key_import_existing = "Import existing";
+phrase lng_wallet_new_ftabi_key_import_ledger_wallet = "Import Ledger wallet";
 phrase lng_wallet_new_ftabi_key_enter_mnemonic = "Enter a 12-word mnemonic";
 phrase lng_wallet_new_ftabi_key_generate = "Generate";
 phrase lng_wallet_new_ftabi_key_import = "Import";
 phrase lng_wallet_new_ftabi_key_done = "Key added successfully.";
+
+phrase lng_wallet_new_ledger_key_import = "Import";
 
 phrase lng_wallet_import_ftabi_key_title = "Import new key";
 phrase lng_wallet_import_ftabi_key_incorrect_title = "Incorrect words";

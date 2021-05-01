@@ -1499,9 +1499,13 @@ void Window::askSendPassword(const PreparedInvoice &invoice, const Fn<void(Invoi
     return showKeyNotFound();
   }
 
-  auto box = Box(EnterPasscodeBox, it->second.name, [=](const QByteArray &passcode, Fn<void(QString)> showError) {
-    ready(passcode, invoice, std::move(showError));
+  auto box = isLedgerKey(passcodePublicKey)
+                 ? Box(ApprovingTransactionBox,[=](const QByteArray &passcode, Fn<void(QString)> showError) {
+                     ready(passcode, invoice, std::move(showError)); })
+                 : Box(EnterPasscodeBox, it->second.name, [=](const QByteArray &passcode, Fn<void(QString)> showError) {
+                     ready(passcode, invoice, std::move(showError));
   });
+
   _sendConfirmBox = box.data();
   _layers->showBox(std::move(box));
 }
@@ -2065,15 +2069,17 @@ void Window::showKeystore() {
           return;
         }
         *deletionGuard = true;
-
-        if (keyType != Ton::KeyType::Original) {
-          _wallet->deleteFtabiKey(publicKey, [=](const Ton::Result<> &result) {
-            if (!result) {
-              *deletionGuard = false;
-              return;
-            }
-            showKeystore();
-          });
+        auto deleted = [=](const Ton::Result<> &result) {
+          if (!result) {
+            *deletionGuard = false;
+            return;
+          }
+          showKeystore();
+        };
+        if (keyType == Ton::KeyType::Ftabi) {
+          _wallet->deleteFtabiKey(publicKey, deleted);
+        } else if (keyType == Ton::KeyType::Ledger) {
+          _wallet->deleteLedgerKey(publicKey, deleted);
         }
         return;
       }
@@ -2090,7 +2096,7 @@ void Window::showKeystore() {
     addFtabiKey([=] { *creationGuard = false; }, [=](const QByteArray &) { showKeystore(); });
   };
 
-  auto box = Box(KeystoreBox, getMainPublicKey(), _wallet->ftabiKeys(), sharePubKeyCallback(), handleAction, onCreate);
+  auto box = Box(KeystoreBox, getMainPublicKey(), _wallet->ftabiKeys(), _wallet->ledgerKeys(), sharePubKeyCallback(), handleAction, onCreate);
   _keystoreBox = box.data();
   _layers->showBox(std::move(box));
 }
@@ -2146,18 +2152,23 @@ void Window::addFtabiKey(const Fn<void()> &cancel, const OnFtabiKeyCreated &done
     }
     *guard = true;
 
-    if (newKey.generate) {
+    if (newKey.action == NewFtabiAction::Generate) {
       _wallet->createFtabiKey(newKey.name, Ton::kFtabiKeyDerivationPath, [=](Ton::Result<std::vector<QString>> result) {
         if (!result) {
           return showToast(result.error().details);
         }
-
         showNewFtabiKey(result.value(), done);
       });
-    } else {
+    } else if (newKey.action == NewFtabiAction::Import) {
       importFtabiKey(newKey.name, cancel, done);
+    } else {
+      _wallet->getLedgerKeys(0, 5, [=](Ton::Result<std::vector<Ton::TonLedgerKey>> result) {
+        if (!result) {
+          return showToast(result.error().details);
+        }
+        importLedgerKey(result.value(), cancel, done);
+      });
     }
-
     if (*weakBox) {
       (*weakBox)->closeBox();
     }
@@ -2211,6 +2222,44 @@ void Window::showNewFtabiKey(const std::vector<QString> &words, const OnFtabiKey
       }
       done(publicKey);
     });
+  });
+  *weakBox = box.data();
+  _layers->showBox(std::move(box));
+}
+
+void Window::importLedgerKey(std::vector<Ton::TonLedgerKey> &ledgerKeys, const Fn<void()> &cancel, const OnFtabiKeyCreated &done) {
+  const auto weakBox = std::make_shared<QPointer<Ui::GenericBox>>();
+
+  const auto isLedgerKeyCreated = [=](const QByteArray &ledgerKey) {
+    auto keys = _wallet->ledgerKeys();
+    return std::any_of(keys.begin(), keys.end(), [&ledgerKey](const Ton::LedgerKey &key){
+      return ledgerKey == key.publicKey;
+    });
+  };
+
+  for (auto &ledgerKey: ledgerKeys) {
+    ledgerKey.created = isLedgerKeyCreated(ledgerKey.publicKey);
+  }
+
+  auto box = Box(ImportLedgerKeyBox, cancel, ledgerKeys, [=] (const LedgerKeysList& ledgerKeys) {
+
+    // TODO: Should handle ont only front element eventually
+    if (!ledgerKeys.empty()) {
+      _wallet->createLedgerKey(ledgerKeys.front(), [=](Ton::Result<> result) {
+        if (!result) {
+          return showToast(result.error().details);
+        }
+
+        if (*weakBox) {
+          (*weakBox)->closeBox();
+        }
+        done(ledgerKeys.front().publicKey);
+      });
+    }
+
+    if (*weakBox) {
+      (*weakBox)->closeBox();
+    }
   });
   *weakBox = box.data();
   _layers->showBox(std::move(box));
@@ -2486,6 +2535,7 @@ QByteArray Window::getMainPublicKey() const {
 std::vector<QByteArray> Window::getAllPublicKeys() const {
   const auto mainPublicKey = getMainPublicKey();
   const auto ftabiKeys = _wallet->ftabiKeys();
+  const auto ledgerKeys = _wallet->ledgerKeys();
 
   std::vector<QByteArray> result;
   result.reserve(1 + ftabiKeys.size());
@@ -2493,6 +2543,10 @@ std::vector<QByteArray> Window::getAllPublicKeys() const {
   result.emplace_back(mainPublicKey);
 
   for (const auto &key : ftabiKeys) {
+    result.emplace_back(key.publicKey);
+  }
+
+  for (const auto &key : ledgerKeys) {
     result.emplace_back(key.publicKey);
   }
 
@@ -2529,7 +2583,19 @@ base::flat_map<QByteArray, Ton::AvailableKey> Window::getExistingKeys() const {
                                             .name = key.name,
                                         });
   }
+  for (const auto &key : _wallet->ledgerKeys()) {
+    existingKeys.emplace(key.publicKey, Ton::AvailableKey{
+                                            .type = Ton::KeyType::Ledger,
+                                            .publicKey = key.publicKey,
+                                            .name = key.name,
+                                        });
+  }
   return existingKeys;
+}
+
+bool Window::isLedgerKey(const QByteArray &pubkey) const {
+  auto ledgerKeys = _wallet->ledgerKeys();
+  return std::any_of(ledgerKeys.begin(), ledgerKeys.end(), [&](const auto &key){ return key.publicKey == pubkey; });
 }
 
 void Window::askExportPassword() {

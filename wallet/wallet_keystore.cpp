@@ -13,6 +13,7 @@
 #include "styles/style_wallet.h"
 #include "wallet/wallet_common.h"
 #include "wallet/wallet_phrases.h"
+#include "wallet/create/wallet_create_ledger.h"
 #include "wallet/create/wallet_create_view.h"
 #include "base/platform/base_platform_layout_switch.h"
 #include "ton/ton_wallet.h"
@@ -180,13 +181,22 @@ class KeystoreItem {
     const auto menu = _menu.get();
     toggle->installEventFilter(menu);
 
-    menu->addAction(ph::lng_wallet_keystore_export(ph::now),
-                    [=] { _handler(_keyType, _publicKey, KeystoreAction::Export); });
+    if (_keyType == Ton::KeyType::Original) {
+      menu->addAction(ph::lng_wallet_keystore_export(ph::now),
+                      [=] { _handler(_keyType, _publicKey, KeystoreAction::Export); });
 
-    menu->addAction(ph::lng_wallet_keystore_change_password(ph::now),
-                    [=] { _handler(_keyType, _publicKey, KeystoreAction::ChangePassword); });
+      menu->addAction(ph::lng_wallet_keystore_change_password(ph::now),
+                      [=] { _handler(_keyType, _publicKey, KeystoreAction::ChangePassword); });
+    }  else if (_keyType == Ton::KeyType::Ftabi) {
+      menu->addAction(ph::lng_wallet_keystore_export(ph::now),
+                      [=] { _handler(_keyType, _publicKey, KeystoreAction::Export); });
 
-    if (_keyType != Ton::KeyType::Original) {
+      menu->addAction(ph::lng_wallet_keystore_change_password(ph::now),
+                      [=] { _handler(_keyType, _publicKey, KeystoreAction::ChangePassword); });
+
+      menu->addAction(ph::lng_wallet_keystore_delete(ph::now),
+                      [=] { _handler(_keyType, _publicKey, KeystoreAction::Delete); });
+    } else if (_keyType == Ton::KeyType::Ledger) {
       menu->addAction(ph::lng_wallet_keystore_delete(ph::now),
                       [=] { _handler(_keyType, _publicKey, KeystoreAction::Delete); });
     }
@@ -211,7 +221,7 @@ class KeystoreItem {
 };
 
 void KeystoreBox(not_null<Ui::GenericBox *> box, const QByteArray &mainPublicKey,
-                 const std::vector<Ton::FtabiKey> &ftabiKeys, const Fn<void(QString)> &share,
+                 const std::vector<Ton::FtabiKey> &ftabiKeys, const std::vector<Ton::LedgerKey> &ledgerKeys, const Fn<void(QString)> &share,
                  const OnKeystoreAction &onAction, const Fn<void()> &createFtabiKey) {
   box->setWidth(st::boxWideWidth);
   box->setStyle(st::walletBox);
@@ -249,6 +259,10 @@ void KeystoreBox(not_null<Ui::GenericBox *> box, const QByteArray &mainPublicKey
   for (const auto &key : ftabiKeys) {
     addDivider();
     addItem(Ton::KeyType::Ftabi, key.publicKey, key.name);
+  }
+  for (const auto &key : ledgerKeys) {
+    addDivider();
+    addItem(Ton::KeyType::Ledger, key.publicKey, key.name);
   }
   addDivider();
 
@@ -288,41 +302,49 @@ void NewFtabiKeyBox(not_null<Ui::GenericBox *> box, const Fn<void()> &cancel, co
                                                            ph::lng_wallet_new_ftabi_key_enter_key_name()));
   name->setMaxLength(32);
 
-  const auto generate = box->lifetime().make_state<rpl::variable<bool>>(false);
-  const auto creationMethodSelector = std::make_shared<Ui::RadiobuttonGroup>(generate->current());
+  const auto action = box->lifetime().make_state<rpl::variable<NewFtabiAction>>(NewFtabiAction::Generate);
+  const auto creationMethodSelector = std::make_shared<Ui::RadiobuttonGroup>(static_cast<int>(action->current()));
   const auto radioButtonItemHeight =
       st::defaultCheckbox.margin.top() + st::defaultRadio.diameter + st::defaultCheckbox.margin.bottom();
 
   const auto checkboxGenerate = box->addRow(  //
       object_ptr<Ui::FixedHeightWidget>(box, radioButtonItemHeight),
       QMargins(st::walletSendAmountPadding.left(), st::walletSendAmountPadding.bottom(), 0, 0));
-  Ui::CreateChild<Ui::Radiobutton>(checkboxGenerate, creationMethodSelector, /*generate*/ true,
+  Ui::CreateChild<Ui::Radiobutton>(checkboxGenerate, creationMethodSelector, static_cast<int>(NewFtabiAction::Generate),
                                    ph::lng_wallet_new_ftabi_key_generate_new(ph::now));
 
   const auto checkboxImport = box->addRow(  //
       object_ptr<Ui::FixedHeightWidget>(box, radioButtonItemHeight),
       QMargins(st::walletSendAmountPadding.left(), 0, 0, 0));
-  Ui::CreateChild<Ui::Radiobutton>(checkboxImport, creationMethodSelector, /*generate*/ false,
+  Ui::CreateChild<Ui::Radiobutton>(checkboxImport, creationMethodSelector, static_cast<int>(NewFtabiAction::Import),
                                    ph::lng_wallet_new_ftabi_key_import_existing(ph::now));
 
-  creationMethodSelector->setChangedCallback([=](bool value) { *generate = value; });
+  const auto checkboxImportLedger = box->addRow(  //
+       object_ptr<Ui::FixedHeightWidget>(box, radioButtonItemHeight),
+       QMargins(st::walletSendAmountPadding.left(), 0, 0, 0));
+  Ui::CreateChild<Ui::Radiobutton>(checkboxImportLedger, creationMethodSelector, static_cast<int>(NewFtabiAction::ImportLedger),
+                                     ph::lng_wallet_new_ftabi_key_import_ledger_wallet(ph::now));
+
+  creationMethodSelector->setChangedCallback([=](int value) { *action = static_cast<NewFtabiAction>(value); });
 
   const auto submit = [=] {
     const auto nameValue = name->getLastText();
-    if (nameValue.isEmpty()) {
+    if (nameValue.isEmpty() && action->current() != NewFtabiAction::ImportLedger) {
       return name->showError();
     }
 
-    done(NewFtabiKey{.name = nameValue, .generate = generate->current()});
+    done(NewFtabiKey{.name = nameValue, .action = action->current()});
   };
 
   auto buttonText =      //
-      generate->value()  //
-      | rpl::map([=](bool generate) {
-          if (generate) {
+      action->value()  //
+      | rpl::map([=](NewFtabiAction action) {
+          if (action == NewFtabiAction::Generate) {
             return ph::lng_wallet_new_ftabi_key_generate();
-          } else {
+          } else if (action == NewFtabiAction::Import) {
             return ph::lng_wallet_new_ftabi_key_import();
+          } else {
+            return ph::lng_wallet_new_ledger_key_import();
           }
         })  //
       | rpl::flatten_latest();
@@ -477,6 +499,25 @@ void GeneratedFtabiKeyBox(not_null<Ui::GenericBox *> box, const WordsList &words
   view->showFast();
 
   box->addButton(ph::lng_wallet_next(), done, st::walletWideBottomButton)
+      ->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+}
+
+void ImportLedgerKeyBox(not_null<Ui::GenericBox *> box, const Fn<void()> &cancel, const LedgerKeysList &ledgerKeys, const Fn<void(const LedgerKeysList&)> &done) {
+  box->setWidth(st::boxWideWidth);
+  box->setStyle(st::walletBox);
+  box->setNoContentMargin(true);
+
+  box->addTopButton(st::boxTitleClose, [=] {
+    box->closeBox();
+    cancel();
+  });
+
+  const auto view = box->lifetime().make_state<Create::Ledger>(ledgerKeys);
+  view->widget()->resize(st::boxWideWidth, view->desiredHeight());
+  box->addRow(object_ptr<Ui::RpWidget>::fromRaw(view->widget()), QMargins());
+  view->showFast();
+
+  box->addButton(ph::lng_wallet_new_ledger_key_import(), [=] { done(view->passLedgerKeys()); }, st::walletWideBottomButton)
       ->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 }
 

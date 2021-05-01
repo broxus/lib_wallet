@@ -16,6 +16,7 @@ class Symbol;
 namespace Wallet {
 
 void SendingTransactionBox(not_null<Ui::GenericBox *> box, const Ton::Symbol &token, rpl::producer<> confirmed);
+void ApprovingTransactionBox(not_null<Ui::GenericBox *> box, const Fn<void(QByteArray password, Fn<void(QString)> error)>& submit);
 
 template <typename T>
 void SendingDoneBox(not_null<Ui::GenericBox *> box, const Ton::Transaction &result, const T &invoice,
