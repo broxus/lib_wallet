@@ -311,6 +311,9 @@ extern phrase lng_wallet_sending_title;
 extern phrase lng_wallet_sending_text;
 extern phrase lng_wallet_sending_all_stake;
 
+extern phrase lng_wallet_approving_ledger_title;
+extern phrase lng_wallet_approving_ledger_text;
+
 extern phrase lng_wallet_sent_title;
 extern phrase lng_wallet_sent_cancel_withdrawal;
 extern phrase lng_wallet_sent_deploy_token_wallet;
@@ -386,6 +389,9 @@ extern phrase lng_wallet_keystore_export;
 extern phrase lng_wallet_keystore_change_password;
 extern phrase lng_wallet_keystore_pubkey_copied;
 
+extern phrase lng_wallet_import_ledger_title;
+extern phrase lng_wallet_import_ledger_description;
+
 extern phrase lng_wallet_key_not_found_title;
 extern phrase lng_wallet_key_not_found_text;
 
@@ -394,10 +400,13 @@ extern phrase lng_wallet_new_ftabi_key_name;
 extern phrase lng_wallet_new_ftabi_key_enter_key_name;
 extern phrase lng_wallet_new_ftabi_key_generate_new;
 extern phrase lng_wallet_new_ftabi_key_import_existing;
+extern phrase lng_wallet_new_ftabi_key_import_ledger_wallet;
 extern phrase lng_wallet_new_ftabi_key_enter_mnemonic;
 extern phrase lng_wallet_new_ftabi_key_generate;
 extern phrase lng_wallet_new_ftabi_key_import;
 extern phrase lng_wallet_new_ftabi_key_done;
+
+extern phrase lng_wallet_new_ledger_key_import;
 
 extern phrase lng_wallet_import_ftabi_key_title;
 extern phrase lng_wallet_import_ftabi_key_incorrect_title;

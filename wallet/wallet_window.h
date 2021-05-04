@@ -25,6 +25,7 @@ struct Transaction;
 struct WalletState;
 struct Error;
 struct Settings;
+struct TonLedgerKey;
 enum class ConfigUpgrade;
 }  // namespace Ton
 
@@ -134,6 +135,7 @@ class Window final : public base::has_weak_ptr {
   void addFtabiKey(const Fn<void()> &cancel, const OnFtabiKeyCreated &done);
   void importFtabiKey(const QString &name, const Fn<void()> &cancel, const OnFtabiKeyCreated &done);
   void showNewFtabiKey(const std::vector<QString> &words, const OnFtabiKeyCreated &done);
+  void importLedgerKey(std::vector<Ton::TonLedgerKey> &ledgerKeys, const Fn<void()> &cancel, const OnFtabiKeyCreated &done);
   void askNewFtabiKeyPassword(const OnFtabiKeyCreated &done);
   void askFtabiKeyChangePassword(const QByteArray &publicKey);
 
@@ -148,6 +150,8 @@ class Window final : public base::has_weak_ptr {
   std::vector<QByteArray> getAllPublicKeys() const;
   std::vector<Ton::AvailableKey> getAvailableKeys(const std::vector<QByteArray> &custodians) const;
   base::flat_map<QByteArray, Ton::AvailableKey> getExistingKeys() const;
+
+  bool isLedgerKey(const QByteArray &pubkey) const;
 
   [[nodiscard]] Fn<void(QImage, QString)> shareCallback(const QString &linkCopied, const QString &textCopied,
                                                         const QString &qr);

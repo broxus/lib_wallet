@@ -57,6 +57,34 @@ void SendingTransactionBox(not_null<Ui::GenericBox *> box, const Ton::Symbol &sy
           inner->lifetime());
 }
 
+void ApprovingTransactionBox(not_null<Ui::GenericBox *> box, const Fn<void(QByteArray password, Fn<void(QString)> error)>& submit) {
+  const auto inner = box->addRow(object_ptr<Ui::FixedHeightWidget>(box, AskPasswordBoxHeight()));
+
+  const auto lottie = inner->lifetime().make_state<Ui::LottieAnimation>(inner, Ui::LottieFromResource("money"));
+  lottie->start();
+
+  box->setCloseByEscape(false);
+  box->setCloseByOutsideClick(false);
+  box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
+
+  const auto title = Ui::CreateChild<Ui::FlatLabel>(inner, ph::lng_wallet_approving_ledger_title(), st::walletSendingTitle);
+  const auto text = Ui::CreateChild<Ui::FlatLabel>(inner, ph::lng_wallet_approving_ledger_text(), st::walletSendingText);
+
+  inner->widthValue() |
+  rpl::start_with_next(
+      [=](int width) {
+        lottie->setGeometry({(width - st::walletSendingLottieSize) / 2, st::walletSendingLottieTop,
+                             st::walletSendingLottieSize, st::walletSendingLottieSize});
+        title->moveToLeft((width - title->width()) / 2, st::walletSendingTitleTop, width);
+        text->moveToLeft((width - text->width()) / 2, st::walletSendingTextTop, width);
+      },
+      inner->lifetime());
+
+  submit(QByteArray{}, crl::guard(box, [=](QString text) {
+    // Nothing
+  }));
+}
+
 template <typename T>
 void SendingDoneBox(not_null<Ui::GenericBox *> box, const Ton::Transaction &result, const T &invoice,
                     const Fn<void()> &onClose) {
