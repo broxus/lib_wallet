@@ -414,6 +414,7 @@ extern phrase lng_wallet_token_version_unknown;
 extern phrase lng_wallet_token_version_tipo3v1;
 extern phrase lng_wallet_token_version_tipo3v2;
 extern phrase lng_wallet_token_version_tip3v3;
+extern phrase lng_wallet_token_version_tip3v4;
 
 extern phrase lng_wallet_multisig_version_safe_multisig;
 extern phrase lng_wallet_multisig_version_safe_multisig_24h;

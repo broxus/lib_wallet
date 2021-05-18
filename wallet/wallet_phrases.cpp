@@ -437,6 +437,7 @@ phrase lng_wallet_token_version_unknown = "unknown";
 phrase lng_wallet_token_version_tipo3v1 = "tipo3v1";
 phrase lng_wallet_token_version_tipo3v2 = "tipo3v2";
 phrase lng_wallet_token_version_tip3v3 = "TIP3v3";
+phrase lng_wallet_token_version_tip3v4 = "TIP3v4";
 
 phrase lng_wallet_multisig_version_safe_multisig = "SafeMultisig";
 phrase lng_wallet_multisig_version_safe_multisig_24h = "SafeMultisig24h";
@@ -568,6 +569,8 @@ Fn<phrase(Ton::TokenVersion)> lng_wallet_token_version = [](Ton::TokenVersion ve
       return ph::lng_wallet_token_version_tipo3v2;
     case Ton::TokenVersion::TIP3v3:
       return ph::lng_wallet_token_version_tip3v3;
+    case Ton::TokenVersion::TIP3v4:
+      return ph::lng_wallet_token_version_tip3v4;
     default:
       return ph::lng_wallet_token_version_unknown;
   }
