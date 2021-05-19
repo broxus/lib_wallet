@@ -147,8 +147,9 @@ void SendGramsBox(not_null<Ui::GenericBox *> box, const T &invoice, rpl::produce
 
   auto isEthereumAddress = box->lifetime().make_state<rpl::variable<bool>>(prepared->address.indexOf("0x") != -1);
 
-  const auto swapBackDisabled = Ton::Wallet::ConvertIntoRaw(symbol.rootContractAddress()) ==
-                                "0:eed3f331634d49a5da2b546f4652dd4889487a187c2ef9dd2203cff17b584e3d";
+  const auto swapBackDisabled =
+      symbol.isTon() || Ton::Wallet::ConvertIntoRaw(symbol.rootContractAddress()) ==
+                            "0:eed3f331634d49a5da2b546f4652dd4889487a187c2ef9dd2203cff17b584e3d";
 
   Ui::InputField *callbackAddress = nullptr;
   Ui::VerticalLayout *callbackAddressWrapper = nullptr;
