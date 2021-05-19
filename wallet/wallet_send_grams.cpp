@@ -287,6 +287,26 @@ void SendGramsBox(not_null<Ui::GenericBox *> box, const T &invoice, rpl::produce
       return;
     }
     collected.address = address->getLastText();
+
+    // Fix address for WTONv3/v4 to prevent users loosing their tokens
+    if (Ton::Wallet::CheckAddress(collected.address)) {
+      const auto recipient = Ton::Wallet::ConvertIntoRaw(collected.address);
+
+      const auto oldWtonVault = "0:136cc9fabcecfa251fae61a0fa727e1b65fe68edd2512beb671582189367faed";
+      const auto newWtonVault = "0:d0936a9fc29b5175487208b1d07ab8042ce7ddbc2de7e271c4087ca833b865cc";
+
+      const auto oldWtonRoot = "EQDu0_MxY01JpdorVG9GUt1IiUh6GHwu-d0iA8_xe1hOPdmC";
+      const auto newWtonRoot = "EQAO45Mw7dtoDOcxzWpEPHHZBp2wbRSam-yVadHrjQTrN-tz";
+
+      if (symbol.isTon() && recipient == oldWtonVault) {
+        collected.address = newWtonVault;
+      } else if (symbol.isToken() && symbol.rootContractAddress() == oldWtonRoot && recipient == newWtonVault) {
+        collected.address = oldWtonVault;
+      } else if (symbol.isToken() && symbol.rootContractAddress() == newWtonRoot && recipient == oldWtonVault) {
+        collected.address = newWtonVault;
+      }
+    }
+
     if constexpr (isTonTransfer || isMsigTransfer) {
       collected.amount = static_cast<int64>(*parsed);
       collected.comment = comment->getLastText();
