@@ -506,7 +506,9 @@ rpl::producer<AssetsListState> MakeTokensListState(rpl::producer<Ton::WalletView
                          .token = token.symbol,
                          .address = it->second.walletContractAddress,
                          .balance = it->second.balance,
-                         .outdated = it->second.shouldUpdate().has_value(),
+                         .outdated = it->second.shouldUpdate().has_value() ||
+                                     Ton::Wallet::ConvertIntoRaw(token.symbol.rootContractAddress()) ==
+                                         QString{"0:eed3f331634d49a5da2b546f4652dd4889487a187c2ef9dd2203cff17b584e3d"},
                      };
                    } else {
                      return TokenItem{.token = token.symbol, .address = Ton::kZeroAddress};

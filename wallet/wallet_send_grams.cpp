@@ -147,23 +147,28 @@ void SendGramsBox(not_null<Ui::GenericBox *> box, const T &invoice, rpl::produce
 
   auto isEthereumAddress = box->lifetime().make_state<rpl::variable<bool>>(prepared->address.indexOf("0x") != -1);
 
+  const auto swapBackDisabled = Ton::Wallet::ConvertIntoRaw(symbol.rootContractAddress()) ==
+                                "0:eed3f331634d49a5da2b546f4652dd4889487a187c2ef9dd2203cff17b584e3d";
+
   Ui::InputField *callbackAddress = nullptr;
   Ui::VerticalLayout *callbackAddressWrapper = nullptr;
   rpl::variable<Ton::TokenTransferType> *transferType = nullptr;
   if constexpr (isTokenTransfer) {
-    transferType = box->lifetime().make_state<rpl::variable<Ton::TokenTransferType>>(
-        isEthereumAddress->current() ? Ton::TokenTransferType::SwapBack : prepared->transferType);
-    callbackAddressWrapper = box->addRow(object_ptr<Ui::VerticalLayout>(box), QMargins{});
+    if (!swapBackDisabled) {
+      transferType = box->lifetime().make_state<rpl::variable<Ton::TokenTransferType>>(
+          isEthereumAddress->current() ? Ton::TokenTransferType::SwapBack : prepared->transferType);
+      callbackAddressWrapper = box->addRow(object_ptr<Ui::VerticalLayout>(box), QMargins{});
 
-    AddBoxSubtitle(callbackAddressWrapper, ph::lng_wallet_send_token_proxy_address());
-    callbackAddress = callbackAddressWrapper->add(
-        object_ptr<Ui::InputField>(box, st::walletSendInput, Ui::InputField::Mode::NoNewlines,
-                                   ph::lng_wallet_send_token_proxy_address_placeholder(),
-                                   prepared->callbackAddress.isEmpty()
-                                       ? prepared->callbackAddress
-                                       : Ton::Wallet::ConvertIntoRaw(prepared->callbackAddress)),
-        st::boxRowPadding);
-    callbackAddress->setSizePolicy(QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Expanding);
+      AddBoxSubtitle(callbackAddressWrapper, ph::lng_wallet_send_token_proxy_address());
+      callbackAddress = callbackAddressWrapper->add(
+          object_ptr<Ui::InputField>(box, st::walletSendInput, Ui::InputField::Mode::NoNewlines,
+                                     ph::lng_wallet_send_token_proxy_address_placeholder(),
+                                     prepared->callbackAddress.isEmpty()
+                                         ? prepared->callbackAddress
+                                         : Ton::Wallet::ConvertIntoRaw(prepared->callbackAddress)),
+          st::boxRowPadding);
+      callbackAddress->setSizePolicy(QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Expanding);
+    }
   }
 
   Ui::InputField *comment = nullptr;
@@ -216,8 +221,8 @@ void SendGramsBox(not_null<Ui::GenericBox *> box, const T &invoice, rpl::produce
           if (value > 0) {
             return rpl::combine(                   //
                        isEthereumAddress->value()  //
-                           | rpl::map([](bool isEthereumAddress) {
-                               if (isEthereumAddress) {
+                           | rpl::map([swapBackDisabled](bool isEthereumAddress) {
+                               if (isEthereumAddress && !swapBackDisabled) {
                                  return ph::lng_wallet_send_button_swap_back_amount();
                                } else {
                                  return ph::lng_wallet_send_button_amount();
@@ -238,8 +243,8 @@ void SendGramsBox(not_null<Ui::GenericBox *> box, const T &invoice, rpl::produce
                                   });
                          }
                        }())  //
-                   | rpl::map([](bool isEthereumAddress, bool isSwapBack) {
-                       if (isEthereumAddress || isSwapBack) {
+                   | rpl::map([swapBackDisabled](bool isEthereumAddress, bool isSwapBack) {
+                       if ((isEthereumAddress || isSwapBack) && !swapBackDisabled) {
                          return ph::lng_wallet_send_button_swap_back();
                        } else {
                          return ph::lng_wallet_send_button();
@@ -288,8 +293,9 @@ void SendGramsBox(not_null<Ui::GenericBox *> box, const T &invoice, rpl::produce
       collected.ownerAddress = collected.address;
       collected.amount = *parsed;
       collected.token = symbol;
-      collected.callbackAddress = callbackAddress->getLastText();
-      collected.transferType = transferType->current();
+      collected.callbackAddress =
+          callbackAddress != nullptr ? callbackAddress->getLastText() : prepared->callbackAddress;
+      collected.transferType = transferType != nullptr ? transferType->current() : prepared->transferType;
     }
     done(collected, showError);
   };
